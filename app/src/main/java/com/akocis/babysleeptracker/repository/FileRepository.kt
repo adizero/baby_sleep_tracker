@@ -40,23 +40,16 @@ class FileRepository(private val context: Context) {
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                try {
-                    val content = readContent(uri)
-                    val lines = content.lines().toMutableList()
-                    val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
-                    val newLine = EntryParser.formatBabyInfo(name, birthDate)
-                    if (babyLineIndex >= 0) {
-                        lines[babyLineIndex] = newLine
-                    } else {
-                        lines.add(0, newLine)
-                    }
-                    val newContent = lines.joinToString("\n")
-                    context.contentResolver.openOutputStream(uri, "wt")?.use {
-                        it.write(newContent.toByteArray())
-                    }
-                } catch (_: Exception) {
-                    // File write may fail if permissions were revoked
+                val content = readContent(uri)
+                val lines = content.lines().toMutableList()
+                val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
+                val newLine = EntryParser.formatBabyInfo(name, birthDate)
+                if (babyLineIndex >= 0) {
+                    lines[babyLineIndex] = newLine
+                } else {
+                    lines.add(0, newLine)
                 }
+                writeContent(uri, lines.joinToString("\n"))
             }
         }
     }
@@ -65,15 +58,11 @@ class FileRepository(private val context: Context) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
-
                 val lines = content.lines().toMutableList()
                 val index = lines.indexOfFirst { it.trim() == lineToRemove.trim() }
                 if (index >= 0) {
                     lines.removeAt(index)
-                    val newContent = lines.joinToString("\n")
-                    context.contentResolver.openOutputStream(uri, "wt")?.use {
-                        it.write(newContent.toByteArray())
-                    }
+                    writeContent(uri, lines.joinToString("\n"))
                 }
             }
         }
@@ -83,15 +72,11 @@ class FileRepository(private val context: Context) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
-
                 val lines = content.lines().toMutableList()
                 val index = lines.indexOfFirst { it.trim() == oldLine.trim() }
                 if (index >= 0) {
                     lines[index] = newLine
-                    val newContent = lines.joinToString("\n")
-                    context.contentResolver.openOutputStream(uri, "wt")?.use {
-                        it.write(newContent.toByteArray())
-                    }
+                    writeContent(uri, lines.joinToString("\n"))
                 }
             }
         }
@@ -101,7 +86,6 @@ class FileRepository(private val context: Context) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
-
                 val lines = content.lines().toMutableList()
                 while (lines.isNotEmpty() && lines.last().isBlank()) {
                     lines.removeAt(lines.lastIndex)
@@ -109,10 +93,7 @@ class FileRepository(private val context: Context) {
                 if (lines.isNotEmpty()) {
                     lines.removeAt(lines.lastIndex)
                 }
-                val newContent = lines.joinToString("\n")
-                context.contentResolver.openOutputStream(uri, "wt")?.use {
-                    it.write(newContent.toByteArray())
-                }
+                writeContent(uri, lines.joinToString("\n"))
             }
         }
     }
@@ -153,11 +134,16 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    private fun writeContent(uri: Uri, content: String) {
+        val stream = context.contentResolver.openOutputStream(uri, "wt")
+            ?: throw IllegalStateException("Cannot open file for writing")
+        stream.use { it.write(content.toByteArray()) }
+    }
+
     private suspend fun appendLine(uri: Uri, line: String) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val existing = readContent(uri)
-
                 val newContent = if (existing.isBlank()) {
                     line
                 } else if (existing.endsWith("\n")) {
@@ -165,10 +151,7 @@ class FileRepository(private val context: Context) {
                 } else {
                     existing + "\n" + line
                 }
-
-                context.contentResolver.openOutputStream(uri, "wt")?.use {
-                    it.write(newContent.toByteArray())
-                }
+                writeContent(uri, newContent)
             }
         }
     }

@@ -44,6 +44,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _undoLabel = MutableStateFlow<String?>(null)
     val undoLabel: StateFlow<String?> = _undoLabel
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     private val _babyName = MutableStateFlow<String?>(null)
     val babyName: StateFlow<String?> = _babyName
 
@@ -61,6 +64,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         loadBabyInfo()
         refreshTodayStats()
+    }
+
+    fun dismissError() {
+        _errorMessage.value = null
     }
 
     private fun loadBabyInfo() {
@@ -98,26 +105,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
                 startTimer()
-                // Append an ongoing sleep entry to the file
                 viewModelScope.launch {
-                    fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
-                    refreshTodayStats()
-                    showUndo("Sleep started at ${now.startTime}")
+                    try {
+                        fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
+                        refreshTodayStats()
+                        showUndo("Sleep started at ${now.startTime}")
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Failed to save sleep entry: ${e.message}"
+                    }
                 }
             }
             is TrackingState.Sleeping -> {
                 val endTime = LocalTime.now().withSecond(0).withNano(0)
-                val entry = SleepEntry(state.startDate, state.startTime, endTime)
                 viewModelScope.launch {
-                    // Update the ongoing entry with the end time
-                    val ongoingLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
-                    val completedLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)}"
-                    fileRepository.updateEntry(uri, ongoingLine, completedLine)
-                    _trackingState.value = TrackingState.Idle
-                    prefsRepository.saveTrackingState(TrackingState.Idle)
-                    stopTimer()
-                    refreshTodayStats()
-                    showUndo("Sleep ${state.startTime} - $endTime")
+                    try {
+                        val ongoingLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
+                        val completedLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)}"
+                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                        _trackingState.value = TrackingState.Idle
+                        prefsRepository.saveTrackingState(TrackingState.Idle)
+                        stopTimer()
+                        refreshTodayStats()
+                        showUndo("Sleep ${state.startTime} - $endTime")
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Failed to save sleep entry: ${e.message}"
+                    }
                 }
             }
         }
@@ -128,9 +140,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val now = LocalTime.now().withSecond(0).withNano(0)
         val entry = DiaperEntry(type, LocalDate.now(), now)
         viewModelScope.launch {
-            fileRepository.appendDiaperEntry(uri, entry)
-            refreshTodayStats()
-            showUndo("${type.label} at $now")
+            try {
+                fileRepository.appendDiaperEntry(uri, entry)
+                refreshTodayStats()
+                showUndo("${type.label} at $now")
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save diaper entry: ${e.message}"
+            }
         }
     }
 
@@ -139,19 +155,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val now = LocalTime.now().withSecond(0).withNano(0)
         val entry = ActivityEntry(type, LocalDate.now(), now, note)
         viewModelScope.launch {
-            fileRepository.appendActivityEntry(uri, entry)
-            refreshTodayStats()
-            showUndo("${type.label} at $now")
+            try {
+                fileRepository.appendActivityEntry(uri, entry)
+                refreshTodayStats()
+                showUndo("${type.label} at $now")
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save activity: ${e.message}"
+            }
         }
     }
 
     fun undoLastAction() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            fileRepository.deleteLastLine(uri)
-            _undoLabel.value = null
-            undoDismissJob?.cancel()
-            refreshTodayStats()
+            try {
+                fileRepository.deleteLastLine(uri)
+                _undoLabel.value = null
+                undoDismissJob?.cancel()
+                refreshTodayStats()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to undo: ${e.message}"
+            }
         }
     }
 
@@ -187,7 +211,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO }
             )
 
-            // Update baby info from file if present
             if (data.babyName != null) {
                 _babyName.value = data.babyName
                 prefsRepository.babyName = data.babyName

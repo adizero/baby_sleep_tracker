@@ -47,8 +47,16 @@ fun HistoryScreen(
     onEditEntry: (HistoryItem) -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Long)
+            viewModel.dismissError()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadEntries()

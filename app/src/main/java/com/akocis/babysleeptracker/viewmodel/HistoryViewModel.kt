@@ -31,8 +31,15 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val _entries = MutableStateFlow<List<HistoryItem>>(emptyList())
     val entries: StateFlow<List<HistoryItem>> = _entries
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     init {
         loadEntries()
+    }
+
+    fun dismissError() {
+        _errorMessage.value = null
     }
 
     fun loadEntries() {
@@ -96,20 +103,28 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun deleteEntry(item: HistoryItem) {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            fileRepository.deleteEntry(uri, item.rawLine)
-            loadEntries()
+            try {
+                fileRepository.deleteEntry(uri, item.rawLine)
+                loadEntries()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to delete entry: ${e.message}"
+            }
         }
     }
 
     fun reAddEntry(rawLine: String) {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            when (val entry = EntryParser.parseLine(rawLine)) {
-                is SleepEntry -> fileRepository.appendSleepEntry(uri, entry)
-                is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
-                is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
+            try {
+                when (val entry = EntryParser.parseLine(rawLine)) {
+                    is SleepEntry -> fileRepository.appendSleepEntry(uri, entry)
+                    is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
+                    is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
+                }
+                loadEntries()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to restore entry: ${e.message}"
             }
-            loadEntries()
         }
     }
 }

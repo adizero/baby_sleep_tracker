@@ -25,6 +25,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,10 +69,19 @@ fun ManualEntryScreen(
     val activityType by viewModel.activityType.collectAsStateWithLifecycle()
     val noteText by viewModel.noteText.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Long)
+            viewModel.dismissError()
+        }
+    }
 
     LaunchedEffect(saved) {
         if (saved) {
@@ -79,6 +91,7 @@ fun ManualEntryScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isEditMode) "Edit Entry" else "New Entry") },

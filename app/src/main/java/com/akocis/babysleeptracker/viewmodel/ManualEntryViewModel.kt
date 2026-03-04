@@ -51,6 +51,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     private var editMode = false
     private var originalRawLine: String? = null
 
@@ -64,6 +67,10 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setDiaperType(type: DiaperType) { _diaperType.value = type }
     fun setActivityType(type: ActivityType) { _activityType.value = type }
     fun setNoteText(text: String) { _noteText.value = text }
+
+    fun dismissError() {
+        _errorMessage.value = null
+    }
 
     fun initForEdit(rawLine: String) {
         if (editMode) return
@@ -98,53 +105,57 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun save() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            val newLine = when (_entryKind.value) {
-                EntryKind.SLEEP -> {
-                    val end = if (_hasEndTime.value) _endTime.value else null
-                    EntryParser.formatSleepEntry(
-                        SleepEntry(_date.value, _startTime.value, end)
-                    )
-                }
-                EntryKind.DIAPER -> {
-                    EntryParser.formatDiaperEntry(
-                        DiaperEntry(_diaperType.value, _date.value, _startTime.value)
-                    )
-                }
-                EntryKind.ACTIVITY -> {
-                    val note = _noteText.value.takeIf { it.isNotBlank() }
-                    EntryParser.formatActivityEntry(
-                        ActivityEntry(_activityType.value, _date.value, _startTime.value, note)
-                    )
-                }
-            }
-
-            if (editMode && originalRawLine != null) {
-                fileRepository.updateEntry(uri, originalRawLine!!, newLine)
-            } else {
-                when (_entryKind.value) {
+            try {
+                val newLine = when (_entryKind.value) {
                     EntryKind.SLEEP -> {
                         val end = if (_hasEndTime.value) _endTime.value else null
-                        fileRepository.appendSleepEntry(
-                            uri,
+                        EntryParser.formatSleepEntry(
                             SleepEntry(_date.value, _startTime.value, end)
                         )
                     }
                     EntryKind.DIAPER -> {
-                        fileRepository.appendDiaperEntry(
-                            uri,
+                        EntryParser.formatDiaperEntry(
                             DiaperEntry(_diaperType.value, _date.value, _startTime.value)
                         )
                     }
                     EntryKind.ACTIVITY -> {
                         val note = _noteText.value.takeIf { it.isNotBlank() }
-                        fileRepository.appendActivityEntry(
-                            uri,
+                        EntryParser.formatActivityEntry(
                             ActivityEntry(_activityType.value, _date.value, _startTime.value, note)
                         )
                     }
                 }
+
+                if (editMode && originalRawLine != null) {
+                    fileRepository.updateEntry(uri, originalRawLine!!, newLine)
+                } else {
+                    when (_entryKind.value) {
+                        EntryKind.SLEEP -> {
+                            val end = if (_hasEndTime.value) _endTime.value else null
+                            fileRepository.appendSleepEntry(
+                                uri,
+                                SleepEntry(_date.value, _startTime.value, end)
+                            )
+                        }
+                        EntryKind.DIAPER -> {
+                            fileRepository.appendDiaperEntry(
+                                uri,
+                                DiaperEntry(_diaperType.value, _date.value, _startTime.value)
+                            )
+                        }
+                        EntryKind.ACTIVITY -> {
+                            val note = _noteText.value.takeIf { it.isNotBlank() }
+                            fileRepository.appendActivityEntry(
+                                uri,
+                                ActivityEntry(_activityType.value, _date.value, _startTime.value, note)
+                            )
+                        }
+                    }
+                }
+                _saved.value = true
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save entry: ${e.message}"
             }
-            _saved.value = true
         }
     }
 

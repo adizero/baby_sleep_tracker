@@ -82,11 +82,19 @@ fun HomeScreen(
     val undoLabel by viewModel.undoLabel.collectAsStateWithLifecycle()
     val babyName by viewModel.babyName.collectAsStateWithLifecycle()
     val babyAge by viewModel.babyAge.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showNoteDialog by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Long)
+            viewModel.dismissError()
+        }
+    }
 
     LaunchedEffect(undoLabel) {
         undoLabel?.let { label ->
