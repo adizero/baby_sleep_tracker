@@ -26,11 +26,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -62,8 +68,10 @@ fun HomeScreen(
     val elapsedTime by viewModel.elapsedTime.collectAsStateWithLifecycle()
     val todayStats by viewModel.todayStats.collectAsStateWithLifecycle()
     val hasFile by viewModel.hasFile.collectAsStateWithLifecycle()
+    val undoLabel by viewModel.undoLabel.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val createFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -102,6 +110,26 @@ fun HomeScreen(
                     }
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) {
+                undoLabel?.let { label ->
+                    Snackbar(
+                        action = {
+                            TextButton(onClick = { viewModel.undoLastAction() }) {
+                                Text("Undo")
+                            }
+                        },
+                        dismissAction = {
+                            TextButton(onClick = { viewModel.dismissUndo() }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    ) {
+                        Text("Logged: $label")
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(

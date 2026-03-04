@@ -73,6 +73,29 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    suspend fun deleteLastLine(uri: Uri) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = context.contentResolver.openInputStream(uri)?.use {
+                    it.bufferedReader().readText()
+                } ?: return@withContext
+
+                val lines = content.lines().toMutableList()
+                // Remove trailing empty lines, then remove the last non-empty line
+                while (lines.isNotEmpty() && lines.last().isBlank()) {
+                    lines.removeAt(lines.lastIndex)
+                }
+                if (lines.isNotEmpty()) {
+                    lines.removeAt(lines.lastIndex)
+                }
+                val newContent = lines.joinToString("\n")
+                context.contentResolver.openOutputStream(uri, "wt")?.use {
+                    it.write(newContent.toByteArray())
+                }
+            }
+        }
+    }
+
     suspend fun importFrom(targetUri: Uri, sourceUri: Uri): Int {
         val (sourceSleep, sourceDiaper) = withContext(Dispatchers.IO) {
             try {

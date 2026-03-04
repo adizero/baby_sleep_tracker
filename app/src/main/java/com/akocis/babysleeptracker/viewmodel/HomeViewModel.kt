@@ -38,7 +38,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasFile = MutableStateFlow(false)
     val hasFile: StateFlow<Boolean> = _hasFile
 
+    private val _undoLabel = MutableStateFlow<String?>(null)
+    val undoLabel: StateFlow<String?> = _undoLabel
+
     private var timerJob: Job? = null
+    private var undoDismissJob: Job? = null
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
@@ -67,6 +71,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     prefsRepository.saveTrackingState(TrackingState.Idle)
                     stopTimer()
                     refreshTodayStats()
+                    showUndo("Sleep ${state.startTime} - $endTime")
                 }
             }
         }
@@ -74,10 +79,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logDiaper(type: DiaperType) {
         val uri = prefsRepository.fileUri ?: return
-        val entry = DiaperEntry(type, LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
+        val now = LocalTime.now().withSecond(0).withNano(0)
+        val entry = DiaperEntry(type, LocalDate.now(), now)
         viewModelScope.launch {
             fileRepository.appendDiaperEntry(uri, entry)
             refreshTodayStats()
+            showUndo("${type.label} at $now")
+        }
+    }
+
+    fun undoLastAction() {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            fileRepository.deleteLastLine(uri)
+            _undoLabel.value = null
+            undoDismissJob?.cancel()
+            refreshTodayStats()
+        }
+    }
+
+    fun dismissUndo() {
+        _undoLabel.value = null
+        undoDismissJob?.cancel()
+    }
+
+    private fun showUndo(label: String) {
+        _undoLabel.value = label
+        undoDismissJob?.cancel()
+        undoDismissJob = viewModelScope.launch {
+            delay(5000)
+            _undoLabel.value = null
         }
     }
 

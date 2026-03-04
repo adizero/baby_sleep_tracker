@@ -91,7 +91,7 @@ fun HistoryScreen(
             ) {
                 items(
                     items = entries,
-                    key = { it.rawLine + it.sortKey }
+                    key = { it.id }
                 ) { item ->
                     SwipeToDismissItem(
                         item = item,

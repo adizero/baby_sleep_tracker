@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class HistoryItem(
+    val id: Int,
     val displayText: String,
     val rawLine: String,
     val sortKey: Long,
@@ -37,6 +38,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val (sleepEntries, diaperEntries) = fileRepository.readAll(uri)
             val items = mutableListOf<HistoryItem>()
+            var nextId = 0
 
             sleepEntries.forEach { entry ->
                 val line = EntryParser.formatSleepEntry(entry)
@@ -44,6 +46,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     entry.startTime.toSecondOfDay()
                 items.add(
                     HistoryItem(
+                        id = nextId++,
                         displayText = "Sleep: ${entry.date} ${entry.startTime} - ${entry.endTime}",
                         rawLine = line,
                         sortKey = sortKey,
@@ -58,6 +61,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     entry.time.toSecondOfDay()
                 items.add(
                     HistoryItem(
+                        id = nextId++,
                         displayText = "${entry.type.label}: ${entry.date} ${entry.time}",
                         rawLine = line,
                         sortKey = sortKey,
