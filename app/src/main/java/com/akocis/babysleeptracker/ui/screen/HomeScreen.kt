@@ -26,11 +26,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -73,7 +73,36 @@ fun HomeScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(undoLabel) {
+        undoLabel?.let { label ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Logged: $label",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoLastAction()
+            } else {
+                viewModel.dismissUndo()
+            }
+        }
+    }
+
     val createFileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                viewModel.onFileSelected(uri)
+            }
+        }
+    }
+
+    val openFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -111,26 +140,7 @@ fun HomeScreen(
                 }
             )
         },
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) {
-                undoLabel?.let { label ->
-                    Snackbar(
-                        action = {
-                            TextButton(onClick = { viewModel.undoLastAction() }) {
-                                Text("Undo")
-                            }
-                        },
-                        dismissAction = {
-                            TextButton(onClick = { viewModel.dismissUndo() }) {
-                                Text("Dismiss")
-                            }
-                        }
-                    ) {
-                        Text("Logged: $label")
-                    }
-                }
-            }
-        }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -147,8 +157,20 @@ fun HomeScreen(
                     modifier = Modifier.padding(16.dp)
                 )
                 BigActionButton(
-                    text = "Create Data File",
+                    text = "Open Existing File",
                     containerColor = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "text/plain"
+                        }
+                        openFileLauncher.launch(intent)
+                    }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                BigActionButton(
+                    text = "Create New File",
+                    containerColor = MaterialTheme.colorScheme.secondary,
                     onClick = {
                         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                             addCategory(Intent.CATEGORY_OPENABLE)

@@ -81,4 +81,15 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             loadEntries()
         }
     }
+
+    fun reAddEntry(rawLine: String) {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            when (val entry = EntryParser.parseLine(rawLine)) {
+                is SleepEntry -> fileRepository.appendSleepEntry(uri, entry)
+                is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
+            }
+            loadEntries()
+        }
+    }
 }
