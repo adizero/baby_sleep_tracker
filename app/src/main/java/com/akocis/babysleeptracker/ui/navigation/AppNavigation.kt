@@ -2,7 +2,10 @@ package com.akocis.babysleeptracker.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -43,8 +46,17 @@ fun AppNavigation(
     onThemeChanged: (Boolean) -> Unit
 ) {
     NavHost(navController = navController, startDestination = Routes.HOME) {
-        composable(Routes.HOME) {
+        composable(Routes.HOME) { backStackEntry ->
             val viewModel: HomeViewModel = viewModel()
+            DisposableEffect(backStackEntry.lifecycle) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        viewModel.refreshTodayStats()
+                    }
+                }
+                backStackEntry.lifecycle.addObserver(observer)
+                onDispose { backStackEntry.lifecycle.removeObserver(observer) }
+            }
             HomeScreen(
                 viewModel = viewModel,
                 onNavigateToManualEntry = { navController.navigate(Routes.MANUAL_ENTRY) },
