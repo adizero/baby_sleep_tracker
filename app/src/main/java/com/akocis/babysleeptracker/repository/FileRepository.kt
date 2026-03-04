@@ -40,18 +40,22 @@ class FileRepository(private val context: Context) {
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                val content = readContent(uri)
-                val lines = content.lines().toMutableList()
-                val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
-                val newLine = EntryParser.formatBabyInfo(name, birthDate)
-                if (babyLineIndex >= 0) {
-                    lines[babyLineIndex] = newLine
-                } else {
-                    lines.add(0, newLine)
-                }
-                val newContent = lines.joinToString("\n")
-                context.contentResolver.openOutputStream(uri, "wt")?.use {
-                    it.write(newContent.toByteArray())
+                try {
+                    val content = readContent(uri)
+                    val lines = content.lines().toMutableList()
+                    val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
+                    val newLine = EntryParser.formatBabyInfo(name, birthDate)
+                    if (babyLineIndex >= 0) {
+                        lines[babyLineIndex] = newLine
+                    } else {
+                        lines.add(0, newLine)
+                    }
+                    val newContent = lines.joinToString("\n")
+                    context.contentResolver.openOutputStream(uri, "wt")?.use {
+                        it.write(newContent.toByteArray())
+                    }
+                } catch (_: Exception) {
+                    // File write may fail if permissions were revoked
                 }
             }
         }

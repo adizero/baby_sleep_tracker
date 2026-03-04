@@ -303,7 +303,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BigActionButton(
-                    text = "Stroller",
+                    text = "Stroll",
                     containerColor = StrollerColor,
                     onClick = { viewModel.logActivity(ActivityType.STROLLER) },
                     modifier = Modifier.weight(1f)

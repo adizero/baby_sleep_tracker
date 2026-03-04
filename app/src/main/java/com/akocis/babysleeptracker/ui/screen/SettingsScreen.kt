@@ -118,7 +118,11 @@ fun SettingsScreen(
                             val uri = prefsRepository.fileUri
                             if (uri != null && babyName.isNotBlank()) {
                                 scope.launch {
-                                    fileRepository.saveBabyInfo(uri, babyName, selected)
+                                    try {
+                                        fileRepository.saveBabyInfo(uri, babyName, selected)
+                                    } catch (_: Exception) {
+                                        // File write may fail
+                                    }
                                 }
                             }
                         }
@@ -203,13 +207,25 @@ fun SettingsScreen(
                                 val bd = babyBirthDate
                                 if (uri != null && bd != null) {
                                     scope.launch {
-                                        fileRepository.saveBabyInfo(uri, babyName, bd)
-                                        snackbarHostState.showSnackbar("Baby info saved")
+                                        try {
+                                            fileRepository.saveBabyInfo(uri, babyName, bd)
+                                            snackbarHostState.showSnackbar("Baby info saved")
+                                        } catch (_: Exception) {
+                                            snackbarHostState.showSnackbar("Failed to save to file")
+                                        }
+                                    }
+                                } else if (bd == null) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Please set a birth date first")
                                     }
                                 } else {
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Baby info saved to preferences")
+                                        snackbarHostState.showSnackbar("Name saved to preferences")
                                     }
+                                }
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Please enter a name")
                                 }
                             }
                         },
