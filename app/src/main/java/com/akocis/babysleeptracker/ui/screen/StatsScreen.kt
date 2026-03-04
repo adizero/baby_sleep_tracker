@@ -29,9 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.akocis.babysleeptracker.ui.component.DiaperChart
 import com.akocis.babysleeptracker.ui.component.SleepChart
+import com.akocis.babysleeptracker.ui.component.SleepPieChart
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
+import java.time.Duration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +44,8 @@ fun StatsScreen(
 ) {
     val dayStats by viewModel.dayStats.collectAsStateWithLifecycle()
     val daysBack by viewModel.daysBack.collectAsStateWithLifecycle()
+    val summaryStats by viewModel.summaryStats.collectAsStateWithLifecycle()
+    val movingAverage by viewModel.movingAverage.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -84,7 +89,36 @@ fun StatsScreen(
                 }
             }
 
-            // Sleep chart
+            // Summary averages card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "Averages (${daysBack}d)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Sleep: ${DateTimeUtil.formatDuration(summaryStats.avgSleepPerDay)}/day")
+                    Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}/day")
+                    Text("Diapers: ${String.format("%.1f", summaryStats.avgDiapersPerDay)}/day")
+                    if (summaryStats.longestNap > Duration.ZERO) {
+                        Text("Longest nap: ${DateTimeUtil.formatDuration(summaryStats.longestNap)}")
+                    }
+                    if (summaryStats.shortestNap > Duration.ZERO) {
+                        Text("Shortest nap: ${DateTimeUtil.formatDuration(summaryStats.shortestNap)}")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Sleep chart with trend line
             Text(
                 text = "Sleep Duration",
                 style = MaterialTheme.typography.headlineMedium,
@@ -92,9 +126,37 @@ fun StatsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            SleepChart(stats = dayStats)
+            SleepChart(stats = dayStats, movingAverage = movingAverage)
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Diaper chart
+            Text(
+                text = "Diaper Changes",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            DiaperChart(stats = dayStats)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Day vs Night sleep pie chart
+            val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
+            val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
+
+            if (totalDaySleep > Duration.ZERO || totalNightSleep > Duration.ZERO) {
+                Text(
+                    text = "Day vs Night Sleep",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             // Daily summaries
             Text(

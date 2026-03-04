@@ -15,7 +15,9 @@ import kotlinx.coroutines.launch
 data class HistoryItem(
     val displayText: String,
     val rawLine: String,
-    val sortKey: Long
+    val sortKey: Long,
+    val sleepEntry: SleepEntry? = null,
+    val diaperEntry: DiaperEntry? = null
 )
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,7 +46,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     HistoryItem(
                         displayText = "Sleep: ${entry.date} ${entry.startTime} - ${entry.endTime}",
                         rawLine = line,
-                        sortKey = sortKey
+                        sortKey = sortKey,
+                        sleepEntry = entry
                     )
                 )
             }
@@ -57,7 +60,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     HistoryItem(
                         displayText = "${entry.type.label}: ${entry.date} ${entry.time}",
                         rawLine = line,
-                        sortKey = sortKey
+                        sortKey = sortKey,
+                        diaperEntry = entry
                     )
                 )
             }

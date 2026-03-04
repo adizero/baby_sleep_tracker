@@ -2,6 +2,7 @@ package com.akocis.babysleeptracker.ui.screen
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +41,8 @@ import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 @Composable
 fun HistoryScreen(
     viewModel: HistoryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEditEntry: (HistoryItem) -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsStateWithLifecycle()
 
@@ -93,7 +95,8 @@ fun HistoryScreen(
                 ) { item ->
                     SwipeToDismissItem(
                         item = item,
-                        onDelete = { viewModel.deleteEntry(it) }
+                        onDelete = { viewModel.deleteEntry(it) },
+                        onEdit = { onEditEntry(it) }
                     )
                 }
             }
@@ -105,7 +108,8 @@ fun HistoryScreen(
 @Composable
 private fun SwipeToDismissItem(
     item: HistoryItem,
-    onDelete: (HistoryItem) -> Unit
+    onDelete: (HistoryItem) -> Unit,
+    onEdit: (HistoryItem) -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -143,7 +147,8 @@ private fun SwipeToDismissItem(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clickable { onEdit(item) },
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )

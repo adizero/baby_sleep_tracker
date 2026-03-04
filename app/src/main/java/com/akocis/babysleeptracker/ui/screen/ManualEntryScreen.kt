@@ -74,7 +74,7 @@ fun ManualEntryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Entry") },
+                title = { Text(if (viewModel.isEditMode) "Edit Entry" else "New Entry") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -165,7 +165,7 @@ fun ManualEntryScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             BigActionButton(
-                text = "Save",
+                text = if (viewModel.isEditMode) "Update" else "Save",
                 containerColor = MaterialTheme.colorScheme.primary,
                 onClick = { viewModel.save() }
             )

@@ -53,6 +53,26 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateEntry(uri: Uri, oldLine: String, newLine: String) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = context.contentResolver.openInputStream(uri)?.use {
+                    it.bufferedReader().readText()
+                } ?: return@withContext
+
+                val lines = content.lines().toMutableList()
+                val index = lines.indexOfFirst { it.trim() == oldLine.trim() }
+                if (index >= 0) {
+                    lines[index] = newLine
+                    val newContent = lines.joinToString("\n")
+                    context.contentResolver.openOutputStream(uri, "wt")?.use {
+                        it.write(newContent.toByteArray())
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun importFrom(targetUri: Uri, sourceUri: Uri): Int {
         val (sourceSleep, sourceDiaper) = withContext(Dispatchers.IO) {
             try {

@@ -1,10 +1,13 @@
 package com.akocis.babysleeptracker.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.ui.screen.HistoryScreen
@@ -16,13 +19,21 @@ import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 object Routes {
     const val HOME = "home"
     const val MANUAL_ENTRY = "manual_entry"
+    const val EDIT_ENTRY = "edit_entry/{rawLine}"
     const val STATS = "stats"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
+
+    fun editEntry(rawLine: String): String {
+        val encoded = URLEncoder.encode(rawLine, "UTF-8")
+        return "edit_entry/$encoded"
+    }
 }
 
 @Composable
@@ -50,6 +61,23 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() }
             )
         }
+        composable(
+            route = Routes.EDIT_ENTRY,
+            arguments = listOf(navArgument("rawLine") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val rawLine = URLDecoder.decode(
+                backStackEntry.arguments?.getString("rawLine") ?: "",
+                "UTF-8"
+            )
+            val viewModel: ManualEntryViewModel = viewModel()
+            LaunchedEffect(rawLine) {
+                viewModel.initForEdit(rawLine)
+            }
+            ManualEntryScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.STATS) {
             val viewModel: StatsViewModel = viewModel()
             StatsScreen(
@@ -61,7 +89,10 @@ fun AppNavigation(
             val viewModel: HistoryViewModel = viewModel()
             HistoryScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onEditEntry = { item ->
+                    navController.navigate(Routes.editEntry(item.rawLine))
+                }
             )
         }
         composable(Routes.SETTINGS) {
