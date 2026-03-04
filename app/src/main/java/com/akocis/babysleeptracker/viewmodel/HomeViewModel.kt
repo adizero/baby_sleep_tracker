@@ -4,6 +4,8 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.akocis.babysleeptracker.model.ActivityEntry
+import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -41,6 +44,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _undoLabel = MutableStateFlow<String?>(null)
     val undoLabel: StateFlow<String?> = _undoLabel
 
+    private val _babyName = MutableStateFlow<String?>(null)
+    val babyName: StateFlow<String?> = _babyName
+
+    private val _babyAge = MutableStateFlow<String?>(null)
+    val babyAge: StateFlow<String?> = _babyAge
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
 
@@ -50,7 +59,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (_trackingState.value is TrackingState.Sleeping) {
             startTimer()
         }
+        loadBabyInfo()
         refreshTodayStats()
+    }
+
+    private fun loadBabyInfo() {
+        _babyName.value = prefsRepository.babyName
+        val birthDate = prefsRepository.babyBirthDate
+        if (birthDate != null) {
+            _babyAge.value = formatAge(birthDate)
+        }
+    }
+
+    private fun formatAge(birthDate: LocalDate): String {
+        val today = LocalDate.now()
+        val months = ChronoUnit.MONTHS.between(birthDate, today)
+        val days = ChronoUnit.DAYS.between(birthDate.plusMonths(months), today)
+        return when {
+            months >= 12 -> {
+                val years = months / 12
+                val remainingMonths = months % 12
+                if (remainingMonths > 0) "${years}y ${remainingMonths}m"
+                else "${years}y"
+            }
+            months > 0 -> {
+                if (days > 0) "${months}m ${days}d"
+                else "${months}m"
+            }
+            else -> "${days}d"
+        }
     }
 
     fun toggleSleep() {
@@ -61,12 +98,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
                 startTimer()
+                // Append an ongoing sleep entry to the file
+                viewModelScope.launch {
+                    fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
+                    refreshTodayStats()
+                    showUndo("Sleep started at ${now.startTime}")
+                }
             }
             is TrackingState.Sleeping -> {
                 val endTime = LocalTime.now().withSecond(0).withNano(0)
                 val entry = SleepEntry(state.startDate, state.startTime, endTime)
                 viewModelScope.launch {
-                    fileRepository.appendSleepEntry(uri, entry)
+                    // Update the ongoing entry with the end time
+                    val ongoingLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
+                    val completedLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    fileRepository.updateEntry(uri, ongoingLine, completedLine)
                     _trackingState.value = TrackingState.Idle
                     prefsRepository.saveTrackingState(TrackingState.Idle)
                     stopTimer()
@@ -83,6 +129,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val entry = DiaperEntry(type, LocalDate.now(), now)
         viewModelScope.launch {
             fileRepository.appendDiaperEntry(uri, entry)
+            refreshTodayStats()
+            showUndo("${type.label} at $now")
+        }
+    }
+
+    fun logActivity(type: ActivityType, note: String? = null) {
+        val uri = prefsRepository.fileUri ?: return
+        val now = LocalTime.now().withSecond(0).withNano(0)
+        val entry = ActivityEntry(type, LocalDate.now(), now, note)
+        viewModelScope.launch {
+            fileRepository.appendActivityEntry(uri, entry)
             refreshTodayStats()
             showUndo("${type.label} at $now")
         }
@@ -115,11 +172,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshTodayStats() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            val (sleepEntries, diaperEntries) = fileRepository.readAll(uri)
+            val data = fileRepository.readAll(uri)
             val today = LocalDate.now()
 
-            val todaySleep = sleepEntries.filter { it.date == today }
-            val todayDiapers = diaperEntries.filter { it.date == today }
+            val todaySleep = data.sleepEntries.filter { it.date == today }
+            val todayDiapers = data.diaperEntries.filter { it.date == today }
 
             _todayStats.value = DayStats(
                 date = today,
@@ -129,12 +186,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 pooCount = todayDiapers.count { it.type == DiaperType.POO },
                 peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO }
             )
+
+            // Update baby info from file if present
+            if (data.babyName != null) {
+                _babyName.value = data.babyName
+                prefsRepository.babyName = data.babyName
+            }
+            if (data.babyBirthDate != null) {
+                _babyAge.value = formatAge(data.babyBirthDate)
+                prefsRepository.babyBirthDate = data.babyBirthDate
+            }
         }
     }
 
     fun onFileSelected(uri: Uri) {
         prefsRepository.fileUri = uri
         _hasFile.value = true
+        loadBabyInfo()
         refreshTodayStats()
     }
 

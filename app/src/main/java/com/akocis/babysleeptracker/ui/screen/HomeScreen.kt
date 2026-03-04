@@ -17,41 +17,51 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.StatusBanner
+import com.akocis.babysleeptracker.ui.theme.BathColor
+import com.akocis.babysleeptracker.ui.theme.NoteColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PeePooColor
 import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.StopButtonColor
+import com.akocis.babysleeptracker.ui.theme.StrollerColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 
@@ -62,16 +72,21 @@ fun HomeScreen(
     onNavigateToManualEntry: () -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToCalendar: () -> Unit = {}
 ) {
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
     val elapsedTime by viewModel.elapsedTime.collectAsStateWithLifecycle()
     val todayStats by viewModel.todayStats.collectAsStateWithLifecycle()
     val hasFile by viewModel.hasFile.collectAsStateWithLifecycle()
     val undoLabel by viewModel.undoLabel.collectAsStateWithLifecycle()
+    val babyName by viewModel.babyName.collectAsStateWithLifecycle()
+    val babyAge by viewModel.babyAge.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var showNoteDialog by remember { mutableStateOf(false) }
+    var noteText by remember { mutableStateOf("") }
 
     LaunchedEffect(undoLabel) {
         undoLabel?.let { label ->
@@ -116,10 +131,55 @@ fun HomeScreen(
         }
     }
 
+    // Note dialog
+    if (showNoteDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoteDialog = false },
+            title = { Text("Add Note") },
+            text = {
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Note text") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (noteText.isNotBlank()) {
+                            viewModel.logActivity(ActivityType.NOTE, noteText)
+                        }
+                        noteText = ""
+                        showNoteDialog = false
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    noteText = ""
+                    showNoteDialog = false
+                }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Baby Sleep Tracker") },
+                title = {
+                    Column {
+                        val title = if (babyName != null) "$babyName" else "Baby Sleep Tracker"
+                        Text(title)
+                        if (babyAge != null) {
+                            Text(
+                                text = "Age: $babyAge",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -127,6 +187,9 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = onNavigateToManualEntry) {
                         Icon(Icons.Default.Add, "New Entry", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    IconButton(onClick = onNavigateToCalendar) {
+                        Icon(Icons.Default.CalendarMonth, "Calendar", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     IconButton(onClick = onNavigateToStats) {
                         Icon(Icons.Default.BarChart, "Stats", tint = MaterialTheme.colorScheme.onPrimary)
@@ -226,6 +289,35 @@ fun HomeScreen(
                     containerColor = PeePooColor,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     onClick = { viewModel.logDiaper(DiaperType.PEEPOO) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Activity buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BigActionButton(
+                    text = "Stroller",
+                    containerColor = StrollerColor,
+                    onClick = { viewModel.logActivity(ActivityType.STROLLER) },
+                    modifier = Modifier.weight(1f)
+                )
+                BigActionButton(
+                    text = "Bath",
+                    containerColor = BathColor,
+                    onClick = { viewModel.logActivity(ActivityType.BATH) },
+                    modifier = Modifier.weight(1f)
+                )
+                BigActionButton(
+                    text = "Note",
+                    containerColor = NoteColor,
+                    onClick = { showNoteDialog = true },
                     modifier = Modifier.weight(1f)
                 )
             }

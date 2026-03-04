@@ -14,11 +14,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.ui.screen.CalendarScreen
 import com.akocis.babysleeptracker.ui.screen.HistoryScreen
 import com.akocis.babysleeptracker.ui.screen.HomeScreen
 import com.akocis.babysleeptracker.ui.screen.ManualEntryScreen
 import com.akocis.babysleeptracker.ui.screen.SettingsScreen
 import com.akocis.babysleeptracker.ui.screen.StatsScreen
+import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
 import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
@@ -31,6 +33,7 @@ object Routes {
     const val STATS = "stats"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
+    const val CALENDAR = "calendar"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -43,7 +46,7 @@ fun AppNavigation(
     navController: NavHostController,
     prefsRepository: PreferencesRepository,
     fileRepository: FileRepository,
-    onThemeChanged: (Boolean) -> Unit
+    onThemeModeChanged: (String) -> Unit
 ) {
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) { backStackEntry ->
@@ -62,7 +65,8 @@ fun AppNavigation(
                 onNavigateToManualEntry = { navController.navigate(Routes.MANUAL_ENTRY) },
                 onNavigateToStats = { navController.navigate(Routes.STATS) },
                 onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
-                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
+                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) }
             )
         }
         composable(Routes.MANUAL_ENTRY) {
@@ -109,7 +113,14 @@ fun AppNavigation(
             SettingsScreen(
                 prefsRepository = prefsRepository,
                 fileRepository = fileRepository,
-                onThemeChanged = onThemeChanged,
+                onThemeModeChanged = onThemeModeChanged,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.CALENDAR) {
+            val viewModel: CalendarViewModel = viewModel()
+            CalendarScreen(
+                viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )
         }

@@ -3,6 +3,7 @@ package com.akocis.babysleeptracker.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.EntryParser
@@ -18,7 +19,8 @@ data class HistoryItem(
     val rawLine: String,
     val sortKey: Long,
     val sleepEntry: SleepEntry? = null,
-    val diaperEntry: DiaperEntry? = null
+    val diaperEntry: DiaperEntry? = null,
+    val activityEntry: ActivityEntry? = null
 )
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
@@ -36,18 +38,19 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun loadEntries() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            val (sleepEntries, diaperEntries) = fileRepository.readAll(uri)
+            val data = fileRepository.readAll(uri)
             val items = mutableListOf<HistoryItem>()
             var nextId = 0
 
-            sleepEntries.forEach { entry ->
+            data.sleepEntries.forEach { entry ->
                 val line = EntryParser.formatSleepEntry(entry)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
+                val endText = entry.endTime?.toString() ?: "ongoing"
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "Sleep: ${entry.date} ${entry.startTime} - ${entry.endTime}",
+                        displayText = "Sleep: ${entry.date} ${entry.startTime} - $endText",
                         rawLine = line,
                         sortKey = sortKey,
                         sleepEntry = entry
@@ -55,7 +58,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            diaperEntries.forEach { entry ->
+            data.diaperEntries.forEach { entry ->
                 val line = EntryParser.formatDiaperEntry(entry)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.time.toSecondOfDay()
@@ -66,6 +69,22 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         rawLine = line,
                         sortKey = sortKey,
                         diaperEntry = entry
+                    )
+                )
+            }
+
+            data.activityEntries.forEach { entry ->
+                val line = EntryParser.formatActivityEntry(entry)
+                val sortKey = entry.date.toEpochDay() * 86400 +
+                    entry.time.toSecondOfDay()
+                val noteText = if (entry.note != null) " - ${entry.note}" else ""
+                items.add(
+                    HistoryItem(
+                        id = nextId++,
+                        displayText = "${entry.type.label}: ${entry.date} ${entry.time}$noteText",
+                        rawLine = line,
+                        sortKey = sortKey,
+                        activityEntry = entry
                     )
                 )
             }
@@ -88,6 +107,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             when (val entry = EntryParser.parseLine(rawLine)) {
                 is SleepEntry -> fileRepository.appendSleepEntry(uri, entry)
                 is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
+                is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
             }
             loadEntries()
         }

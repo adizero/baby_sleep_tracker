@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -38,10 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import com.akocis.babysleeptracker.viewmodel.EntryKind
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -56,8 +60,11 @@ fun ManualEntryScreen(
     val date by viewModel.date.collectAsStateWithLifecycle()
     val startTime by viewModel.startTime.collectAsStateWithLifecycle()
     val endTime by viewModel.endTime.collectAsStateWithLifecycle()
-    val isSleepEntry by viewModel.isSleepEntry.collectAsStateWithLifecycle()
+    val hasEndTime by viewModel.hasEndTime.collectAsStateWithLifecycle()
+    val entryKind by viewModel.entryKind.collectAsStateWithLifecycle()
     val diaperType by viewModel.diaperType.collectAsStateWithLifecycle()
+    val activityType by viewModel.activityType.collectAsStateWithLifecycle()
+    val noteText by viewModel.noteText.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -98,21 +105,17 @@ fun ManualEntryScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Entry type toggle
+            // Entry type toggle (3-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = isSleepEntry,
-                    onClick = { viewModel.setIsSleepEntry(true) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) {
-                    Text("Sleep")
-                }
-                SegmentedButton(
-                    selected = !isSleepEntry,
-                    onClick = { viewModel.setIsSleepEntry(false) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) {
-                    Text("Diaper")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
+                kinds.forEachIndexed { index, (kind, label) ->
+                    SegmentedButton(
+                        selected = entryKind == kind,
+                        onClick = { viewModel.setEntryKind(kind) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = kinds.size)
+                    ) {
+                        Text(label)
+                    }
                 }
             }
 
@@ -124,29 +127,40 @@ fun ManualEntryScreen(
                 Text("Date: ${date.format(DateTimeUtil.DATE_FORMAT)}")
             }
 
-            // Start time
+            // Start time / Time
             OutlinedButton(
                 onClick = { showStartTimePicker = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (isSleepEntry) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    if (entryKind == EntryKind.SLEEP) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                 )
             }
 
             // End time (only for sleep entries)
-            if (isSleepEntry) {
-                OutlinedButton(
-                    onClick = { showEndTimePicker = true },
-                    modifier = Modifier.fillMaxWidth()
+            if (entryKind == EntryKind.SLEEP) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("End: ${endTime.format(DateTimeUtil.TIME_FORMAT)}")
+                    Checkbox(
+                        checked = hasEndTime,
+                        onCheckedChange = { viewModel.setHasEndTime(it) }
+                    )
+                    Text("Has end time")
+                }
+                if (hasEndTime) {
+                    OutlinedButton(
+                        onClick = { showEndTimePicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("End: ${endTime.format(DateTimeUtil.TIME_FORMAT)}")
+                    }
                 }
             }
 
             // Diaper type (only for diaper entries)
-            if (!isSleepEntry) {
+            if (entryKind == EntryKind.DIAPER) {
                 Text("Type:", style = MaterialTheme.typography.titleLarge)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -159,6 +173,35 @@ fun ManualEntryScreen(
                             label = { Text(type.label) }
                         )
                     }
+                }
+            }
+
+            // Activity type (only for activity entries)
+            if (entryKind == EntryKind.ACTIVITY) {
+                Text("Type:", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ActivityType.entries.forEach { type ->
+                        FilterChip(
+                            selected = activityType == type,
+                            onClick = { viewModel.setActivityType(type) },
+                            label = { Text(type.label) }
+                        )
+                    }
+                }
+
+                // Note text field (for NOTE type)
+                if (activityType == ActivityType.NOTE) {
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = { viewModel.setNoteText(it) },
+                        label = { Text("Note") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false,
+                        maxLines = 3
+                    )
                 }
             }
 
@@ -203,7 +246,7 @@ fun ManualEntryScreen(
         // Time picker dialogs
         if (showStartTimePicker) {
             TimePickerDialog(
-                title = if (isSleepEntry) "Start Time" else "Time",
+                title = if (entryKind == EntryKind.SLEEP) "Start Time" else "Time",
                 initialTime = startTime,
                 onConfirm = {
                     viewModel.setStartTime(it)

@@ -15,16 +15,30 @@ class PreferencesRepository(context: Context) {
     companion object {
         private const val KEY_FILE_URI = "file_uri"
         private const val KEY_SLEEP_START_EPOCH = "sleep_start_epoch"
-        private const val KEY_DARK_THEME = "dark_theme"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_BABY_NAME = "baby_name"
+        private const val KEY_BABY_BIRTH_DATE = "baby_birth_date"
     }
 
     var fileUri: Uri?
         get() = prefs.getString(KEY_FILE_URI, null)?.let { Uri.parse(it) }
         set(value) = prefs.edit().putString(KEY_FILE_URI, value?.toString()).apply()
 
-    var darkTheme: Boolean
-        get() = prefs.getBoolean(KEY_DARK_THEME, false)
-        set(value) = prefs.edit().putBoolean(KEY_DARK_THEME, value).apply()
+    // themeMode: "light", "dark", or "auto"
+    var themeMode: String
+        get() = prefs.getString(KEY_THEME_MODE, "light") ?: "light"
+        set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
+
+    // Keep backward compat getter
+    val darkTheme: Boolean get() = themeMode == "dark"
+
+    var babyName: String?
+        get() = prefs.getString(KEY_BABY_NAME, null)
+        set(value) = prefs.edit().putString(KEY_BABY_NAME, value).apply()
+
+    var babyBirthDate: LocalDate?
+        get() = prefs.getString(KEY_BABY_BIRTH_DATE, null)?.let { LocalDate.parse(it) }
+        set(value) = prefs.edit().putString(KEY_BABY_BIRTH_DATE, value?.toString()).apply()
 
     fun saveTrackingState(state: TrackingState) {
         when (state) {

@@ -56,7 +56,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     fun loadStats() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            val (sleepEntries, diaperEntries) = fileRepository.readAll(uri)
+            val data = fileRepository.readAll(uri)
+            val sleepEntries = data.sleepEntries
+            val diaperEntries = data.diaperEntries
             val today = LocalDate.now()
             val startDate = today.minusDays(_daysBack.value.toLong() - 1)
 
@@ -98,7 +100,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
             _dayStats.value = statsList
 
-            // Compute summary stats
             val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 }
             val totalDays = daysWithData.size.coerceAtLeast(1)
             val allNaps = statsList.filter { it.longestNap > Duration.ZERO }
@@ -114,7 +115,6 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                     .minOfOrNull { it.shortestNap } ?: Duration.ZERO
             )
 
-            // Compute 3-day moving average (in hours)
             val minutes = statsList.map { it.totalSleep.toMinutes().toFloat() }
             val ma = minutes.mapIndexed { i, _ ->
                 val start = (i - 1).coerceAtLeast(0)

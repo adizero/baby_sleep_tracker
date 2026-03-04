@@ -12,6 +12,7 @@ import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.ui.navigation.AppNavigation
 import com.akocis.babysleeptracker.ui.theme.BabySleepTrackerTheme
+import com.akocis.babysleeptracker.ui.theme.resolveThemeMode
 
 class MainActivity : ComponentActivity() {
 
@@ -25,16 +26,16 @@ class MainActivity : ComponentActivity() {
         prefsRepository = PreferencesRepository(applicationContext)
         fileRepository = FileRepository(applicationContext)
 
-        var darkTheme by mutableStateOf(prefsRepository.darkTheme)
+        var themeMode by mutableStateOf(prefsRepository.themeMode)
 
         setContent {
-            BabySleepTrackerTheme(darkTheme = darkTheme) {
+            BabySleepTrackerTheme(darkTheme = resolveThemeMode(themeMode)) {
                 val navController = rememberNavController()
                 AppNavigation(
                     navController = navController,
                     prefsRepository = prefsRepository,
                     fileRepository = fileRepository,
-                    onThemeChanged = { darkTheme = it }
+                    onThemeModeChanged = { themeMode = it }
                 )
             }
         }
