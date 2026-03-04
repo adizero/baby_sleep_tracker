@@ -1,5 +1,6 @@
 package com.akocis.babysleeptracker.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,8 +20,6 @@ import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
-import java.net.URLDecoder
-import java.net.URLEncoder
 
 object Routes {
     const val HOME = "home"
@@ -31,7 +30,7 @@ object Routes {
     const val SETTINGS = "settings"
 
     fun editEntry(rawLine: String): String {
-        val encoded = URLEncoder.encode(rawLine, "UTF-8")
+        val encoded = Uri.encode(rawLine)
         return "edit_entry/$encoded"
     }
 }
@@ -65,12 +64,11 @@ fun AppNavigation(
             route = Routes.EDIT_ENTRY,
             arguments = listOf(navArgument("rawLine") { type = NavType.StringType })
         ) { backStackEntry ->
-            val rawLine = URLDecoder.decode(
-                backStackEntry.arguments?.getString("rawLine") ?: "",
-                "UTF-8"
+            val rawLine = Uri.decode(
+                backStackEntry.arguments?.getString("rawLine") ?: ""
             )
             val viewModel: ManualEntryViewModel = viewModel()
-            LaunchedEffect(rawLine) {
+            LaunchedEffect(Unit) {
                 viewModel.initForEdit(rawLine)
             }
             ManualEntryScreen(

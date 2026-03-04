@@ -50,6 +50,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setDiaperType(type: DiaperType) { _diaperType.value = type }
 
     fun initForEdit(rawLine: String) {
+        if (editMode) return
         editMode = true
         originalRawLine = rawLine
         when (val entry = EntryParser.parseLine(rawLine)) {
