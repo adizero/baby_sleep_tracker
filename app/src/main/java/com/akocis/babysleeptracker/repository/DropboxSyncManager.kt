@@ -108,12 +108,14 @@ class DropboxSyncManager {
 
                 if (conn.responseCode == 200) {
                     conn.inputStream.bufferedReader().readText()
-                } else if (conn.responseCode == 409) {
-                    // File not found — that's OK for first sync
-                    null
                 } else {
-                    val error = conn.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-                    throw Exception("Download failed (${conn.responseCode}): $error")
+                    val error = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                    if (conn.responseCode == 409 || error.contains("not_found")) {
+                        // File not found — OK for first sync
+                        null
+                    } else {
+                        throw Exception("Download failed (${conn.responseCode}): $error")
+                    }
                 }
             } finally {
                 conn.disconnect()
