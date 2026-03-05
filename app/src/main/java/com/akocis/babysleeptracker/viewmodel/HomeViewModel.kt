@@ -58,6 +58,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
+    private var pendingWrite = false
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
@@ -66,7 +67,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             startTimer()
         }
         loadBabyInfo()
-        refreshTodayStats()
+        syncAndRefresh()
     }
 
     fun dismissError() {
@@ -107,14 +108,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val now = TrackingState.Sleeping(LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
+                pendingWrite = true
                 startTimer()
                 viewModelScope.launch {
                     try {
                         fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
+                        pendingWrite = false
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
                         showUndo("Sleep started at ${now.startTime}")
                     } catch (e: Exception) {
+                        pendingWrite = false
                         _errorMessage.value = "Failed to save sleep entry: ${e.message}"
                     }
                 }
@@ -165,14 +169,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val now = TrackingState.Feeding(side, LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
+                pendingWrite = true
                 startTimer()
                 viewModelScope.launch {
                     try {
                         fileRepository.appendFeedEntry(uri, FeedEntry(side, now.startDate, now.startTime))
+                        pendingWrite = false
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
                         showUndo("Feed (${side.label}) started at ${now.startTime}")
                     } catch (e: Exception) {
+                        pendingWrite = false
                         _errorMessage.value = "Failed to save feed entry: ${e.message}"
                     }
                 }
@@ -314,29 +321,42 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshTodayStats() {
+    fun syncAndRefresh() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
             SyncHelper.pullLatest()
-            val data = fileRepository.readAll(uri)
-            val today = LocalDate.now()
+            refreshTodayStatsInternal(uri)
+        }
+    }
 
-            val todaySleep = data.sleepEntries.filter { it.date == today }
-            val todayDiapers = data.diaperEntries.filter { it.date == today }
-            val todayFeeds = data.feedEntries.filter { it.date == today }
+    fun refreshTodayStats() {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            refreshTodayStatsInternal(uri)
+        }
+    }
 
-            _todayStats.value = DayStats(
-                date = today,
-                totalSleep = todaySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-                sleepCount = todaySleep.size,
-                peeCount = todayDiapers.count { it.type == DiaperType.PEE },
-                pooCount = todayDiapers.count { it.type == DiaperType.POO },
-                peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
-                feedCount = todayFeeds.size,
-                totalFeedDuration = todayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
-            )
+    private suspend fun refreshTodayStatsInternal(uri: Uri) {
+        val data = fileRepository.readAll(uri)
+        val today = LocalDate.now()
 
-            // Sync tracking state with file contents
+        val todaySleep = data.sleepEntries.filter { it.date == today }
+        val todayDiapers = data.diaperEntries.filter { it.date == today }
+        val todayFeeds = data.feedEntries.filter { it.date == today }
+
+        _todayStats.value = DayStats(
+            date = today,
+            totalSleep = todaySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+            sleepCount = todaySleep.size,
+            peeCount = todayDiapers.count { it.type == DiaperType.PEE },
+            pooCount = todayDiapers.count { it.type == DiaperType.POO },
+            peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
+            feedCount = todayFeeds.size,
+            totalFeedDuration = todayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+        )
+
+        // Sync tracking state with file contents (skip if a write is in progress)
+        if (!pendingWrite) {
             val ongoingFeed = data.feedEntries.find { it.isOngoing }
             val ongoingSleep = data.sleepEntries.find { it.isOngoing }
             when {
@@ -362,15 +382,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     stopTimer()
                 }
             }
+        }
 
-            if (data.babyName != null) {
-                _babyName.value = data.babyName
-                prefsRepository.babyName = data.babyName
-            }
-            if (data.babyBirthDate != null) {
-                _babyAge.value = formatAge(data.babyBirthDate)
-                prefsRepository.babyBirthDate = data.babyBirthDate
-            }
+        if (data.babyName != null) {
+            _babyName.value = data.babyName
+            prefsRepository.babyName = data.babyName
+        }
+        if (data.babyBirthDate != null) {
+            _babyAge.value = formatAge(data.babyBirthDate)
+            prefsRepository.babyBirthDate = data.babyBirthDate
         }
     }
 
