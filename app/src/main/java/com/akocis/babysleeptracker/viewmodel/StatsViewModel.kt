@@ -62,10 +62,13 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val today = LocalDate.now()
             val startDate = today.minusDays(_daysBack.value.toLong() - 1)
 
+            val feedEntries = data.feedEntries
+
             val statsList = (0 until _daysBack.value).map { offset ->
                 val date = startDate.plusDays(offset.toLong())
                 val daySleep = sleepEntries.filter { it.date == date }
                 val dayDiapers = diaperEntries.filter { it.date == date }
+                val dayFeeds = feedEntries.filter { it.date == date }
 
                 var daySleepDur = Duration.ZERO
                 var nightSleepDur = Duration.ZERO
@@ -94,7 +97,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                     daySleep = daySleepDur,
                     nightSleep = nightSleepDur,
                     longestNap = longest,
-                    shortestNap = shortest ?: Duration.ZERO
+                    shortestNap = shortest ?: Duration.ZERO,
+                    feedCount = dayFeeds.size,
+                    totalFeedDuration = dayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
                 )
             }
 

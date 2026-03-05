@@ -183,6 +183,9 @@ fun StatsScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
+                        if (stats.feedCount > 0) {
+                            Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                        }
                         if (stats.totalDiapers > 0) {
                             Text("Diapers: ${stats.peeCount} pee, ${stats.pooCount} poo, ${stats.peepooCount} both")
                         }

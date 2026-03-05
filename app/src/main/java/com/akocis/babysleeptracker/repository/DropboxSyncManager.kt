@@ -28,6 +28,12 @@ class DropboxSyncManager {
         private val COMPLETED_SLEEP_REGEX = Regex(
             """^(?:#[0-9a-f]{8}\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
+        private val ONGOING_FEED_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
+        )
+        private val COMPLETED_FEED_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
+        )
         private val BABY_REGEX = Regex("""^BABY\s+.+""")
         private val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
         private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -191,6 +197,22 @@ class DropboxSyncManager {
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_SLEEP_REGEX.matchEntire(line) ?: return@any false
                 cm.groupValues[1] == date && cm.groupValues[2] == startTime
+            }
+            if (hasCompleted) {
+                allLines.remove(ongoing)
+            }
+        }
+
+        // Resolve ongoing vs completed feed: if both exist, keep completed
+        val ongoingFeeds = allLines.filter { ONGOING_FEED_REGEX.matches(it) }
+        for (ongoing in ongoingFeeds) {
+            val match = ONGOING_FEED_REGEX.matchEntire(ongoing) ?: continue
+            val tag = match.groupValues[1]
+            val date = match.groupValues[2]
+            val startTime = match.groupValues[3]
+            val hasCompleted = allLines.any { line ->
+                val cm = COMPLETED_FEED_REGEX.matchEntire(line) ?: return@any false
+                cm.groupValues[1] == tag && cm.groupValues[2] == date && cm.groupValues[3] == startTime
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)

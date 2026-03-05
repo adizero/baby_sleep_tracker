@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
@@ -20,14 +21,17 @@ data class CalendarDayData(
     val date: LocalDate,
     val sleepEntries: List<SleepEntry> = emptyList(),
     val diaperEntries: List<DiaperEntry> = emptyList(),
-    val activityEntries: List<ActivityEntry> = emptyList()
+    val activityEntries: List<ActivityEntry> = emptyList(),
+    val feedEntries: List<FeedEntry> = emptyList()
 ) {
     val totalSleep: Duration
         get() = sleepEntries.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+    val totalFeed: Duration
+        get() = feedEntries.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
     val totalDiapers: Int
         get() = diaperEntries.size
     val hasData: Boolean
-        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty()
+        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty() || feedEntries.isNotEmpty()
 }
 
 class CalendarViewModel(application: Application) : AndroidViewModel(application) {
@@ -86,7 +90,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                     date = date,
                     sleepEntries = data.sleepEntries.filter { it.date == date },
                     diaperEntries = data.diaperEntries.filter { it.date == date },
-                    activityEntries = data.activityEntries.filter { it.date == date }
+                    activityEntries = data.activityEntries.filter { it.date == date },
+                    feedEntries = data.feedEntries.filter { it.date == date }
                 )
             }
 

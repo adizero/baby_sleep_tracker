@@ -2,6 +2,7 @@ package com.akocis.babysleeptracker.repository
 
 import android.content.Context
 import android.net.Uri
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.TrackingState
 import java.time.Instant
 import java.time.LocalDate
@@ -15,6 +16,8 @@ class PreferencesRepository(context: Context) {
     companion object {
         private const val KEY_FILE_URI = "file_uri"
         private const val KEY_SLEEP_START_EPOCH = "sleep_start_epoch"
+        private const val KEY_FEED_START_EPOCH = "feed_start_epoch"
+        private const val KEY_FEED_SIDE = "feed_side"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_BABY_NAME = "baby_name"
         private const val KEY_BABY_BIRTH_DATE = "baby_birth_date"
@@ -48,27 +51,60 @@ class PreferencesRepository(context: Context) {
     fun saveTrackingState(state: TrackingState) {
         when (state) {
             is TrackingState.Idle -> {
-                prefs.edit().remove(KEY_SLEEP_START_EPOCH).apply()
+                prefs.edit()
+                    .remove(KEY_SLEEP_START_EPOCH)
+                    .remove(KEY_FEED_START_EPOCH)
+                    .remove(KEY_FEED_SIDE)
+                    .apply()
             }
             is TrackingState.Sleeping -> {
                 val epochSeconds = state.startDate.atTime(state.startTime)
                     .atZone(ZoneId.systemDefault())
                     .toEpochSecond()
-                prefs.edit().putLong(KEY_SLEEP_START_EPOCH, epochSeconds).apply()
+                prefs.edit()
+                    .putLong(KEY_SLEEP_START_EPOCH, epochSeconds)
+                    .remove(KEY_FEED_START_EPOCH)
+                    .remove(KEY_FEED_SIDE)
+                    .apply()
+            }
+            is TrackingState.Feeding -> {
+                val epochSeconds = state.startDate.atTime(state.startTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toEpochSecond()
+                prefs.edit()
+                    .putLong(KEY_FEED_START_EPOCH, epochSeconds)
+                    .putString(KEY_FEED_SIDE, state.side.name)
+                    .remove(KEY_SLEEP_START_EPOCH)
+                    .apply()
             }
         }
     }
 
     fun loadTrackingState(): TrackingState {
-        val epoch = prefs.getLong(KEY_SLEEP_START_EPOCH, -1L)
-        if (epoch == -1L) return TrackingState.Idle
+        val feedEpoch = prefs.getLong(KEY_FEED_START_EPOCH, -1L)
+        if (feedEpoch != -1L) {
+            val sideName = prefs.getString(KEY_FEED_SIDE, null)
+            val side = sideName?.let { FeedSide.valueOf(it) } ?: FeedSide.LEFT
+            val instant = Instant.ofEpochSecond(feedEpoch)
+            val zdt = instant.atZone(ZoneId.systemDefault())
+            return TrackingState.Feeding(
+                side = side,
+                startDate = zdt.toLocalDate(),
+                startTime = LocalTime.of(zdt.hour, zdt.minute)
+            )
+        }
 
-        val instant = Instant.ofEpochSecond(epoch)
-        val zdt = instant.atZone(ZoneId.systemDefault())
-        return TrackingState.Sleeping(
-            startDate = zdt.toLocalDate(),
-            startTime = LocalTime.of(zdt.hour, zdt.minute)
-        )
+        val sleepEpoch = prefs.getLong(KEY_SLEEP_START_EPOCH, -1L)
+        if (sleepEpoch != -1L) {
+            val instant = Instant.ofEpochSecond(sleepEpoch)
+            val zdt = instant.atZone(ZoneId.systemDefault())
+            return TrackingState.Sleeping(
+                startDate = zdt.toLocalDate(),
+                startTime = LocalTime.of(zdt.hour, zdt.minute)
+            )
+        }
+
+        return TrackingState.Idle
     }
 
     // Dropbox sync preferences

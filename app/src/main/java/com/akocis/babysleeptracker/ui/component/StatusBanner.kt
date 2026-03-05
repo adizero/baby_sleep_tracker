@@ -17,19 +17,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akocis.babysleeptracker.model.TrackingState
+import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.SoftGreen
 
 @Composable
 fun StatusBanner(
-    isSleeping: Boolean,
+    trackingState: TrackingState,
     elapsedTime: String,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSleeping) SleepButtonColor else SoftGreen,
+        targetValue = when (trackingState) {
+            is TrackingState.Sleeping -> SleepButtonColor
+            is TrackingState.Feeding -> FeedColor
+            is TrackingState.Idle -> SoftGreen
+        },
         label = "statusColor"
     )
+
+    val statusText = when (trackingState) {
+        is TrackingState.Sleeping -> "Sleeping"
+        is TrackingState.Feeding -> "Feeding (${trackingState.side.label[0]})"
+        is TrackingState.Idle -> "Awake"
+    }
+
+    val showTimer = trackingState !is TrackingState.Idle && elapsedTime.isNotBlank()
 
     Card(
         modifier = modifier
@@ -46,12 +60,12 @@ fun StatusBanner(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = if (isSleeping) "Sleeping" else "Awake",
+                text = statusText,
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold
             )
-            if (isSleeping && elapsedTime.isNotBlank()) {
+            if (showTimer) {
                 Text(
                     text = elapsedTime,
                     fontSize = 20.sp,

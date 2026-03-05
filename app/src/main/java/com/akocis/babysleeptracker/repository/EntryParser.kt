@@ -4,6 +4,8 @@ import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import java.security.SecureRandom
@@ -14,6 +16,7 @@ data class ParsedData(
     val sleepEntries: List<SleepEntry> = emptyList(),
     val diaperEntries: List<DiaperEntry> = emptyList(),
     val activityEntries: List<ActivityEntry> = emptyList(),
+    val feedEntries: List<FeedEntry> = emptyList(),
     val babyName: String? = null,
     val babyBirthDate: LocalDate? = null,
     val deletedIds: Set<String> = emptySet()
@@ -38,6 +41,12 @@ object EntryParser {
     )
     private val BABY_REGEX = Regex(
         """^BABY\s+(.+?)\s+(\d{4}-\d{2}-\d{2})$"""
+    )
+    private val FEED_REGEX = Regex(
+        """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
+    )
+    private val FEED_ONGOING_REGEX = Regex(
+        """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -82,6 +91,21 @@ object EntryParser {
             return SleepEntry(date, start, null, id)
         }
 
+        FEED_REGEX.matchEntire(content)?.let { match ->
+            val side = FeedSide.fromString(match.groupValues[1]) ?: return null
+            val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
+            val end = LocalTime.parse(match.groupValues[4], DateTimeUtil.TIME_FORMAT)
+            return FeedEntry(side, date, start, end, id)
+        }
+
+        FEED_ONGOING_REGEX.matchEntire(content)?.let { match ->
+            val side = FeedSide.fromString(match.groupValues[1]) ?: return null
+            val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
+            return FeedEntry(side, date, start, null, id)
+        }
+
         DIAPER_REGEX.matchEntire(content)?.let { match ->
             val type = DiaperType.fromString(match.groupValues[1]) ?: return null
             val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
@@ -121,6 +145,7 @@ object EntryParser {
         val sleepEntries = mutableListOf<SleepEntry>()
         val diaperEntries = mutableListOf<DiaperEntry>()
         val activityEntries = mutableListOf<ActivityEntry>()
+        val feedEntries = mutableListOf<FeedEntry>()
         val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
         var babyBirthDate: LocalDate? = null
@@ -143,6 +168,7 @@ object EntryParser {
                 is SleepEntry -> sleepEntries.add(entry)
                 is DiaperEntry -> diaperEntries.add(entry)
                 is ActivityEntry -> activityEntries.add(entry)
+                is FeedEntry -> feedEntries.add(entry)
             }
         }
 
@@ -151,6 +177,7 @@ object EntryParser {
             sleepEntries = sleepEntries.filter { it.id == null || it.id !in deletedIds },
             diaperEntries = diaperEntries.filter { it.id == null || it.id !in deletedIds },
             activityEntries = activityEntries.filter { it.id == null || it.id !in deletedIds },
+            feedEntries = feedEntries.filter { it.id == null || it.id !in deletedIds },
             babyName = babyName,
             babyBirthDate = babyBirthDate,
             deletedIds = deletedIds
@@ -165,6 +192,18 @@ object EntryParser {
             "SLEEP $date $start - $end"
         } else {
             "SLEEP $date $start -"
+        }
+        return if (entry.id != null) "#${entry.id} $body" else body
+    }
+
+    fun formatFeedEntry(entry: FeedEntry): String {
+        val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
+        val start = entry.startTime.format(DateTimeUtil.TIME_FORMAT)
+        val body = if (entry.endTime != null) {
+            val end = entry.endTime.format(DateTimeUtil.TIME_FORMAT)
+            "${entry.typeTag} $date $start - $end"
+        } else {
+            "${entry.typeTag} $date $start -"
         }
         return if (entry.id != null) "#${entry.id} $body" else body
     }

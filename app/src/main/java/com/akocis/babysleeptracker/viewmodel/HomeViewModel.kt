@@ -9,6 +9,8 @@ import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.FileRepository
@@ -60,7 +62,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
         _hasFile.value = prefsRepository.fileUri != null
-        if (_trackingState.value is TrackingState.Sleeping) {
+        if (_trackingState.value is TrackingState.Sleeping || _trackingState.value is TrackingState.Feeding) {
             startTimer()
         }
         loadBabyInfo()
@@ -135,7 +137,120 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+            is TrackingState.Feeding -> {
+                // Auto-stop feeding, then start sleep
+                viewModelScope.launch {
+                    try {
+                        finishFeeding(uri, state)
+                        val now = TrackingState.Sleeping(LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
+                        _trackingState.value = now
+                        prefsRepository.saveTrackingState(now)
+                        startTimer()
+                        fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
+                        refreshTodayStats()
+                        SyncHelper.notifyDataChanged()
+                        showUndo("Sleep started at ${now.startTime}")
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Failed to save entry: ${e.message}"
+                    }
+                }
+            }
         }
+    }
+
+    fun startFeeding(side: FeedSide) {
+        val uri = prefsRepository.fileUri ?: return
+        when (val state = _trackingState.value) {
+            is TrackingState.Idle -> {
+                val now = TrackingState.Feeding(side, LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
+                _trackingState.value = now
+                prefsRepository.saveTrackingState(now)
+                startTimer()
+                viewModelScope.launch {
+                    try {
+                        fileRepository.appendFeedEntry(uri, FeedEntry(side, now.startDate, now.startTime))
+                        refreshTodayStats()
+                        SyncHelper.notifyDataChanged()
+                        showUndo("Feed (${side.label}) started at ${now.startTime}")
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Failed to save feed entry: ${e.message}"
+                    }
+                }
+            }
+            is TrackingState.Sleeping -> {
+                // Auto-stop sleep, then start feeding
+                viewModelScope.launch {
+                    try {
+                        val endTime = LocalTime.now().withSecond(0).withNano(0)
+                        val ongoingLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
+                        val completedLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)}"
+                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+
+                        val now = TrackingState.Feeding(side, LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
+                        _trackingState.value = now
+                        prefsRepository.saveTrackingState(now)
+                        startTimer()
+                        fileRepository.appendFeedEntry(uri, FeedEntry(side, now.startDate, now.startTime))
+                        refreshTodayStats()
+                        SyncHelper.notifyDataChanged()
+                        showUndo("Feed (${side.label}) started at ${now.startTime}")
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Failed to save entry: ${e.message}"
+                    }
+                }
+            }
+            is TrackingState.Feeding -> {
+                if (state.side == side) {
+                    // Same side — stop feeding
+                    stopFeeding()
+                } else {
+                    // Switch sides — finish current, start new
+                    viewModelScope.launch {
+                        try {
+                            finishFeeding(uri, state)
+                            val now = TrackingState.Feeding(side, LocalDate.now(), LocalTime.now().withSecond(0).withNano(0))
+                            _trackingState.value = now
+                            prefsRepository.saveTrackingState(now)
+                            startTimer()
+                            fileRepository.appendFeedEntry(uri, FeedEntry(side, now.startDate, now.startTime))
+                            refreshTodayStats()
+                            SyncHelper.notifyDataChanged()
+                            showUndo("Feed switched to ${side.label}")
+                        } catch (e: Exception) {
+                            _errorMessage.value = "Failed to save entry: ${e.message}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun stopFeeding() {
+        val uri = prefsRepository.fileUri ?: return
+        val state = _trackingState.value
+        if (state !is TrackingState.Feeding) return
+        viewModelScope.launch {
+            try {
+                finishFeeding(uri, state)
+                _trackingState.value = TrackingState.Idle
+                prefsRepository.saveTrackingState(TrackingState.Idle)
+                stopTimer()
+                refreshTodayStats()
+                SyncHelper.notifyDataChanged()
+                val endTime = LocalTime.now().withSecond(0).withNano(0)
+                showUndo("Feed (${state.side.label}) ${state.startTime} - $endTime")
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save feed entry: ${e.message}"
+            }
+        }
+    }
+
+    private suspend fun finishFeeding(uri: android.net.Uri, state: TrackingState.Feeding) {
+        val endTime = LocalTime.now().withSecond(0).withNano(0)
+        val tag = if (state.side == FeedSide.LEFT) "FEEDL" else "FEEDR"
+        val ongoingLine = "$tag ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
+        val completedLine = "$tag ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)}"
+        fileRepository.updateEntry(uri, ongoingLine, completedLine)
     }
 
     fun logDiaper(type: DiaperType) {
@@ -208,6 +323,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             val todaySleep = data.sleepEntries.filter { it.date == today }
             val todayDiapers = data.diaperEntries.filter { it.date == today }
+            val todayFeeds = data.feedEntries.filter { it.date == today }
 
             _todayStats.value = DayStats(
                 date = today,
@@ -215,16 +331,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 sleepCount = todaySleep.size,
                 peeCount = todayDiapers.count { it.type == DiaperType.PEE },
                 pooCount = todayDiapers.count { it.type == DiaperType.POO },
-                peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO }
+                peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
+                feedCount = todayFeeds.size,
+                totalFeedDuration = todayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
             )
 
-            // Restore ongoing sleep from file if prefs lost it
-            val ongoingSleep = data.sleepEntries.find { it.isOngoing }
-            if (ongoingSleep != null && _trackingState.value is TrackingState.Idle) {
-                val state = TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
-                _trackingState.value = state
-                prefsRepository.saveTrackingState(state)
-                startTimer()
+            // Restore ongoing state from file if prefs lost it
+            if (_trackingState.value is TrackingState.Idle) {
+                val ongoingFeed = data.feedEntries.find { it.isOngoing }
+                val ongoingSleep = data.sleepEntries.find { it.isOngoing }
+                if (ongoingFeed != null) {
+                    val state = TrackingState.Feeding(ongoingFeed.side, ongoingFeed.date, ongoingFeed.startTime)
+                    _trackingState.value = state
+                    prefsRepository.saveTrackingState(state)
+                    startTimer()
+                } else if (ongoingSleep != null) {
+                    val state = TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
+                    _trackingState.value = state
+                    prefsRepository.saveTrackingState(state)
+                    startTimer()
+                }
             }
 
             if (data.babyName != null) {
@@ -249,9 +375,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (true) {
-                val state = _trackingState.value
-                if (state is TrackingState.Sleeping) {
-                    _elapsedTime.value = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
+                when (val state = _trackingState.value) {
+                    is TrackingState.Sleeping ->
+                        _elapsedTime.value = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
+                    is TrackingState.Feeding ->
+                        _elapsedTime.value = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
+                    else -> {}
                 }
                 delay(10_000)
             }

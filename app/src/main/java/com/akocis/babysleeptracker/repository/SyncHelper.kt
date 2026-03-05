@@ -81,10 +81,15 @@ object SyncHelper {
             val parsed = EntryParser.parseAll(merged)
             if (parsed.babyName != null) prefs.babyName = parsed.babyName
             if (parsed.babyBirthDate != null) prefs.babyBirthDate = parsed.babyBirthDate
-            val ongoing = parsed.sleepEntries.find { it.isOngoing }
-            if (ongoing != null) {
+            val ongoingSleep = parsed.sleepEntries.find { it.isOngoing }
+            val ongoingFeed = parsed.feedEntries.find { it.isOngoing }
+            if (ongoingFeed != null) {
                 prefs.saveTrackingState(
-                    TrackingState.Sleeping(ongoing.date, ongoing.startTime)
+                    TrackingState.Feeding(ongoingFeed.side, ongoingFeed.date, ongoingFeed.startTime)
+                )
+            } else if (ongoingSleep != null) {
+                prefs.saveTrackingState(
+                    TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
                 )
             }
         } catch (e: Exception) {

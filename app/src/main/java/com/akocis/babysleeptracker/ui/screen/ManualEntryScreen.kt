@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
 import com.akocis.babysleeptracker.util.DateTimeUtil
@@ -68,6 +69,7 @@ fun ManualEntryScreen(
     val diaperType by viewModel.diaperType.collectAsStateWithLifecycle()
     val activityType by viewModel.activityType.collectAsStateWithLifecycle()
     val noteText by viewModel.noteText.collectAsStateWithLifecycle()
+    val feedSide by viewModel.feedSide.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -118,9 +120,9 @@ fun ManualEntryScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Entry type toggle (3-way)
+            // Entry type toggle (4-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
                 kinds.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
@@ -146,13 +148,13 @@ fun ManualEntryScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (entryKind == EntryKind.SLEEP) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                 )
             }
 
-            // End time (only for sleep entries)
-            if (entryKind == EntryKind.SLEEP) {
+            // End time (for sleep and feed entries)
+            if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -168,6 +170,23 @@ fun ManualEntryScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("End: ${endTime.format(DateTimeUtil.TIME_FORMAT)}")
+                    }
+                }
+            }
+
+            // Feed side (only for feed entries)
+            if (entryKind == EntryKind.FEED) {
+                Text("Side:", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FeedSide.entries.forEach { side ->
+                        FilterChip(
+                            selected = feedSide == side,
+                            onClick = { viewModel.setFeedSide(side) },
+                            label = { Text(side.label) }
+                        )
                     }
                 }
             }
@@ -259,7 +278,7 @@ fun ManualEntryScreen(
         // Time picker dialogs
         if (showStartTimePicker) {
             TimePickerDialog(
-                title = if (entryKind == EntryKind.SLEEP) "Start Time" else "Time",
+                title = if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) "Start Time" else "Time",
                 initialTime = startTime,
                 onConfirm = {
                     viewModel.setStartTime(it)

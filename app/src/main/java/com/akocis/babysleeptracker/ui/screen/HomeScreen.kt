@@ -51,10 +51,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.StatusBanner
 import com.akocis.babysleeptracker.ui.theme.BathColor
+import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.NoteColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PeePooColor
@@ -256,7 +258,7 @@ fun HomeScreen(
 
             // Status banner
             StatusBanner(
-                isSleeping = trackingState is TrackingState.Sleeping,
+                trackingState = trackingState,
                 elapsedTime = elapsedTime
             )
 
@@ -270,7 +272,40 @@ fun HomeScreen(
                 onClick = { viewModel.toggleSleep() }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Feeding buttons
+            val isFeeding = trackingState is TrackingState.Feeding
+            val feedingLeft = trackingState is TrackingState.Feeding && (trackingState as TrackingState.Feeding).side == FeedSide.LEFT
+            val feedingRight = trackingState is TrackingState.Feeding && (trackingState as TrackingState.Feeding).side == FeedSide.RIGHT
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BigActionButton(
+                    text = "Feed L",
+                    containerColor = if (feedingLeft) StopButtonColor else FeedColor,
+                    onClick = { viewModel.startFeeding(FeedSide.LEFT) },
+                    modifier = Modifier.weight(1f)
+                )
+                BigActionButton(
+                    text = "Stop",
+                    containerColor = if (isFeeding) StopButtonColor else FeedColor.copy(alpha = 0.4f),
+                    onClick = { viewModel.stopFeeding() },
+                    modifier = Modifier.weight(1f),
+                    enabled = isFeeding
+                )
+                BigActionButton(
+                    text = "Feed R",
+                    containerColor = if (feedingRight) StopButtonColor else FeedColor,
+                    onClick = { viewModel.startFeeding(FeedSide.RIGHT) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Diaper buttons
             Row(
@@ -350,6 +385,9 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
+                        if (stats.feedCount > 0) {
+                            Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                        }
                         Text("Pee: ${stats.peeCount}  Poo: ${stats.pooCount}  Both: ${stats.peepooCount}")
                         Text("Total diapers: ${stats.totalDiapers}")
                     }

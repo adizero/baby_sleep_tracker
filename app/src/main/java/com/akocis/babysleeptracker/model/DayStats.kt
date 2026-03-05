@@ -13,7 +13,9 @@ data class DayStats(
     val daySleep: Duration = Duration.ZERO,
     val nightSleep: Duration = Duration.ZERO,
     val longestNap: Duration = Duration.ZERO,
-    val shortestNap: Duration = Duration.ZERO
+    val shortestNap: Duration = Duration.ZERO,
+    val feedCount: Int = 0,
+    val totalFeedDuration: Duration = Duration.ZERO
 ) {
     val totalDiapers: Int get() = peeCount + pooCount + peepooCount
 }

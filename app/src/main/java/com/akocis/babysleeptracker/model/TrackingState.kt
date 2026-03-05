@@ -9,4 +9,9 @@ sealed class TrackingState {
         val startDate: LocalDate,
         val startTime: LocalTime
     ) : TrackingState()
+    data class Feeding(
+        val side: FeedSide,
+        val startDate: LocalDate,
+        val startTime: LocalTime
+    ) : TrackingState()
 }

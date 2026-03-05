@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.ui.theme.BathColor
+import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
@@ -249,6 +250,14 @@ private fun CalendarDayCell(
                                 .background(PeeColor)
                         )
                     }
+                    if (dayData.feedEntries.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(FeedColor)
+                        )
+                    }
                     if (dayData.activityEntries.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -298,6 +307,22 @@ private fun DayDetailCard(dayData: CalendarDayData) {
                     val endText = entry.endTime?.toString() ?: "ongoing"
                     Text(
                         text = "  ${entry.startTime} - $endText (${DateTimeUtil.formatDuration(entry.duration)})",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (dayData.feedEntries.isNotEmpty()) {
+                Text(
+                    text = "Feeding (${DateTimeUtil.formatDuration(dayData.totalFeed)})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                dayData.feedEntries.forEach { entry ->
+                    val endText = entry.endTime?.toString() ?: "ongoing"
+                    Text(
+                        text = "  ${entry.startTime} - $endText ${entry.side.label} (${DateTimeUtil.formatDuration(entry.duration)})",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

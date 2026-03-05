@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
+import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -38,6 +39,11 @@ class FileRepository(private val context: Context) {
     suspend fun appendActivityEntry(uri: Uri, entry: ActivityEntry) {
         val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
         appendLine(uri, EntryParser.formatActivityEntry(withId))
+    }
+
+    suspend fun appendFeedEntry(uri: Uri, entry: FeedEntry) {
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatFeedEntry(withId))
     }
 
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
@@ -154,6 +160,10 @@ class FileRepository(private val context: Context) {
         }
         sourceData.activityEntries.forEach {
             appendActivityEntry(targetUri, it)
+            count++
+        }
+        sourceData.feedEntries.forEach {
+            appendFeedEntry(targetUri, it)
             count++
         }
         return count

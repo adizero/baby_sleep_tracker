@@ -7,6 +7,8 @@ import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
@@ -18,7 +20,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
-enum class EntryKind { SLEEP, DIAPER, ACTIVITY }
+enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED }
 
 class ManualEntryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -49,6 +51,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _noteText = MutableStateFlow("")
     val noteText: StateFlow<String> = _noteText
 
+    private val _feedSide = MutableStateFlow(FeedSide.LEFT)
+    val feedSide: StateFlow<FeedSide> = _feedSide
+
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved
 
@@ -68,6 +73,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setDiaperType(type: DiaperType) { _diaperType.value = type }
     fun setActivityType(type: ActivityType) { _activityType.value = type }
     fun setNoteText(text: String) { _noteText.value = text }
+    fun setFeedSide(side: FeedSide) { _feedSide.value = side }
 
     fun dismissError() {
         _errorMessage.value = null
@@ -100,6 +106,16 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 _activityType.value = entry.type
                 _noteText.value = entry.note ?: ""
             }
+            is FeedEntry -> {
+                _entryKind.value = EntryKind.FEED
+                _date.value = entry.date
+                _startTime.value = entry.startTime
+                _feedSide.value = entry.side
+                _hasEndTime.value = entry.endTime != null
+                if (entry.endTime != null) {
+                    _endTime.value = entry.endTime
+                }
+            }
         }
     }
 
@@ -123,6 +139,12 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                         val note = _noteText.value.takeIf { it.isNotBlank() }
                         EntryParser.formatActivityEntry(
                             ActivityEntry(_activityType.value, _date.value, _startTime.value, note)
+                        )
+                    }
+                    EntryKind.FEED -> {
+                        val end = if (_hasEndTime.value) _endTime.value else null
+                        EntryParser.formatFeedEntry(
+                            FeedEntry(_feedSide.value, _date.value, _startTime.value, end)
                         )
                     }
                 }
@@ -149,6 +171,13 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             fileRepository.appendActivityEntry(
                                 uri,
                                 ActivityEntry(_activityType.value, _date.value, _startTime.value, note)
+                            )
+                        }
+                        EntryKind.FEED -> {
+                            val end = if (_hasEndTime.value) _endTime.value else null
+                            fileRepository.appendFeedEntry(
+                                uri,
+                                FeedEntry(_feedSide.value, _date.value, _startTime.value, end)
                             )
                         }
                     }
