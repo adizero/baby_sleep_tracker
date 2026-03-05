@@ -27,8 +27,8 @@ data class FeedEntry(
 
     val duration: Duration
         get() {
-            if (endTime == null) return Duration.ZERO
-            val dur = Duration.between(startTime, endTime)
+            val end = endTime ?: LocalTime.now().withSecond(0).withNano(0)
+            val dur = Duration.between(startTime, end)
             return if (dur.isNegative) dur.plusHours(24) else dur
         }
 
