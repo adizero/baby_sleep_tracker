@@ -336,20 +336,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 totalFeedDuration = todayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
             )
 
-            // Restore ongoing state from file if prefs lost it
-            if (_trackingState.value is TrackingState.Idle) {
-                val ongoingFeed = data.feedEntries.find { it.isOngoing }
-                val ongoingSleep = data.sleepEntries.find { it.isOngoing }
-                if (ongoingFeed != null) {
+            // Sync tracking state with file contents
+            val ongoingFeed = data.feedEntries.find { it.isOngoing }
+            val ongoingSleep = data.sleepEntries.find { it.isOngoing }
+            when {
+                ongoingFeed != null -> {
                     val state = TrackingState.Feeding(ongoingFeed.side, ongoingFeed.date, ongoingFeed.startTime)
-                    _trackingState.value = state
-                    prefsRepository.saveTrackingState(state)
-                    startTimer()
-                } else if (ongoingSleep != null) {
+                    if (_trackingState.value != state) {
+                        _trackingState.value = state
+                        prefsRepository.saveTrackingState(state)
+                        startTimer()
+                    }
+                }
+                ongoingSleep != null -> {
                     val state = TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
-                    _trackingState.value = state
-                    prefsRepository.saveTrackingState(state)
-                    startTimer()
+                    if (_trackingState.value != state) {
+                        _trackingState.value = state
+                        prefsRepository.saveTrackingState(state)
+                        startTimer()
+                    }
+                }
+                _trackingState.value !is TrackingState.Idle -> {
+                    _trackingState.value = TrackingState.Idle
+                    prefsRepository.saveTrackingState(TrackingState.Idle)
+                    stopTimer()
                 }
             }
 

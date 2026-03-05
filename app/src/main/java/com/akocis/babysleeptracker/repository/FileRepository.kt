@@ -178,6 +178,17 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    suspend fun readMergeWrite(uri: Uri, transform: (String) -> String): String {
+        return mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = readContent(uri)
+                val result = transform(content)
+                writeContent(uri, result)
+                result
+            }
+        }
+    }
+
     private fun readContent(uri: Uri): String {
         return try {
             context.contentResolver.openInputStream(uri)?.use {

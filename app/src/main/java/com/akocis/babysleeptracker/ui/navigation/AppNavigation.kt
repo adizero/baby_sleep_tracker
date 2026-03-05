@@ -102,8 +102,17 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(Routes.HISTORY) {
+        composable(Routes.HISTORY) { backStackEntry ->
             val viewModel: HistoryViewModel = viewModel()
+            DisposableEffect(backStackEntry.lifecycle) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        viewModel.loadEntries()
+                    }
+                }
+                backStackEntry.lifecycle.addObserver(observer)
+                onDispose { backStackEntry.lifecycle.removeObserver(observer) }
+            }
             HistoryScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() },

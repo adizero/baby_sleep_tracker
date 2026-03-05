@@ -219,6 +219,23 @@ class DropboxSyncManager {
             }
         }
 
+        // ID-based dedup: if same ID has both ongoing and non-ongoing, remove ongoing
+        val linesByID = mutableMapOf<String, MutableList<String>>()
+        for (line in allLines) {
+            val id = ID_PREFIX_REGEX.find(line)?.groupValues?.get(1) ?: continue
+            linesByID.getOrPut(id) { mutableListOf() }.add(line)
+        }
+        for ((_, lines) in linesByID) {
+            if (lines.size <= 1) continue
+            val ongoing = lines.filter {
+                ONGOING_SLEEP_REGEX.matches(it) || ONGOING_FEED_REGEX.matches(it)
+            }
+            if (ongoing.size < lines.size) {
+                // Non-ongoing versions exist; remove all ongoing duplicates
+                allLines.removeAll(ongoing.toSet())
+            }
+        }
+
         // Sort entries by date + time
         val sorted = allLines.sortedWith(compareBy { line ->
             val m = DATE_TIME_REGEX.find(line)

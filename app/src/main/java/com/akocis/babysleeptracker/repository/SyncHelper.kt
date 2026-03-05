@@ -72,11 +72,13 @@ object SyncHelper {
             val filePath = prefs.dropboxFilePath
 
             val remoteContent = syncManager.downloadFile(accessToken, filePath)
-            val localContent = fileRepo.readRawContent(uri)
-            val merged = syncManager.mergeContent(localContent, remoteContent)
+
+            // Atomic read+merge+write to prevent race with concurrent file ops
+            val merged = fileRepo.readMergeWrite(uri) { localContent ->
+                syncManager.mergeContent(localContent, remoteContent)
+            }
 
             syncManager.uploadFile(accessToken, merged, filePath)
-            fileRepo.writeRawContent(uri, merged)
 
             val parsed = EntryParser.parseAll(merged)
             if (parsed.babyName != null) prefs.babyName = parsed.babyName
