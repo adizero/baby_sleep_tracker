@@ -70,7 +70,7 @@ fun SleepChart(
             )
 
             drawContext.canvas.nativeCanvas.drawText(
-                dayStat.date.format(labelFormatter),
+                dayStat.label ?: dayStat.date.format(labelFormatter),
                 x + barWidth / 2,
                 size.height - 4f,
                 android.graphics.Paint().apply {
