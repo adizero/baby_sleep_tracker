@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.provider.OpenableColumns
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.util.DateTimeUtil
@@ -251,8 +252,23 @@ fun SettingsScreen(
                         text = "Data File",
                         style = MaterialTheme.typography.titleLarge
                     )
+                    val fileDisplayName = remember(prefsRepository.fileUri) {
+                        prefsRepository.fileUri?.let { uri ->
+                            try {
+                                context.contentResolver.query(
+                                    uri,
+                                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                                    null, null, null
+                                )?.use { cursor ->
+                                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                                }
+                            } catch (_: Exception) {
+                                null
+                            }
+                        } ?: "Not set"
+                    }
                     Text(
-                        text = prefsRepository.fileUri?.lastPathSegment ?: "Not set",
+                        text = fileDisplayName,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )

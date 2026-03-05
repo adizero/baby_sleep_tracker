@@ -28,7 +28,7 @@ fun BigActionButton(
         modifier = modifier
             .fillMaxWidth()
             .height(80.dp)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 2.dp, vertical = 4.dp),
         enabled = enabled,
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
