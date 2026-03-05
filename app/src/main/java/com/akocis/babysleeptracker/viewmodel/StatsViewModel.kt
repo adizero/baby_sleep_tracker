@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 data class SummaryStats(
@@ -19,7 +20,9 @@ data class SummaryStats(
     val avgNapsPerDay: Float = 0f,
     val avgDiapersPerDay: Float = 0f,
     val longestNap: Duration = Duration.ZERO,
-    val shortestNap: Duration = Duration.ZERO
+    val shortestNap: Duration = Duration.ZERO,
+    val avgFeedPerDay: Duration = Duration.ZERO,
+    val avgFeedSessionsPerDay: Float = 0f
 )
 
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
@@ -36,8 +39,15 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val _movingAverage = MutableStateFlow<List<Float>>(emptyList())
     val movingAverage: StateFlow<List<Float>> = _movingAverage
 
+    private val _feedMovingAverage = MutableStateFlow<List<Float>>(emptyList())
+    val feedMovingAverage: StateFlow<List<Float>> = _feedMovingAverage
+
     private val _daysBack = MutableStateFlow(7)
     val daysBack: StateFlow<Int> = _daysBack
+
+    /** true when daysBack==0 (last-24h mode) */
+    private val _is24hMode = MutableStateFlow(false)
+    val is24hMode: StateFlow<Boolean> = _is24hMode
 
     companion object {
         private val DAY_START = LocalTime.of(7, 0)
@@ -50,6 +60,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDaysBack(days: Int) {
         _daysBack.value = days
+        _is24hMode.value = days == 0
         loadStats()
     }
 
@@ -59,75 +70,166 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val data = fileRepository.readAll(uri)
             val sleepEntries = data.sleepEntries
             val diaperEntries = data.diaperEntries
-            val today = LocalDate.now()
-            val startDate = today.minusDays(_daysBack.value.toLong() - 1)
-
             val feedEntries = data.feedEntries
+            val today = LocalDate.now()
 
-            val statsList = (0 until _daysBack.value).map { offset ->
-                val date = startDate.plusDays(offset.toLong())
-                val daySleep = sleepEntries.filter { it.date == date }
-                val dayDiapers = diaperEntries.filter { it.date == date }
-                val dayFeeds = feedEntries.filter { it.date == date }
-
-                var daySleepDur = Duration.ZERO
-                var nightSleepDur = Duration.ZERO
-                var longest = Duration.ZERO
-                var shortest: Duration? = null
-
-                daySleep.forEach { entry ->
-                    val dur = entry.duration
-                    if (dur > longest) longest = dur
-                    if (shortest == null || dur < shortest!!) shortest = dur
-
-                    if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
-                        daySleepDur = daySleepDur.plus(dur)
-                    } else {
-                        nightSleepDur = nightSleepDur.plus(dur)
-                    }
-                }
-
-                DayStats(
-                    date = date,
-                    totalSleep = daySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-                    sleepCount = daySleep.size,
-                    peeCount = dayDiapers.count { it.type == DiaperType.PEE },
-                    pooCount = dayDiapers.count { it.type == DiaperType.POO },
-                    peepooCount = dayDiapers.count { it.type == DiaperType.PEEPOO },
-                    daySleep = daySleepDur,
-                    nightSleep = nightSleepDur,
-                    longestNap = longest,
-                    shortestNap = shortest ?: Duration.ZERO,
-                    feedCount = dayFeeds.size,
-                    totalFeedDuration = dayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
-                )
+            if (_is24hMode.value) {
+                load24hStats(sleepEntries, diaperEntries, feedEntries)
+            } else {
+                loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, today)
             }
-
-            _dayStats.value = statsList
-
-            val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 }
-            val totalDays = daysWithData.size.coerceAtLeast(1)
-            val allNaps = statsList.filter { it.longestNap > Duration.ZERO }
-
-            _summaryStats.value = SummaryStats(
-                avgSleepPerDay = statsList.fold(Duration.ZERO) { acc, s ->
-                    acc.plus(s.totalSleep)
-                }.dividedBy(totalDays.toLong()),
-                avgNapsPerDay = statsList.sumOf { it.sleepCount }.toFloat() / totalDays,
-                avgDiapersPerDay = statsList.sumOf { it.totalDiapers }.toFloat() / totalDays,
-                longestNap = allNaps.maxOfOrNull { it.longestNap } ?: Duration.ZERO,
-                shortestNap = allNaps.filter { it.shortestNap > Duration.ZERO }
-                    .minOfOrNull { it.shortestNap } ?: Duration.ZERO
-            )
-
-            val minutes = statsList.map { it.totalSleep.toMinutes().toFloat() }
-            val ma = minutes.mapIndexed { i, _ ->
-                val start = (i - 1).coerceAtLeast(0)
-                val end = (i + 1).coerceAtMost(minutes.lastIndex)
-                val window = minutes.subList(start, end + 1)
-                window.average().toFloat() / 60f
-            }
-            _movingAverage.value = ma
         }
+    }
+
+    private fun load24hStats(
+        sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
+        diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
+        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>
+    ) {
+        val now = LocalDateTime.now()
+        val cutoff = now.minusHours(24)
+
+        val recentSleep = sleepEntries.filter {
+            it.date.atTime(it.startTime) >= cutoff
+        }
+        val recentDiapers = diaperEntries.filter {
+            it.date.atTime(it.time) >= cutoff
+        }
+        val recentFeeds = feedEntries.filter {
+            it.date.atTime(it.startTime) >= cutoff
+        }
+
+        var daySleepDur = Duration.ZERO
+        var nightSleepDur = Duration.ZERO
+        var longest = Duration.ZERO
+        var shortest: Duration? = null
+
+        recentSleep.forEach { entry ->
+            val dur = entry.duration
+            if (dur > longest) longest = dur
+            if (shortest == null || dur < shortest!!) shortest = dur
+            if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
+                daySleepDur = daySleepDur.plus(dur)
+            } else {
+                nightSleepDur = nightSleepDur.plus(dur)
+            }
+        }
+
+        val singleDay = DayStats(
+            date = LocalDate.now(),
+            totalSleep = recentSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+            sleepCount = recentSleep.size,
+            peeCount = recentDiapers.count { it.type == DiaperType.PEE },
+            pooCount = recentDiapers.count { it.type == DiaperType.POO },
+            peepooCount = recentDiapers.count { it.type == DiaperType.PEEPOO },
+            daySleep = daySleepDur,
+            nightSleep = nightSleepDur,
+            longestNap = longest,
+            shortestNap = shortest ?: Duration.ZERO,
+            feedCount = recentFeeds.size,
+            totalFeedDuration = recentFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+        )
+
+        _dayStats.value = listOf(singleDay)
+        _summaryStats.value = SummaryStats(
+            avgSleepPerDay = singleDay.totalSleep,
+            avgNapsPerDay = singleDay.sleepCount.toFloat(),
+            avgDiapersPerDay = singleDay.totalDiapers.toFloat(),
+            longestNap = longest,
+            shortestNap = shortest ?: Duration.ZERO,
+            avgFeedPerDay = singleDay.totalFeedDuration,
+            avgFeedSessionsPerDay = singleDay.feedCount.toFloat()
+        )
+        _movingAverage.value = emptyList()
+        _feedMovingAverage.value = emptyList()
+    }
+
+    private fun loadDayRangeStats(
+        sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
+        diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
+        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
+        today: LocalDate
+    ) {
+        val days = _daysBack.value
+        val startDate = today.minusDays(days.toLong() - 1)
+
+        val statsList = (0 until days).map { offset ->
+            val date = startDate.plusDays(offset.toLong())
+            val daySleep = sleepEntries.filter { it.date == date }
+            val dayDiapers = diaperEntries.filter { it.date == date }
+            val dayFeeds = feedEntries.filter { it.date == date }
+
+            var daySleepDur = Duration.ZERO
+            var nightSleepDur = Duration.ZERO
+            var longest = Duration.ZERO
+            var shortest: Duration? = null
+
+            daySleep.forEach { entry ->
+                val dur = entry.duration
+                if (dur > longest) longest = dur
+                if (shortest == null || dur < shortest!!) shortest = dur
+                if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
+                    daySleepDur = daySleepDur.plus(dur)
+                } else {
+                    nightSleepDur = nightSleepDur.plus(dur)
+                }
+            }
+
+            DayStats(
+                date = date,
+                totalSleep = daySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+                sleepCount = daySleep.size,
+                peeCount = dayDiapers.count { it.type == DiaperType.PEE },
+                pooCount = dayDiapers.count { it.type == DiaperType.POO },
+                peepooCount = dayDiapers.count { it.type == DiaperType.PEEPOO },
+                daySleep = daySleepDur,
+                nightSleep = nightSleepDur,
+                longestNap = longest,
+                shortestNap = shortest ?: Duration.ZERO,
+                feedCount = dayFeeds.size,
+                totalFeedDuration = dayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+            )
+        }
+
+        _dayStats.value = statsList
+
+        val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 || it.feedCount > 0 }
+        val totalDays = daysWithData.size.coerceAtLeast(1)
+        val allNaps = statsList.filter { it.longestNap > Duration.ZERO }
+
+        _summaryStats.value = SummaryStats(
+            avgSleepPerDay = statsList.fold(Duration.ZERO) { acc, s ->
+                acc.plus(s.totalSleep)
+            }.dividedBy(totalDays.toLong()),
+            avgNapsPerDay = statsList.sumOf { it.sleepCount }.toFloat() / totalDays,
+            avgDiapersPerDay = statsList.sumOf { it.totalDiapers }.toFloat() / totalDays,
+            longestNap = allNaps.maxOfOrNull { it.longestNap } ?: Duration.ZERO,
+            shortestNap = allNaps.filter { it.shortestNap > Duration.ZERO }
+                .minOfOrNull { it.shortestNap } ?: Duration.ZERO,
+            avgFeedPerDay = statsList.fold(Duration.ZERO) { acc, s ->
+                acc.plus(s.totalFeedDuration)
+            }.dividedBy(totalDays.toLong()),
+            avgFeedSessionsPerDay = statsList.sumOf { it.feedCount }.toFloat() / totalDays
+        )
+
+        // Sleep moving average
+        val minutes = statsList.map { it.totalSleep.toMinutes().toFloat() }
+        val ma = minutes.mapIndexed { i, _ ->
+            val start = (i - 1).coerceAtLeast(0)
+            val end = (i + 1).coerceAtMost(minutes.lastIndex)
+            val window = minutes.subList(start, end + 1)
+            window.average().toFloat() / 60f
+        }
+        _movingAverage.value = ma
+
+        // Feed moving average
+        val feedMinutes = statsList.map { it.totalFeedDuration.toMinutes().toFloat() }
+        val feedMa = feedMinutes.mapIndexed { i, _ ->
+            val start = (i - 1).coerceAtLeast(0)
+            val end = (i + 1).coerceAtMost(feedMinutes.lastIndex)
+            val window = feedMinutes.subList(start, end + 1)
+            window.average().toFloat() / 60f
+        }
+        _feedMovingAverage.value = feedMa
     }
 }

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.ui.component.DiaperChart
+import com.akocis.babysleeptracker.ui.component.FeedChart
 import com.akocis.babysleeptracker.ui.component.SleepChart
 import com.akocis.babysleeptracker.ui.component.SleepPieChart
 import com.akocis.babysleeptracker.util.DateTimeUtil
@@ -46,6 +47,8 @@ fun StatsScreen(
     val daysBack by viewModel.daysBack.collectAsStateWithLifecycle()
     val summaryStats by viewModel.summaryStats.collectAsStateWithLifecycle()
     val movingAverage by viewModel.movingAverage.collectAsStateWithLifecycle()
+    val feedMovingAverage by viewModel.feedMovingAverage.collectAsStateWithLifecycle()
+    val is24hMode by viewModel.is24hMode.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -80,6 +83,11 @@ fun StatsScreen(
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                FilterChip(
+                    selected = daysBack == 0,
+                    onClick = { viewModel.setDaysBack(0) },
+                    label = { Text("24h") }
+                )
                 listOf(3, 7, 14, 30).forEach { days ->
                     FilterChip(
                         selected = daysBack == days,
@@ -89,7 +97,7 @@ fun StatsScreen(
                 }
             }
 
-            // Summary averages card
+            // Summary card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -100,13 +108,16 @@ fun StatsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Averages (${daysBack}d)",
+                        text = if (is24hMode) "Last 24 Hours" else "Averages (${daysBack}d)",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Sleep: ${DateTimeUtil.formatDuration(summaryStats.avgSleepPerDay)}/day")
-                    Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}/day")
-                    Text("Diapers: ${String.format("%.1f", summaryStats.avgDiapersPerDay)}/day")
+                    val suffix = if (is24hMode) "" else "/day"
+                    Text("Sleep: ${DateTimeUtil.formatDuration(summaryStats.avgSleepPerDay)}$suffix")
+                    Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}$suffix")
+                    Text("Feed: ${DateTimeUtil.formatDuration(summaryStats.avgFeedPerDay)}$suffix")
+                    Text("Feed sessions: ${String.format("%.1f", summaryStats.avgFeedSessionsPerDay)}$suffix")
+                    Text("Diapers: ${String.format("%.1f", summaryStats.avgDiapersPerDay)}$suffix")
                     if (summaryStats.longestNap > Duration.ZERO) {
                         Text("Longest nap: ${DateTimeUtil.formatDuration(summaryStats.longestNap)}")
                     }
@@ -118,76 +129,92 @@ fun StatsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sleep chart with trend line
-            Text(
-                text = "Sleep Duration",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            SleepChart(stats = dayStats, movingAverage = movingAverage)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Diaper chart
-            Text(
-                text = "Diaper Changes",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            DiaperChart(stats = dayStats)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Day vs Night sleep pie chart
-            val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
-            val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
-
-            if (totalDaySleep > Duration.ZERO || totalNightSleep > Duration.ZERO) {
+            if (!is24hMode) {
+                // Sleep chart with trend line
                 Text(
-                    text = "Day vs Night Sleep",
+                    text = "Sleep Duration",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
+                SleepChart(stats = dayStats, movingAverage = movingAverage)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Feed duration chart
+                Text(
+                    text = "Feed Duration",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FeedChart(stats = dayStats, movingAverage = feedMovingAverage)
+
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Daily summaries
-            Text(
-                text = "Daily Summary",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (!is24hMode) {
+                // Diaper chart
+                Text(
+                    text = "Diaper Changes",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                DiaperChart(stats = dayStats)
 
-            dayStats.reversed().forEach { stats ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Day vs Night sleep pie chart
+                val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
+                val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
+
+                if (totalDaySleep > Duration.ZERO || totalNightSleep > Duration.ZERO) {
+                    Text(
+                        text = "Day vs Night Sleep",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = stats.date.toString(),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Daily summaries
+                Text(
+                    text = "Daily Summary",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                dayStats.reversed().forEach { stats ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
-                        Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
-                        if (stats.feedCount > 0) {
-                            Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
-                        }
-                        if (stats.totalDiapers > 0) {
-                            Text("Diapers: ${stats.peeCount} pee, ${stats.pooCount} poo, ${stats.peepooCount} both")
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = stats.date.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
+                            if (stats.feedCount > 0) {
+                                Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                            }
+                            if (stats.totalDiapers > 0) {
+                                Text("Diapers: ${stats.peeCount} pee, ${stats.pooCount} poo, ${stats.peepooCount} both")
+                            }
                         }
                     }
                 }
