@@ -219,7 +219,7 @@ class DropboxSyncManager {
             }
         }
 
-        // ID-based dedup: if same ID has both ongoing and non-ongoing, remove ongoing
+        // ID-based dedup: keep only one entry per ID, preferring local
         val linesByID = mutableMapOf<String, MutableList<String>>()
         for (line in allLines) {
             val id = ID_PREFIX_REGEX.find(line)?.groupValues?.get(1) ?: continue
@@ -233,6 +233,12 @@ class DropboxSyncManager {
             if (ongoing.size < lines.size) {
                 // Non-ongoing versions exist; remove all ongoing duplicates
                 allLines.removeAll(ongoing.toSet())
+            } else {
+                // All versions are ongoing with same ID (edited entry vs stale remote);
+                // prefer the local version since user edited it
+                val localVersion = lines.firstOrNull { it in localLines }
+                val toKeep = localVersion ?: lines.first()
+                allLines.removeAll(lines.filter { it != toKeep }.toSet())
             }
         }
 

@@ -121,6 +121,15 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
 
     fun save() {
         val uri = prefsRepository.fileUri ?: return
+
+        // Validate end time > start time when end time is set
+        if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED)) {
+            if (_endTime.value <= _startTime.value) {
+                _errorMessage.value = "End time must be after start time"
+                return
+            }
+        }
+
         viewModelScope.launch {
             try {
                 val newLine = when (_entryKind.value) {
