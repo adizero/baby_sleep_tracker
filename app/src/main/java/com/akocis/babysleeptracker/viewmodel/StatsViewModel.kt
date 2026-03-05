@@ -99,46 +99,77 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             it.date.atTime(it.startTime) >= cutoff
         }
 
-        var daySleepDur = Duration.ZERO
-        var nightSleepDur = Duration.ZERO
-        var longest = Duration.ZERO
-        var shortest: Duration? = null
+        // Build 6 four-hour period stats
+        val periodStats = (0 until 6).map { periodIndex ->
+            val periodStart = cutoff.plusHours(periodIndex.toLong() * 4)
+            val periodEnd = periodStart.plusHours(4)
+            val label = "%02d-%02d".format(periodStart.hour, periodEnd.hour % 24)
 
-        recentSleep.forEach { entry ->
-            val dur = entry.duration
-            if (dur > longest) longest = dur
-            if (shortest == null || dur < shortest!!) shortest = dur
-            if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
-                daySleepDur = daySleepDur.plus(dur)
-            } else {
-                nightSleepDur = nightSleepDur.plus(dur)
+            val periodSleep = recentSleep.filter {
+                val dt = it.date.atTime(it.startTime)
+                dt >= periodStart && dt < periodEnd
             }
+            val periodDiapers = recentDiapers.filter {
+                val dt = it.date.atTime(it.time)
+                dt >= periodStart && dt < periodEnd
+            }
+            val periodFeeds = recentFeeds.filter {
+                val dt = it.date.atTime(it.startTime)
+                dt >= periodStart && dt < periodEnd
+            }
+
+            var daySleepDur = Duration.ZERO
+            var nightSleepDur = Duration.ZERO
+            var longest = Duration.ZERO
+            var shortest: Duration? = null
+
+            periodSleep.forEach { entry ->
+                val dur = entry.duration
+                if (dur > longest) longest = dur
+                if (shortest == null || dur < shortest!!) shortest = dur
+                if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
+                    daySleepDur = daySleepDur.plus(dur)
+                } else {
+                    nightSleepDur = nightSleepDur.plus(dur)
+                }
+            }
+
+            DayStats(
+                date = periodStart.toLocalDate(),
+                totalSleep = periodSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+                sleepCount = periodSleep.size,
+                peeCount = periodDiapers.count { it.type == DiaperType.PEE },
+                pooCount = periodDiapers.count { it.type == DiaperType.POO },
+                peepooCount = periodDiapers.count { it.type == DiaperType.PEEPOO },
+                daySleep = daySleepDur,
+                nightSleep = nightSleepDur,
+                longestNap = longest,
+                shortestNap = shortest ?: Duration.ZERO,
+                feedCount = periodFeeds.size,
+                totalFeedDuration = periodFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+                label = label
+            )
         }
 
-        val singleDay = DayStats(
-            date = LocalDate.now(),
-            totalSleep = recentSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-            sleepCount = recentSleep.size,
-            peeCount = recentDiapers.count { it.type == DiaperType.PEE },
-            pooCount = recentDiapers.count { it.type == DiaperType.POO },
-            peepooCount = recentDiapers.count { it.type == DiaperType.PEEPOO },
-            daySleep = daySleepDur,
-            nightSleep = nightSleepDur,
-            longestNap = longest,
-            shortestNap = shortest ?: Duration.ZERO,
-            feedCount = recentFeeds.size,
-            totalFeedDuration = recentFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
-        )
+        _dayStats.value = periodStats
 
-        _dayStats.value = listOf(singleDay)
+        // Summary across all 24h
+        var totalLongest = Duration.ZERO
+        var totalShortest: Duration? = null
+        recentSleep.forEach { entry ->
+            val dur = entry.duration
+            if (dur > totalLongest) totalLongest = dur
+            if (totalShortest == null || dur < totalShortest!!) totalShortest = dur
+        }
+
         _summaryStats.value = SummaryStats(
-            avgSleepPerDay = singleDay.totalSleep,
-            avgNapsPerDay = singleDay.sleepCount.toFloat(),
-            avgDiapersPerDay = singleDay.totalDiapers.toFloat(),
-            longestNap = longest,
-            shortestNap = shortest ?: Duration.ZERO,
-            avgFeedPerDay = singleDay.totalFeedDuration,
-            avgFeedSessionsPerDay = singleDay.feedCount.toFloat()
+            avgSleepPerDay = recentSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+            avgNapsPerDay = recentSleep.size.toFloat(),
+            avgDiapersPerDay = recentDiapers.size.toFloat(),
+            longestNap = totalLongest,
+            shortestNap = totalShortest ?: Duration.ZERO,
+            avgFeedPerDay = recentFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+            avgFeedSessionsPerDay = recentFeeds.size.toFloat()
         )
         _movingAverage.value = emptyList()
         _feedMovingAverage.value = emptyList()

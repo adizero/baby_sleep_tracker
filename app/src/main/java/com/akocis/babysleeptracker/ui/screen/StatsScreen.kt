@@ -129,45 +129,43 @@ fun StatsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Sleep chart with trend line
+            Text(
+                text = "Sleep Duration",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            SleepChart(stats = dayStats, movingAverage = movingAverage)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Feed duration chart
+            Text(
+                text = "Feed Duration",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FeedChart(stats = dayStats, movingAverage = feedMovingAverage)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Diaper chart
+            Text(
+                text = "Diaper Changes",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            DiaperChart(stats = dayStats)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             if (!is24hMode) {
-                // Sleep chart with trend line
-                Text(
-                    text = "Sleep Duration",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                SleepChart(stats = dayStats, movingAverage = movingAverage)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Feed duration chart
-                Text(
-                    text = "Feed Duration",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                FeedChart(stats = dayStats, movingAverage = feedMovingAverage)
-
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            if (!is24hMode) {
-                // Diaper chart
-                Text(
-                    text = "Diaper Changes",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                DiaperChart(stats = dayStats)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
                 // Day vs Night sleep pie chart
                 val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
                 val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
