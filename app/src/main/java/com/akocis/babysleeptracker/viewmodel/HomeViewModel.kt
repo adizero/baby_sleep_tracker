@@ -211,6 +211,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO }
             )
 
+            // Restore ongoing sleep from file if prefs lost it
+            val ongoingSleep = data.sleepEntries.find { it.isOngoing }
+            if (ongoingSleep != null && _trackingState.value is TrackingState.Idle) {
+                val state = TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
+                _trackingState.value = state
+                prefsRepository.saveTrackingState(state)
+                startTimer()
+            }
+
             if (data.babyName != null) {
                 _babyName.value = data.babyName
                 prefsRepository.babyName = data.babyName
