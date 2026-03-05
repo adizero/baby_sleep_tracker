@@ -18,6 +18,11 @@ class PreferencesRepository(context: Context) {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_BABY_NAME = "baby_name"
         private const val KEY_BABY_BIRTH_DATE = "baby_birth_date"
+        private const val KEY_DROPBOX_APP_KEY = "dropbox_app_key"
+        private const val KEY_DROPBOX_REFRESH_TOKEN = "dropbox_refresh_token"
+        private const val KEY_DROPBOX_ACCESS_TOKEN = "dropbox_access_token"
+        private const val KEY_DROPBOX_TOKEN_EXPIRY = "dropbox_token_expiry"
+        private const val KEY_DROPBOX_FILE_PATH = "dropbox_file_path"
     }
 
     var fileUri: Uri?
@@ -64,5 +69,41 @@ class PreferencesRepository(context: Context) {
             startDate = zdt.toLocalDate(),
             startTime = LocalTime.of(zdt.hour, zdt.minute)
         )
+    }
+
+    // Dropbox sync preferences
+
+    var dropboxAppKey: String?
+        get() = prefs.getString(KEY_DROPBOX_APP_KEY, null)
+        set(value) = prefs.edit().putString(KEY_DROPBOX_APP_KEY, value).apply()
+
+    var dropboxRefreshToken: String?
+        get() = prefs.getString(KEY_DROPBOX_REFRESH_TOKEN, null)
+        set(value) = prefs.edit().putString(KEY_DROPBOX_REFRESH_TOKEN, value).apply()
+
+    var dropboxAccessToken: String?
+        get() = prefs.getString(KEY_DROPBOX_ACCESS_TOKEN, null)
+        set(value) = prefs.edit().putString(KEY_DROPBOX_ACCESS_TOKEN, value).apply()
+
+    var dropboxTokenExpiry: Long
+        get() = prefs.getLong(KEY_DROPBOX_TOKEN_EXPIRY, 0L)
+        set(value) = prefs.edit().putLong(KEY_DROPBOX_TOKEN_EXPIRY, value).apply()
+
+    var dropboxFilePath: String
+        get() = prefs.getString(KEY_DROPBOX_FILE_PATH, "/baby_sleep_log.txt")
+            ?: "/baby_sleep_log.txt"
+        set(value) = prefs.edit().putString(KEY_DROPBOX_FILE_PATH, value).apply()
+
+    val isDropboxConfigured: Boolean
+        get() = !dropboxAppKey.isNullOrBlank() && !dropboxRefreshToken.isNullOrBlank()
+
+    fun clearDropbox() {
+        prefs.edit()
+            .remove(KEY_DROPBOX_APP_KEY)
+            .remove(KEY_DROPBOX_REFRESH_TOKEN)
+            .remove(KEY_DROPBOX_ACCESS_TOKEN)
+            .remove(KEY_DROPBOX_TOKEN_EXPIRY)
+            .remove(KEY_DROPBOX_FILE_PATH)
+            .apply()
     }
 }

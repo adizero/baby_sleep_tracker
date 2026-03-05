@@ -20,11 +20,13 @@ import com.akocis.babysleeptracker.ui.screen.HomeScreen
 import com.akocis.babysleeptracker.ui.screen.ManualEntryScreen
 import com.akocis.babysleeptracker.ui.screen.SettingsScreen
 import com.akocis.babysleeptracker.ui.screen.StatsScreen
+import com.akocis.babysleeptracker.ui.screen.SyncScreen
 import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
 import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
+import com.akocis.babysleeptracker.viewmodel.SyncViewModel
 
 object Routes {
     const val HOME = "home"
@@ -34,6 +36,7 @@ object Routes {
     const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val CALENDAR = "calendar"
+    const val SYNC = "sync"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -114,6 +117,14 @@ fun AppNavigation(
                 prefsRepository = prefsRepository,
                 fileRepository = fileRepository,
                 onThemeModeChanged = onThemeModeChanged,
+                onNavigateToSync = { navController.navigate(Routes.SYNC) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.SYNC) {
+            val viewModel: SyncViewModel = viewModel()
+            SyncScreen(
+                viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )
         }

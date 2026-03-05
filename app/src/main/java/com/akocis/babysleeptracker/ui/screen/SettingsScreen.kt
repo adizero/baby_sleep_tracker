@@ -58,6 +58,7 @@ fun SettingsScreen(
     prefsRepository: PreferencesRepository,
     fileRepository: FileRepository,
     onThemeModeChanged: (String) -> Unit,
+    onNavigateToSync: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -301,6 +302,41 @@ fun SettingsScreen(
                         enabled = prefsRepository.fileUri != null
                     ) {
                         Text("Import File")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Sync
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Sync",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = if (prefsRepository.isDropboxConfigured)
+                            "Connected to Dropbox"
+                        else
+                            "Sync data across devices via Dropbox",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onNavigateToSync,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (prefsRepository.isDropboxConfigured) "Sync Settings"
+                            else "Set Up Sync"
+                        )
                     }
                 }
             }

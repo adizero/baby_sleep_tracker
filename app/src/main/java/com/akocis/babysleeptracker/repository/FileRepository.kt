@@ -124,6 +124,15 @@ class FileRepository(private val context: Context) {
         return count
     }
 
+    suspend fun readRawContent(uri: Uri): String =
+        withContext(Dispatchers.IO) { readContent(uri) }
+
+    suspend fun writeRawContent(uri: Uri, content: String) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) { writeContent(uri, content) }
+        }
+    }
+
     private fun readContent(uri: Uri): String {
         return try {
             context.contentResolver.openInputStream(uri)?.use {
