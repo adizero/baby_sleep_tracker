@@ -1,6 +1,7 @@
 package com.akocis.babysleeptracker.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.repository.DropboxSyncManager
@@ -48,6 +49,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 _isConnected.value = true
                 _message.value = "Connected to Dropbox"
             } catch (e: Exception) {
+                Log.e(TAG, "exchangeCode failed", e)
                 _message.value = "Connection failed: ${e.message}"
             }
         }
@@ -73,6 +75,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
                 _message.value = "Sync complete"
             } catch (e: Exception) {
+                Log.e(TAG, "sync failed", e)
                 _message.value = "Sync failed: ${e.message}"
             } finally {
                 _isSyncing.value = false
@@ -109,6 +112,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 _isConnected.value = true
                 _message.value = "Joined successfully — tap Sync Now"
             } catch (e: Exception) {
+                Log.e(TAG, "joinWithCode failed", e)
                 _message.value = "Invalid share code: ${e.message}"
             }
         }
@@ -119,6 +123,10 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
         _isConnected.value = false
         _shareCode.value = null
         _message.value = "Disconnected from Dropbox"
+    }
+
+    companion object {
+        private const val TAG = "BabySync"
     }
 
     private suspend fun getValidAccessToken(): String {

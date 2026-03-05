@@ -100,6 +100,7 @@ class DropboxSyncManager {
             try {
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Authorization", "Bearer $accessToken")
+                conn.setRequestProperty("Content-Type", "application/octet-stream")
                 conn.setRequestProperty(
                     "Dropbox-API-Arg",
                     JSONObject().put("path", path).toString()
