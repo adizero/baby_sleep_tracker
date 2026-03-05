@@ -18,5 +18,6 @@ data class ActivityEntry(
     val type: ActivityType,
     val date: LocalDate,
     val time: LocalTime,
-    val note: String? = null
+    val note: String? = null,
+    val id: String? = null
 )

@@ -13,6 +13,7 @@ import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -109,6 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
                         refreshTodayStats()
+                        SyncHelper.notifyDataChanged()
                         showUndo("Sleep started at ${now.startTime}")
                     } catch (e: Exception) {
                         _errorMessage.value = "Failed to save sleep entry: ${e.message}"
@@ -126,6 +128,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         prefsRepository.saveTrackingState(TrackingState.Idle)
                         stopTimer()
                         refreshTodayStats()
+                        SyncHelper.notifyDataChanged()
                         showUndo("Sleep ${state.startTime} - $endTime")
                     } catch (e: Exception) {
                         _errorMessage.value = "Failed to save sleep entry: ${e.message}"
@@ -143,6 +146,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 fileRepository.appendDiaperEntry(uri, entry)
                 refreshTodayStats()
+                SyncHelper.notifyDataChanged()
                 showUndo("${type.label} at $now")
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save diaper entry: ${e.message}"
@@ -158,6 +162,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 fileRepository.appendActivityEntry(uri, entry)
                 refreshTodayStats()
+                SyncHelper.notifyDataChanged()
                 showUndo("${type.label} at $now")
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save activity: ${e.message}"
@@ -173,6 +178,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _undoLabel.value = null
                 undoDismissJob?.cancel()
                 refreshTodayStats()
+                SyncHelper.notifyDataChanged()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to undo: ${e.message}"
             }
@@ -196,6 +202,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshTodayStats() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
+            SyncHelper.pullLatest()
             val data = fileRepository.readAll(uri)
             val today = LocalDate.now()
 

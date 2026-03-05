@@ -8,8 +8,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.lifecycleScope
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.ui.navigation.AppNavigation
 import com.akocis.babysleeptracker.ui.theme.BabySleepTrackerTheme
 import com.akocis.babysleeptracker.ui.theme.resolveThemeMode
@@ -25,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
         prefsRepository = PreferencesRepository(applicationContext)
         fileRepository = FileRepository(applicationContext)
+        SyncHelper.init(lifecycleScope, prefsRepository, fileRepository)
 
         var themeMode by mutableStateOf(prefsRepository.themeMode)
 

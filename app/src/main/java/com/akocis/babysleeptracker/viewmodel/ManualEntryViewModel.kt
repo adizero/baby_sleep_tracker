@@ -11,6 +11,7 @@ import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -153,6 +154,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                     }
                 }
                 _saved.value = true
+                SyncHelper.notifyDataChanged()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save entry: ${e.message}"
             }

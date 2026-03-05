@@ -26,15 +26,18 @@ class FileRepository(private val context: Context) {
         }
 
     suspend fun appendSleepEntry(uri: Uri, entry: SleepEntry) {
-        appendLine(uri, EntryParser.formatSleepEntry(entry))
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatSleepEntry(withId))
     }
 
     suspend fun appendDiaperEntry(uri: Uri, entry: DiaperEntry) {
-        appendLine(uri, EntryParser.formatDiaperEntry(entry))
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatDiaperEntry(withId))
     }
 
     suspend fun appendActivityEntry(uri: Uri, entry: ActivityEntry) {
-        appendLine(uri, EntryParser.formatActivityEntry(entry))
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatActivityEntry(withId))
     }
 
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
@@ -59,9 +62,16 @@ class FileRepository(private val context: Context) {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
                 val lines = content.lines().toMutableList()
-                val index = lines.indexOfFirst { it.trim() == lineToRemove.trim() }
+                val strippedToRemove = EntryParser.stripId(lineToRemove)
+                val index = lines.indexOfFirst {
+                    EntryParser.stripId(it) == strippedToRemove
+                }
                 if (index >= 0) {
+                    val id = EntryParser.extractId(lines[index])
                     lines.removeAt(index)
+                    if (id != null) {
+                        lines.add(EntryParser.formatDeletion(id))
+                    }
                     writeContent(uri, lines.joinToString("\n"))
                 }
             }
@@ -73,9 +83,19 @@ class FileRepository(private val context: Context) {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
                 val lines = content.lines().toMutableList()
-                val index = lines.indexOfFirst { it.trim() == oldLine.trim() }
+                val strippedOld = EntryParser.stripId(oldLine)
+                val index = lines.indexOfFirst {
+                    EntryParser.stripId(it) == strippedOld
+                }
                 if (index >= 0) {
-                    lines[index] = newLine
+                    // Preserve the old ID in the new line
+                    val existingId = EntryParser.extractId(lines[index])
+                    val strippedNew = EntryParser.stripId(newLine)
+                    lines[index] = if (existingId != null) {
+                        "#$existingId $strippedNew"
+                    } else {
+                        strippedNew
+                    }
                     writeContent(uri, lines.joinToString("\n"))
                 }
             }
@@ -94,6 +114,21 @@ class FileRepository(private val context: Context) {
                     lines.removeAt(lines.lastIndex)
                 }
                 writeContent(uri, lines.joinToString("\n"))
+            }
+        }
+    }
+
+    suspend fun removeDeletionTombstone(uri: Uri, entryId: String) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = readContent(uri)
+                val lines = content.lines().toMutableList()
+                val tombstone = EntryParser.formatDeletion(entryId)
+                val index = lines.indexOfFirst { it.trim() == tombstone }
+                if (index >= 0) {
+                    lines.removeAt(index)
+                    writeContent(uri, lines.joinToString("\n"))
+                }
             }
         }
     }

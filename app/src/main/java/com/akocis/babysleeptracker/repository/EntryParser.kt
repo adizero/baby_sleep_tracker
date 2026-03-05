@@ -6,6 +6,7 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import java.security.SecureRandom
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -14,7 +15,8 @@ data class ParsedData(
     val diaperEntries: List<DiaperEntry> = emptyList(),
     val activityEntries: List<ActivityEntry> = emptyList(),
     val babyName: String? = null,
-    val babyBirthDate: LocalDate? = null
+    val babyBirthDate: LocalDate? = null,
+    val deletedIds: Set<String> = emptySet()
 )
 
 object EntryParser {
@@ -38,42 +40,67 @@ object EntryParser {
         """^BABY\s+(.+?)\s+(\d{4}-\d{2}-\d{2})$"""
     )
 
+    val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
+    val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
+
+    private val random = SecureRandom()
+
+    fun generateId(): String {
+        val bytes = ByteArray(4)
+        random.nextBytes(bytes)
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    fun extractId(line: String): String? {
+        return ID_PREFIX_REGEX.find(line.trim())?.groupValues?.get(1)
+    }
+
+    fun stripId(line: String): String {
+        return line.trim().replace(ID_PREFIX_REGEX, "")
+    }
+
+    fun formatDeletion(id: String): String = "DEL #$id"
+
     fun parseLine(line: String): Any? {
         val trimmed = line.trim()
         if (trimmed.isBlank()) return null
 
-        SLEEP_REGEX.matchEntire(trimmed)?.let { match ->
+        // Strip ID prefix if present
+        val id = extractId(trimmed)
+        val content = stripId(trimmed)
+
+        SLEEP_REGEX.matchEntire(content)?.let { match ->
             val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
             val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
             val end = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
-            return SleepEntry(date, start, end)
+            return SleepEntry(date, start, end, id)
         }
 
-        SLEEP_ONGOING_REGEX.matchEntire(trimmed)?.let { match ->
+        SLEEP_ONGOING_REGEX.matchEntire(content)?.let { match ->
             val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
             val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
-            return SleepEntry(date, start, null)
+            return SleepEntry(date, start, null, id)
         }
 
-        DIAPER_REGEX.matchEntire(trimmed)?.let { match ->
+        DIAPER_REGEX.matchEntire(content)?.let { match ->
             val type = DiaperType.fromString(match.groupValues[1]) ?: return null
             val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
             val time = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
-            return DiaperEntry(type, date, time)
+            return DiaperEntry(type, date, time, id)
         }
 
-        NOTE_REGEX.matchEntire(trimmed)?.let { match ->
+        NOTE_REGEX.matchEntire(content)?.let { match ->
             val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
             val time = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
             val text = match.groupValues[3]
-            return ActivityEntry(ActivityType.NOTE, date, time, text)
+            return ActivityEntry(ActivityType.NOTE, date, time, text, id)
         }
 
-        ACTIVITY_REGEX.matchEntire(trimmed)?.let { match ->
+        ACTIVITY_REGEX.matchEntire(content)?.let { match ->
             val type = ActivityType.fromString(match.groupValues[1]) ?: return null
             val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
             val time = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
-            return ActivityEntry(type, date, time)
+            return ActivityEntry(type, date, time, null, id)
         }
 
         return null
@@ -94,12 +121,20 @@ object EntryParser {
         val sleepEntries = mutableListOf<SleepEntry>()
         val diaperEntries = mutableListOf<DiaperEntry>()
         val activityEntries = mutableListOf<ActivityEntry>()
+        val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
         var babyBirthDate: LocalDate? = null
 
         content.lines().forEach { line ->
             val trimmed = line.trim()
-            BABY_REGEX.matchEntire(trimmed)?.let { match ->
+
+            // Collect DEL tombstones
+            DEL_REGEX.matchEntire(trimmed)?.let { match ->
+                deletedIds.add(match.groupValues[1])
+                return@forEach
+            }
+
+            BABY_REGEX.matchEntire(stripId(trimmed))?.let { match ->
                 babyName = match.groupValues[1]
                 babyBirthDate = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
                 return@forEach
@@ -111,34 +146,45 @@ object EntryParser {
             }
         }
 
-        return ParsedData(sleepEntries, diaperEntries, activityEntries, babyName, babyBirthDate)
+        // Filter out entries whose IDs appear in deletedIds
+        return ParsedData(
+            sleepEntries = sleepEntries.filter { it.id == null || it.id !in deletedIds },
+            diaperEntries = diaperEntries.filter { it.id == null || it.id !in deletedIds },
+            activityEntries = activityEntries.filter { it.id == null || it.id !in deletedIds },
+            babyName = babyName,
+            babyBirthDate = babyBirthDate,
+            deletedIds = deletedIds
+        )
     }
 
     fun formatSleepEntry(entry: SleepEntry): String {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val start = entry.startTime.format(DateTimeUtil.TIME_FORMAT)
-        return if (entry.endTime != null) {
+        val body = if (entry.endTime != null) {
             val end = entry.endTime.format(DateTimeUtil.TIME_FORMAT)
             "SLEEP $date $start - $end"
         } else {
             "SLEEP $date $start -"
         }
+        return if (entry.id != null) "#${entry.id} $body" else body
     }
 
     fun formatDiaperEntry(entry: DiaperEntry): String {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val time = entry.time.format(DateTimeUtil.TIME_FORMAT)
-        return "${entry.type.name} $date $time"
+        val body = "${entry.type.name} $date $time"
+        return if (entry.id != null) "#${entry.id} $body" else body
     }
 
     fun formatActivityEntry(entry: ActivityEntry): String {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val time = entry.time.format(DateTimeUtil.TIME_FORMAT)
-        return if (entry.note != null) {
+        val body = if (entry.note != null) {
             "${entry.type.name} $date $time ${entry.note}"
         } else {
             "${entry.type.name} $date $time"
         }
+        return if (entry.id != null) "#${entry.id} $body" else body
     }
 
     fun formatBabyInfo(name: String, birthDate: LocalDate): String {

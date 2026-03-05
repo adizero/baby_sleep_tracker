@@ -7,7 +7,8 @@ import java.time.LocalTime
 data class SleepEntry(
     val date: LocalDate,
     val startTime: LocalTime,
-    val endTime: LocalTime? = null
+    val endTime: LocalTime? = null,
+    val id: String? = null
 ) {
     val isOngoing: Boolean get() = endTime == null
 

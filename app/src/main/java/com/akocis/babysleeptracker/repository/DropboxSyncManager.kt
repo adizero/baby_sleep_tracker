@@ -23,12 +23,14 @@ class DropboxSyncManager {
             """(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})"""
         )
         private val ONGOING_SLEEP_REGEX = Regex(
-            """^SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
+            """^(?:#[0-9a-f]{8}\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
         )
         private val COMPLETED_SLEEP_REGEX = Regex(
-            """^SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
+            """^(?:#[0-9a-f]{8}\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
         private val BABY_REGEX = Regex("""^BABY\s+.+""")
+        private val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
+        private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
     }
 
     private var codeVerifier: String? = null
@@ -164,6 +166,17 @@ class DropboxSyncManager {
 
         val allLines = (localLines + remoteLines).toMutableSet()
 
+        // Collect all DEL tombstones and extract their IDs
+        val delLines = allLines.filter { DEL_REGEX.matches(it) }.toSet()
+        val deletedIds = delLines.mapNotNull { DEL_REGEX.matchEntire(it)?.groupValues?.get(1) }.toSet()
+        allLines.removeAll(delLines)
+
+        // Remove entries whose IDs appear in deletedIds
+        allLines.removeAll { line ->
+            val id = ID_PREFIX_REGEX.find(line)?.groupValues?.get(1)
+            id != null && id in deletedIds
+        }
+
         // Extract BABY header — keep only one
         val babyLine = allLines.firstOrNull { BABY_REGEX.matches(it) }
         allLines.removeAll { BABY_REGEX.matches(it) }
@@ -193,6 +206,8 @@ class DropboxSyncManager {
         val result = mutableListOf<String>()
         if (babyLine != null) result.add(babyLine)
         result.addAll(sorted)
+        // Append DEL tombstones at the end
+        result.addAll(delLines.sorted())
         return result.joinToString("\n")
     }
 

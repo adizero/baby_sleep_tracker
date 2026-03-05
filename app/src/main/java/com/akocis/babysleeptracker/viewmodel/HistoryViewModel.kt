@@ -9,6 +9,7 @@ import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,6 +46,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun loadEntries() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
+            SyncHelper.pullLatest()
             val data = fileRepository.readAll(uri)
             val items = mutableListOf<HistoryItem>()
             var nextId = 0
@@ -106,6 +108,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 fileRepository.deleteEntry(uri, item.rawLine)
                 loadEntries()
+                SyncHelper.notifyDataChanged()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to delete entry: ${e.message}"
             }
@@ -116,12 +119,24 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
             try {
-                when (val entry = EntryParser.parseLine(rawLine)) {
+                val entry = EntryParser.parseLine(rawLine)
+                // Remove the DEL tombstone if the entry has an ID
+                val entryId = when (entry) {
+                    is SleepEntry -> entry.id
+                    is DiaperEntry -> entry.id
+                    is ActivityEntry -> entry.id
+                    else -> null
+                }
+                if (entryId != null) {
+                    fileRepository.removeDeletionTombstone(uri, entryId)
+                }
+                when (entry) {
                     is SleepEntry -> fileRepository.appendSleepEntry(uri, entry)
                     is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
                     is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
                 }
                 loadEntries()
+                SyncHelper.notifyDataChanged()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to restore entry: ${e.message}"
             }

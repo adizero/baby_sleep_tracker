@@ -4,11 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.DropboxSyncManager
-import com.akocis.babysleeptracker.repository.EntryParser
-import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,7 +14,6 @@ import kotlinx.coroutines.launch
 class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefsRepository = PreferencesRepository(application)
-    private val fileRepository = FileRepository(application)
     private val syncManager = DropboxSyncManager()
 
     private val _isConnected = MutableStateFlow(prefsRepository.isDropboxConfigured)
@@ -58,34 +55,14 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sync() {
-        val uri = prefsRepository.fileUri ?: run {
+        if (prefsRepository.fileUri == null) {
             _message.value = "No local file selected — set one in Settings first"
             return
         }
         viewModelScope.launch {
             _isSyncing.value = true
             try {
-                val accessToken = getValidAccessToken()
-                val filePath = prefsRepository.dropboxFilePath
-
-                val remoteContent = syncManager.downloadFile(accessToken, filePath)
-                val localContent = fileRepository.readRawContent(uri)
-                val merged = syncManager.mergeContent(localContent, remoteContent)
-
-                syncManager.uploadFile(accessToken, merged, filePath)
-                fileRepository.writeRawContent(uri, merged)
-
-                // Update prefs from merged data so Home screen picks it up
-                val parsed = EntryParser.parseAll(merged)
-                if (parsed.babyName != null) prefsRepository.babyName = parsed.babyName
-                if (parsed.babyBirthDate != null) prefsRepository.babyBirthDate = parsed.babyBirthDate
-                val ongoing = parsed.sleepEntries.find { it.isOngoing }
-                if (ongoing != null) {
-                    prefsRepository.saveTrackingState(
-                        TrackingState.Sleeping(ongoing.date, ongoing.startTime)
-                    )
-                }
-
+                SyncHelper.pullLatest()
                 _message.value = "Sync complete"
             } catch (e: Exception) {
                 Log.e(TAG, "sync failed", e)
@@ -140,25 +117,5 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val TAG = "BabySync"
-    }
-
-    private suspend fun getValidAccessToken(): String {
-        val appKey = prefsRepository.dropboxAppKey
-            ?: throw IllegalStateException("No app key configured")
-        val refreshToken = prefsRepository.dropboxRefreshToken
-            ?: throw IllegalStateException("No refresh token configured")
-
-        val expiry = prefsRepository.dropboxTokenExpiry
-        val currentToken = prefsRepository.dropboxAccessToken
-
-        // Refresh if token is missing or expires within 60 seconds
-        if (currentToken.isNullOrBlank() || System.currentTimeMillis() > expiry - 60_000) {
-            val result = syncManager.refreshAccessToken(appKey, refreshToken)
-            prefsRepository.dropboxAccessToken = result.accessToken
-            prefsRepository.dropboxTokenExpiry =
-                System.currentTimeMillis() + (result.expiresIn * 1000)
-            return result.accessToken
-        }
-        return currentToken
     }
 }
