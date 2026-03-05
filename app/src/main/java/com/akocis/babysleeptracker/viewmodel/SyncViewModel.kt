@@ -4,7 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.DropboxSyncManager
+import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +74,17 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
                 syncManager.uploadFile(accessToken, merged, filePath)
                 fileRepository.writeRawContent(uri, merged)
+
+                // Update prefs from merged data so Home screen picks it up
+                val parsed = EntryParser.parseAll(merged)
+                if (parsed.babyName != null) prefsRepository.babyName = parsed.babyName
+                if (parsed.babyBirthDate != null) prefsRepository.babyBirthDate = parsed.babyBirthDate
+                val ongoing = parsed.sleepEntries.find { it.isOngoing }
+                if (ongoing != null) {
+                    prefsRepository.saveTrackingState(
+                        TrackingState.Sleeping(ongoing.date, ongoing.startTime)
+                    )
+                }
 
                 _message.value = "Sync complete"
             } catch (e: Exception) {
