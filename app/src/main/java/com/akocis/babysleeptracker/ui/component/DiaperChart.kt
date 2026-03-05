@@ -1,15 +1,20 @@
 package com.akocis.babysleeptracker.ui.component
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,82 +35,90 @@ fun DiaperChart(
     val textColor = MaterialTheme.colorScheme.onSurface
     val labelFormatter = DateTimeFormatter.ofPattern("MM/dd")
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .padding(horizontal = 16.dp)
-    ) {
-        if (stats.isEmpty()) return@Canvas
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val minBarSlot = 40.dp
+        val contentWidth = (minBarSlot * stats.size).coerceAtLeast(maxWidth)
+        val scrollState = rememberScrollState()
+        LaunchedEffect(stats.size) { scrollState.scrollTo(scrollState.maxValue) }
 
-        val maxDiapers = stats.maxOf { it.totalDiapers }.coerceAtLeast(1)
-        val barWidth = (size.width / stats.size) * 0.7f
-        val gap = (size.width / stats.size) * 0.3f
-        val bottomPadding = 40f
-        val chartHeight = size.height - bottomPadding
+        Canvas(
+            modifier = Modifier
+                .horizontalScroll(scrollState)
+                .width(contentWidth)
+                .height(180.dp)
+                .padding(horizontal = 16.dp)
+        ) {
+            if (stats.isEmpty()) return@Canvas
 
-        stats.forEachIndexed { index, dayStat ->
-            val x = index * (barWidth + gap) + gap / 2
-            var currentY = chartHeight
+            val maxDiapers = stats.maxOf { it.totalDiapers }.coerceAtLeast(1)
+            val barWidth = (size.width / stats.size) * 0.7f
+            val gap = (size.width / stats.size) * 0.3f
+            val bottomPadding = 40f
+            val chartHeight = size.height - bottomPadding
 
-            // Pee segment
-            if (dayStat.peeCount > 0) {
-                val segHeight = (dayStat.peeCount.toFloat() / maxDiapers) * chartHeight
-                currentY -= segHeight
-                drawRect(
-                    color = PeeColor,
-                    topLeft = Offset(x, currentY),
-                    size = Size(barWidth, segHeight)
-                )
-            }
+            stats.forEachIndexed { index, dayStat ->
+                val x = index * (barWidth + gap) + gap / 2
+                var currentY = chartHeight
 
-            // Poo segment
-            if (dayStat.pooCount > 0) {
-                val segHeight = (dayStat.pooCount.toFloat() / maxDiapers) * chartHeight
-                currentY -= segHeight
-                drawRect(
-                    color = PooColor,
-                    topLeft = Offset(x, currentY),
-                    size = Size(barWidth, segHeight)
-                )
-            }
+                // Pee segment
+                if (dayStat.peeCount > 0) {
+                    val segHeight = (dayStat.peeCount.toFloat() / maxDiapers) * chartHeight
+                    currentY -= segHeight
+                    drawRect(
+                        color = PeeColor,
+                        topLeft = Offset(x, currentY),
+                        size = Size(barWidth, segHeight)
+                    )
+                }
 
-            // PeePoo segment
-            if (dayStat.peepooCount > 0) {
-                val segHeight = (dayStat.peepooCount.toFloat() / maxDiapers) * chartHeight
-                currentY -= segHeight
-                drawRect(
-                    color = PeePooColor,
-                    topLeft = Offset(x, currentY),
-                    size = Size(barWidth, segHeight)
-                )
-            }
+                // Poo segment
+                if (dayStat.pooCount > 0) {
+                    val segHeight = (dayStat.pooCount.toFloat() / maxDiapers) * chartHeight
+                    currentY -= segHeight
+                    drawRect(
+                        color = PooColor,
+                        topLeft = Offset(x, currentY),
+                        size = Size(barWidth, segHeight)
+                    )
+                }
 
-            // Total count on top
-            if (dayStat.totalDiapers > 0) {
+                // PeePoo segment
+                if (dayStat.peepooCount > 0) {
+                    val segHeight = (dayStat.peepooCount.toFloat() / maxDiapers) * chartHeight
+                    currentY -= segHeight
+                    drawRect(
+                        color = PeePooColor,
+                        topLeft = Offset(x, currentY),
+                        size = Size(barWidth, segHeight)
+                    )
+                }
+
+                // Total count on top
+                if (dayStat.totalDiapers > 0) {
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "${dayStat.totalDiapers}",
+                        x + barWidth / 2,
+                        currentY - 8f,
+                        android.graphics.Paint().apply {
+                            color = textColor.hashCode()
+                            textAlign = android.graphics.Paint.Align.CENTER
+                            textSize = 28f
+                        }
+                    )
+                }
+
+                // Date label
                 drawContext.canvas.nativeCanvas.drawText(
-                    "${dayStat.totalDiapers}",
+                    dayStat.label ?: dayStat.date.format(labelFormatter),
                     x + barWidth / 2,
-                    currentY - 8f,
+                    size.height - 4f,
                     android.graphics.Paint().apply {
                         color = textColor.hashCode()
                         textAlign = android.graphics.Paint.Align.CENTER
-                        textSize = 28f
+                        textSize = 26f
                     }
                 )
             }
-
-            // Date label
-            drawContext.canvas.nativeCanvas.drawText(
-                dayStat.label ?: dayStat.date.format(labelFormatter),
-                x + barWidth / 2,
-                size.height - 4f,
-                android.graphics.Paint().apply {
-                    color = textColor.hashCode()
-                    textAlign = android.graphics.Paint.Align.CENTER
-                    textSize = 26f
-                }
-            )
         }
     }
 
