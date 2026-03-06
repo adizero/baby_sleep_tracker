@@ -69,9 +69,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
                 val endText = entry.endTime?.toString() ?: "ongoing"
-                val durText = if (entry.endTime != null)
-                    "Sleep: ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
-                else null
+                val durText = "Sleep: ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
                 items.add(
                     HistoryItem(
                         id = nextId++,
@@ -120,9 +118,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
                 val endText = entry.endTime?.toString() ?: "ongoing"
-                val durText = if (entry.endTime != null)
-                    "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
-                else null
+                val durText = "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
                 items.add(
                     HistoryItem(
                         id = nextId++,
