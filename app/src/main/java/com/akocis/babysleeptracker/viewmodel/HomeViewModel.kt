@@ -393,6 +393,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         val todayDiapers = data.diaperEntries.filter { it.date == today }
         val todayBottle = data.bottleFeedEntries.filter { it.date == today }
+        val todayActivities = data.activityEntries.filter { it.date == today }
 
         _todayStats.value = DayStats(
             date = today,
@@ -406,7 +407,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             donorCount = todayBottle.count { it.type == BottleType.DONOR },
             donorMl = todayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
             formulaCount = todayBottle.count { it.type == BottleType.FORMULA },
-            formulaMl = todayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }
+            formulaMl = todayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+            strollerCount = todayActivities.count { it.type == ActivityType.STROLLER },
+            bathCount = todayActivities.count { it.type == ActivityType.BATH },
+            noteCount = todayActivities.count { it.type == ActivityType.NOTE }
         )
 
         // Auto-resolve bottle preset from history if unset

@@ -441,6 +441,13 @@ fun HomeScreen(
                         }
                         Text("Pee: ${stats.peeCount}  Poo: ${stats.pooCount}  Both: ${stats.peepooCount}")
                         Text("Total diapers: ${stats.totalDiapers}")
+                        if (stats.totalActivities > 0) {
+                            val parts = mutableListOf<String>()
+                            if (stats.strollerCount > 0) parts.add("${stats.strollerCount} stroll")
+                            if (stats.bathCount > 0) parts.add("${stats.bathCount} bath")
+                            if (stats.noteCount > 0) parts.add("${stats.noteCount} note")
+                            Text("Activities: ${parts.joinToString(", ")}")
+                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ package com.akocis.babysleeptracker.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperType
@@ -78,12 +79,13 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val diaperEntries = data.diaperEntries
             val feedEntries = data.feedEntries
             val bottleFeedEntries = data.bottleFeedEntries
+            val activityEntries = data.activityEntries
             val today = LocalDate.now()
 
             if (_is24hMode.value) {
-                load24hStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries)
+                load24hStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries)
             } else {
-                loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, today)
+                loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries, today)
             }
         }
     }
@@ -92,7 +94,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
         diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
         feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
-        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry> = emptyList()
+        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry> = emptyList(),
+        activityEntries: List<com.akocis.babysleeptracker.model.ActivityEntry> = emptyList()
     ) {
         val now = LocalDateTime.now()
         val cutoff = now.minusHours(24)
@@ -109,6 +112,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             it.date.atTime(it.startTime) >= extendedCutoff
         }
         val recentBottle = bottleFeedEntries.filter {
+            it.date.atTime(it.time) >= cutoff
+        }
+        val recentActivities = activityEntries.filter {
             it.date.atTime(it.time) >= cutoff
         }
 
@@ -166,6 +172,10 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dt = it.date.atTime(it.time)
                 dt >= periodStart && dt < periodEnd
             }
+            val periodActivities = recentActivities.filter {
+                val dt = it.date.atTime(it.time)
+                dt >= periodStart && dt < periodEnd
+            }
 
             DayStats(
                 date = periodStart.toLocalDate(),
@@ -184,6 +194,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 donorMl = periodBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = periodBottle.count { it.type == BottleType.FORMULA },
                 formulaMl = periodBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                strollerCount = periodActivities.count { it.type == ActivityType.STROLLER },
+                bathCount = periodActivities.count { it.type == ActivityType.BATH },
+                noteCount = periodActivities.count { it.type == ActivityType.NOTE },
                 label = label
             )
         }
@@ -243,6 +256,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
         feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
         bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry> = emptyList(),
+        activityEntries: List<com.akocis.babysleeptracker.model.ActivityEntry> = emptyList(),
         today: LocalDate
     ) {
         val days = _daysBack.value
@@ -287,6 +301,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val dayBottle = bottleFeedEntries.filter { it.date == date }
+            val dayActivities = activityEntries.filter { it.date == date }
 
             DayStats(
                 date = date,
@@ -304,13 +319,16 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 donorCount = dayBottle.count { it.type == BottleType.DONOR },
                 donorMl = dayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = dayBottle.count { it.type == BottleType.FORMULA },
-                formulaMl = dayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }
+                formulaMl = dayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                strollerCount = dayActivities.count { it.type == ActivityType.STROLLER },
+                bathCount = dayActivities.count { it.type == ActivityType.BATH },
+                noteCount = dayActivities.count { it.type == ActivityType.NOTE }
             )
         }
 
         _dayStats.value = statsList
 
-        val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 || it.feedCount > 0 || it.totalBottleFeeds > 0 }
+        val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 || it.feedCount > 0 || it.totalBottleFeeds > 0 || it.totalActivities > 0 }
         val totalDays = daysWithData.size.coerceAtLeast(1)
         val allNaps = statsList.filter { it.longestNap > Duration.ZERO }
 
