@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,6 +49,7 @@ fun HistoryScreen(
     onEditEntry: (HistoryItem) -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val showDuration by viewModel.showDuration.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -75,6 +78,15 @@ fun HistoryScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.toggleShowDuration() }) {
+                        Icon(
+                            if (showDuration) Icons.Default.AccessTime else Icons.Default.Timelapse,
+                            contentDescription = if (showDuration) "Show end times" else "Show durations",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -108,6 +120,7 @@ fun HistoryScreen(
                 ) { item ->
                     HistoryCard(
                         item = item,
+                        showDuration = showDuration,
                         onEdit = { onEditEntry(it) },
                         onDelete = {
                             val deletedLine = it.rawLine
@@ -134,6 +147,7 @@ fun HistoryScreen(
 @Composable
 private fun HistoryCard(
     item: HistoryItem,
+    showDuration: Boolean,
     onEdit: (HistoryItem) -> Unit,
     onDelete: (HistoryItem) -> Unit
 ) {
@@ -154,7 +168,7 @@ private fun HistoryCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = item.displayText,
+                text = if (showDuration && item.durationText != null) item.durationText else item.displayText,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )

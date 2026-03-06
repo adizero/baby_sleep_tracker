@@ -12,6 +12,7 @@ import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
+import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
 data class HistoryItem(
     val id: Int,
     val displayText: String,
+    val durationText: String? = null,
     val rawLine: String,
     val sortKey: Long,
     val sleepEntry: SleepEntry? = null,
@@ -36,6 +38,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val _entries = MutableStateFlow<List<HistoryItem>>(emptyList())
     val entries: StateFlow<List<HistoryItem>> = _entries
 
+    private val _showDuration = MutableStateFlow(false)
+    val showDuration: StateFlow<Boolean> = _showDuration
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
@@ -45,6 +50,10 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissError() {
         _errorMessage.value = null
+    }
+
+    fun toggleShowDuration() {
+        _showDuration.value = !_showDuration.value
     }
 
     fun loadEntries() {
@@ -60,10 +69,14 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
                 val endText = entry.endTime?.toString() ?: "ongoing"
+                val durText = if (entry.endTime != null)
+                    "Sleep: ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
+                else null
                 items.add(
                     HistoryItem(
                         id = nextId++,
                         displayText = "Sleep: ${entry.date} ${entry.startTime} - $endText",
+                        durationText = durText,
                         rawLine = line,
                         sortKey = sortKey,
                         sleepEntry = entry
@@ -107,10 +120,14 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
                 val endText = entry.endTime?.toString() ?: "ongoing"
+                val durText = if (entry.endTime != null)
+                    "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
+                else null
                 items.add(
                     HistoryItem(
                         id = nextId++,
                         displayText = "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} - $endText",
+                        durationText = durText,
                         rawLine = line,
                         sortKey = sortKey,
                         feedEntry = entry
