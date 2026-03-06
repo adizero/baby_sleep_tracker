@@ -29,7 +29,9 @@ data class SummaryStats(
     val avgDonorMlPerDay: Float = 0f,
     val avgFormulaMlPerDay: Float = 0f,
     val avgDonorCountPerDay: Float = 0f,
-    val avgFormulaCountPerDay: Float = 0f
+    val avgFormulaCountPerDay: Float = 0f,
+    val avgPumpedMlPerDay: Float = 0f,
+    val avgPumpedCountPerDay: Float = 0f
 )
 
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
@@ -194,6 +196,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 donorMl = periodBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = periodBottle.count { it.type == BottleType.FORMULA },
                 formulaMl = periodBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                pumpedCount = periodBottle.count { it.type == BottleType.PUMPED },
+                pumpedMl = periodBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
                 strollerCount = periodActivities.count { it.type == ActivityType.STROLLER },
                 bathCount = periodActivities.count { it.type == ActivityType.BATH },
                 noteCount = periodActivities.count { it.type == ActivityType.NOTE },
@@ -245,7 +249,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             avgDonorMlPerDay = recentBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl }.toFloat(),
             avgFormulaMlPerDay = recentBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }.toFloat(),
             avgDonorCountPerDay = recentBottle.count { it.type == BottleType.DONOR }.toFloat(),
-            avgFormulaCountPerDay = recentBottle.count { it.type == BottleType.FORMULA }.toFloat()
+            avgFormulaCountPerDay = recentBottle.count { it.type == BottleType.FORMULA }.toFloat(),
+            avgPumpedMlPerDay = recentBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl }.toFloat(),
+            avgPumpedCountPerDay = recentBottle.count { it.type == BottleType.PUMPED }.toFloat()
         )
         _movingAverage.value = emptyList()
         _feedMovingAverage.value = emptyList()
@@ -320,6 +326,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 donorMl = dayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = dayBottle.count { it.type == BottleType.FORMULA },
                 formulaMl = dayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                pumpedCount = dayBottle.count { it.type == BottleType.PUMPED },
+                pumpedMl = dayBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
                 strollerCount = dayActivities.count { it.type == ActivityType.STROLLER },
                 bathCount = dayActivities.count { it.type == ActivityType.BATH },
                 noteCount = dayActivities.count { it.type == ActivityType.NOTE }
@@ -348,7 +356,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             avgDonorMlPerDay = statsList.sumOf { it.donorMl }.toFloat() / totalDays,
             avgFormulaMlPerDay = statsList.sumOf { it.formulaMl }.toFloat() / totalDays,
             avgDonorCountPerDay = statsList.sumOf { it.donorCount }.toFloat() / totalDays,
-            avgFormulaCountPerDay = statsList.sumOf { it.formulaCount }.toFloat() / totalDays
+            avgFormulaCountPerDay = statsList.sumOf { it.formulaCount }.toFloat() / totalDays,
+            avgPumpedMlPerDay = statsList.sumOf { it.pumpedMl }.toFloat() / totalDays,
+            avgPumpedCountPerDay = statsList.sumOf { it.pumpedCount }.toFloat() / totalDays
         )
 
         // Sleep moving average

@@ -5,12 +5,14 @@ import java.time.LocalTime
 
 enum class BottleType(val label: String) {
     DONOR("Donor"),
-    FORMULA("Formula");
+    FORMULA("Formula"),
+    PUMPED("Pumped");
 
     companion object {
         fun fromString(value: String): BottleType? = when (value.uppercase()) {
             "DONOR" -> DONOR
             "FORMULA" -> FORMULA
+            "PUMPED" -> PUMPED
             else -> null
         }
     }

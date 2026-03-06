@@ -117,9 +117,12 @@ fun StatsScreen(
                     Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}$suffix")
                     Text("Feed: ${DateTimeUtil.formatDuration(summaryStats.avgFeedPerDay)}$suffix")
                     Text("Feed sessions: ${String.format("%.1f", summaryStats.avgFeedSessionsPerDay)}$suffix")
-                    if (summaryStats.avgDonorMlPerDay > 0f || summaryStats.avgFormulaMlPerDay > 0f) {
+                    if (summaryStats.avgDonorMlPerDay > 0f || summaryStats.avgFormulaMlPerDay > 0f || summaryStats.avgPumpedMlPerDay > 0f) {
                         if (summaryStats.avgDonorMlPerDay > 0f) {
                             Text("Donor: ${String.format("%.0f", summaryStats.avgDonorMlPerDay)}ml (${String.format("%.1f", summaryStats.avgDonorCountPerDay)} feeds)$suffix")
+                        }
+                        if (summaryStats.avgPumpedMlPerDay > 0f) {
+                            Text("Pumped: ${String.format("%.0f", summaryStats.avgPumpedMlPerDay)}ml (${String.format("%.1f", summaryStats.avgPumpedCountPerDay)} feeds)$suffix")
                         }
                         if (summaryStats.avgFormulaMlPerDay > 0f) {
                             Text("Formula: ${String.format("%.0f", summaryStats.avgFormulaMlPerDay)}ml (${String.format("%.1f", summaryStats.avgFormulaCountPerDay)} feeds)$suffix")

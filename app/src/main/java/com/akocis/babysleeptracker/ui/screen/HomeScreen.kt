@@ -58,10 +58,10 @@ import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.BottleAmountPickerDialog
 import com.akocis.babysleeptracker.ui.component.StatusBanner
 import com.akocis.babysleeptracker.ui.theme.BathColor
-import com.akocis.babysleeptracker.ui.theme.BottleAmountColor
 import com.akocis.babysleeptracker.ui.theme.DonorColor
 import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.FormulaColor
+import com.akocis.babysleeptracker.ui.theme.PumpedColor
 import com.akocis.babysleeptracker.ui.theme.NoteColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PeePooColor
@@ -96,7 +96,7 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showNoteDialog by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
-    var showBottleAmountDialog by remember { mutableStateOf(false) }
+    var pendingBottleType by remember { mutableStateOf<BottleType?>(null) }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
@@ -181,15 +181,16 @@ fun HomeScreen(
         )
     }
 
-    // Bottle amount dialog
-    if (showBottleAmountDialog) {
+    // Bottle amount dialog — shown for all bottle types
+    pendingBottleType?.let { type ->
         BottleAmountPickerDialog(
+            title = "${type.label} Amount",
             initialAmount = bottlePresetMl,
             onConfirm = { ml ->
-                viewModel.setBottlePreset(ml)
-                showBottleAmountDialog = false
+                viewModel.logBottleFeed(type, ml)
+                pendingBottleType = null
             },
-            onDismiss = { showBottleAmountDialog = false }
+            onDismiss = { pendingBottleType = null }
         )
     }
 
@@ -336,19 +337,19 @@ fun HomeScreen(
                 BigActionButton(
                     text = "Donor",
                     containerColor = DonorColor,
-                    onClick = { viewModel.logBottleFeed(BottleType.DONOR) },
+                    onClick = { pendingBottleType = BottleType.DONOR },
                     modifier = Modifier.weight(1f)
                 )
                 BigActionButton(
-                    text = "${bottlePresetMl}ml",
-                    containerColor = BottleAmountColor,
-                    onClick = { showBottleAmountDialog = true },
+                    text = "Pumped",
+                    containerColor = PumpedColor,
+                    onClick = { pendingBottleType = BottleType.PUMPED },
                     modifier = Modifier.weight(1f)
                 )
                 BigActionButton(
                     text = "Formula",
                     containerColor = FormulaColor,
-                    onClick = { viewModel.logBottleFeed(BottleType.FORMULA) },
+                    onClick = { pendingBottleType = BottleType.FORMULA },
                     modifier = Modifier.weight(1f)
                 )
             }

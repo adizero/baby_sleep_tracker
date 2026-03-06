@@ -283,10 +283,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun logBottleFeed(type: BottleType) {
+    fun logBottleFeed(type: BottleType, amount: Int) {
         val uri = prefsRepository.fileUri ?: return
         val now = LocalTime.now().withSecond(0).withNano(0)
-        val amount = _bottlePresetMl.value
+        setBottlePreset(amount)
         val entry = BottleFeedEntry(type, LocalDate.now(), now, amount)
         viewModelScope.launch {
             try {
@@ -408,6 +408,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             donorMl = todayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
             formulaCount = todayBottle.count { it.type == BottleType.FORMULA },
             formulaMl = todayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+            pumpedCount = todayBottle.count { it.type == BottleType.PUMPED },
+            pumpedMl = todayBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
             strollerCount = todayActivities.count { it.type == ActivityType.STROLLER },
             bathCount = todayActivities.count { it.type == ActivityType.BATH },
             noteCount = todayActivities.count { it.type == ActivityType.NOTE }

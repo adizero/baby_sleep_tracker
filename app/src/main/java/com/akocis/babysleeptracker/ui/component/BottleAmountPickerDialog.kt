@@ -13,6 +13,7 @@ private val BOTTLE_AMOUNTS = (5..300 step 5).toList()
 
 @Composable
 fun BottleAmountPickerDialog(
+    title: String = "Bottle Amount",
     initialAmount: Int,
     onConfirm: (Int) -> Unit,
     onDismiss: () -> Unit
@@ -22,7 +23,7 @@ fun BottleAmountPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Bottle Amount") },
+        title = { Text(title) },
         text = {
             WheelPicker(
                 items = BOTTLE_AMOUNTS,

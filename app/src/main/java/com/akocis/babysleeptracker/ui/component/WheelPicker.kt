@@ -51,9 +51,10 @@ fun WheelPicker(
             val layoutInfo = listState.layoutInfo
             val viewportCenter = layoutInfo.viewportStartOffset +
                 (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
-            layoutInfo.visibleItemsInfo
+            val globalIndex = layoutInfo.visibleItemsInfo
                 .minByOrNull { abs((it.offset + it.size / 2) - viewportCenter) }
-                ?.index ?: initialIndex
+                ?.index ?: (halfVisible + initialIndex)
+            (globalIndex - halfVisible).coerceIn(0, items.lastIndex)
         }
     }
 

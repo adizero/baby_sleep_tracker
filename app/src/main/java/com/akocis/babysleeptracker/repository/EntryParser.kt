@@ -52,7 +52,7 @@ object EntryParser {
         """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
     )
     private val BOTTLE_FEED_REGEX = Regex(
-        """^(DONOR|FORMULA)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(\d+)ml$"""
+        """^(DONOR|FORMULA|PUMPED)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(\d+)ml$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
