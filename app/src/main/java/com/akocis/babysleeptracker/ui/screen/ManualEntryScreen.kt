@@ -43,8 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
+import com.akocis.babysleeptracker.ui.component.WheelPicker
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
@@ -173,17 +172,12 @@ fun ManualEntryScreen(
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = bottleAmountMl.toString(),
-                    onValueChange = { text ->
-                        text.filter { it.isDigit() }.toIntOrNull()?.let {
-                            viewModel.setBottleAmountMl(it)
-                        }
-                    },
-                    label = { Text("Amount (ml)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                Text("Amount:", style = MaterialTheme.typography.titleLarge)
+                WheelPicker(
+                    items = (5..300 step 5).toList(),
+                    initialValue = bottleAmountMl,
+                    onValueChanged = { viewModel.setBottleAmountMl(it) },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
