@@ -2,6 +2,7 @@ package com.akocis.babysleeptracker.util
 
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -16,6 +17,17 @@ object DateTimeUtil {
             hours > 0 -> "${hours}h ${minutes}m"
             else -> "${minutes}m"
         }
+    }
+
+    fun overlapDuration(
+        entryStart: LocalDateTime,
+        entryEnd: LocalDateTime,
+        bucketStart: LocalDateTime,
+        bucketEnd: LocalDateTime
+    ): Duration {
+        val overlapStart = if (entryStart > bucketStart) entryStart else bucketStart
+        val overlapEnd = if (entryEnd < bucketEnd) entryEnd else bucketEnd
+        return if (overlapStart < overlapEnd) Duration.between(overlapStart, overlapEnd) else Duration.ZERO
     }
 
     fun formatElapsed(startDate: LocalDate, startTime: LocalTime): String {

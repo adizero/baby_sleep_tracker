@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 
@@ -339,20 +340,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun refreshTodayStatsInternal(uri: Uri) {
         val data = fileRepository.readAll(uri)
         val today = LocalDate.now()
+        val todayStart = today.atStartOfDay()
+        val tomorrowStart = today.plusDays(1).atStartOfDay()
 
-        val todaySleep = data.sleepEntries.filter { it.date == today }
+        // Sleep/feed: split duration across day boundary (consider entries from yesterday too)
+        val relevantSleep = data.sleepEntries.filter { it.date == today || it.date == today.minusDays(1) }
+        val todaySleepDuration = relevantSleep.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), todayStart, tomorrowStart))
+        }
+
+        val relevantFeeds = data.feedEntries.filter { it.date == today || it.date == today.minusDays(1) }
+        val todayFeedDuration = relevantFeeds.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), todayStart, tomorrowStart))
+        }
+
         val todayDiapers = data.diaperEntries.filter { it.date == today }
-        val todayFeeds = data.feedEntries.filter { it.date == today }
 
         _todayStats.value = DayStats(
             date = today,
-            totalSleep = todaySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-            sleepCount = todaySleep.size,
+            totalSleep = todaySleepDuration,
+            sleepCount = data.sleepEntries.count { it.date == today },
             peeCount = todayDiapers.count { it.type == DiaperType.PEE },
             pooCount = todayDiapers.count { it.type == DiaperType.POO },
             peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
-            feedCount = todayFeeds.size,
-            totalFeedDuration = todayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+            feedCount = data.feedEntries.count { it.date == today },
+            totalFeedDuration = todayFeedDuration
         )
 
         // Sync tracking state with file contents (skip if a write is in progress)

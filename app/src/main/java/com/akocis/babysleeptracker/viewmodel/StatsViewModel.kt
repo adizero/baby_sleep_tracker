@@ -7,6 +7,7 @@ import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -89,14 +90,16 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         val now = LocalDateTime.now()
         val cutoff = now.minusHours(24)
 
+        // Include entries that could overlap with the 24h window (started up to 24h before cutoff)
+        val extendedCutoff = cutoff.minusHours(24)
         val recentSleep = sleepEntries.filter {
-            it.date.atTime(it.startTime) >= cutoff
+            it.date.atTime(it.startTime) >= extendedCutoff
         }
         val recentDiapers = diaperEntries.filter {
             it.date.atTime(it.time) >= cutoff
         }
         val recentFeeds = feedEntries.filter {
-            it.date.atTime(it.startTime) >= cutoff
+            it.date.atTime(it.startTime) >= extendedCutoff
         }
 
         // Build 6 four-hour period stats
@@ -105,7 +108,22 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val periodEnd = periodStart.plusHours(4)
             val label = "%02d-%02d".format(periodStart.hour, periodEnd.hour % 24)
 
-            val periodSleep = recentSleep.filter {
+            // Duration: split across period boundaries using overlap
+            val periodSleepDuration = recentSleep.fold(Duration.ZERO) { acc, entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), periodStart, periodEnd))
+            }
+            val periodFeedDuration = recentFeeds.fold(Duration.ZERO) { acc, entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), periodStart, periodEnd))
+            }
+
+            // Counts: attributed to period where entry starts
+            val periodSleepCount = recentSleep.count {
+                val dt = it.date.atTime(it.startTime)
+                dt >= periodStart && dt < periodEnd
+            }
+            val periodFeedCount = recentFeeds.count {
                 val dt = it.date.atTime(it.startTime)
                 dt >= periodStart && dt < periodEnd
             }
@@ -113,17 +131,17 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dt = it.date.atTime(it.time)
                 dt >= periodStart && dt < periodEnd
             }
-            val periodFeeds = recentFeeds.filter {
-                val dt = it.date.atTime(it.startTime)
-                dt >= periodStart && dt < periodEnd
-            }
 
+            // Longest/shortest from entries starting in this period
             var daySleepDur = Duration.ZERO
             var nightSleepDur = Duration.ZERO
             var longest = Duration.ZERO
             var shortest: Duration? = null
 
-            periodSleep.forEach { entry ->
+            recentSleep.filter {
+                val dt = it.date.atTime(it.startTime)
+                dt >= periodStart && dt < periodEnd
+            }.forEach { entry ->
                 val dur = entry.duration
                 if (dur > longest) longest = dur
                 if (shortest == null || dur < shortest!!) shortest = dur
@@ -136,8 +154,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
             DayStats(
                 date = periodStart.toLocalDate(),
-                totalSleep = periodSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-                sleepCount = periodSleep.size,
+                totalSleep = periodSleepDuration,
+                sleepCount = periodSleepCount,
                 peeCount = periodDiapers.count { it.type == DiaperType.PEE },
                 pooCount = periodDiapers.count { it.type == DiaperType.POO },
                 peepooCount = periodDiapers.count { it.type == DiaperType.PEEPOO },
@@ -145,8 +163,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 nightSleep = nightSleepDur,
                 longestNap = longest,
                 shortestNap = shortest ?: Duration.ZERO,
-                feedCount = periodFeeds.size,
-                totalFeedDuration = periodFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+                feedCount = periodFeedCount,
+                totalFeedDuration = periodFeedDuration,
                 label = label
             )
         }
@@ -186,9 +204,25 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
         val statsList = (0 until days).map { offset ->
             val date = startDate.plusDays(offset.toLong())
+            val dayStart = date.atStartOfDay()
+            val dayEnd = date.plusDays(1).atStartOfDay()
+
+            // Duration: split across day boundaries (consider entries from previous day)
+            val relevantSleep = sleepEntries.filter { it.date == date || it.date == date.minusDays(1) }
+            val totalSleep = relevantSleep.fold(Duration.ZERO) { acc, entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStart, dayEnd))
+            }
+
+            val relevantFeeds = feedEntries.filter { it.date == date || it.date == date.minusDays(1) }
+            val totalFeedDuration = relevantFeeds.fold(Duration.ZERO) { acc, entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStart, dayEnd))
+            }
+
+            // Counts, longest/shortest, day/night: attributed to entries starting on this date
             val daySleep = sleepEntries.filter { it.date == date }
             val dayDiapers = diaperEntries.filter { it.date == date }
-            val dayFeeds = feedEntries.filter { it.date == date }
 
             var daySleepDur = Duration.ZERO
             var nightSleepDur = Duration.ZERO
@@ -208,7 +242,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
             DayStats(
                 date = date,
-                totalSleep = daySleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
+                totalSleep = totalSleep,
                 sleepCount = daySleep.size,
                 peeCount = dayDiapers.count { it.type == DiaperType.PEE },
                 pooCount = dayDiapers.count { it.type == DiaperType.POO },
@@ -217,8 +251,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 nightSleep = nightSleepDur,
                 longestNap = longest,
                 shortestNap = shortest ?: Duration.ZERO,
-                feedCount = dayFeeds.size,
-                totalFeedDuration = dayFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
+                feedCount = feedEntries.count { it.date == date },
+                totalFeedDuration = totalFeedDuration
             )
         }
 
