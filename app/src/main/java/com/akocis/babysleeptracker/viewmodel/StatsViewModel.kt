@@ -190,23 +190,45 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
         _dayStats.value = periodStats
 
-        // Summary across all 24h
+        // Summary across all 24h — use overlap to clip to the actual window
+        val totalSleepIn24h = recentSleep.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), cutoff, now))
+        }
+        val totalFeedIn24h = recentFeeds.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), cutoff, now))
+        }
+
+        // Count only entries that start within the 24h window
+        val sleepCountIn24h = recentSleep.count {
+            val dt = it.date.atTime(it.startTime)
+            dt >= cutoff && dt < now
+        }
+        val feedCountIn24h = recentFeeds.count {
+            val dt = it.date.atTime(it.startTime)
+            dt >= cutoff && dt < now
+        }
+
         var totalLongest = Duration.ZERO
         var totalShortest: Duration? = null
-        recentSleep.forEach { entry ->
+        recentSleep.filter {
+            val dt = it.date.atTime(it.startTime)
+            dt >= cutoff && dt < now
+        }.forEach { entry ->
             val dur = entry.duration
             if (dur > totalLongest) totalLongest = dur
             if (totalShortest == null || dur < totalShortest!!) totalShortest = dur
         }
 
         _summaryStats.value = SummaryStats(
-            avgSleepPerDay = recentSleep.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-            avgNapsPerDay = recentSleep.size.toFloat(),
+            avgSleepPerDay = totalSleepIn24h,
+            avgNapsPerDay = sleepCountIn24h.toFloat(),
             avgDiapersPerDay = recentDiapers.size.toFloat(),
             longestNap = totalLongest,
             shortestNap = totalShortest ?: Duration.ZERO,
-            avgFeedPerDay = recentFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-            avgFeedSessionsPerDay = recentFeeds.size.toFloat(),
+            avgFeedPerDay = totalFeedIn24h,
+            avgFeedSessionsPerDay = feedCountIn24h.toFloat(),
             avgDonorMlPerDay = recentBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl }.toFloat(),
             avgFormulaMlPerDay = recentBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }.toFloat(),
             avgDonorCountPerDay = recentBottle.count { it.type == BottleType.DONOR }.toFloat(),

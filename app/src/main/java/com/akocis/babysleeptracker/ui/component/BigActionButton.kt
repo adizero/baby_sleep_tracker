@@ -39,7 +39,9 @@ fun BigActionButton(
         Text(
             text = text,
             fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
