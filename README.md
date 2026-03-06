@@ -5,23 +5,31 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 ## Features
 
 - **Sleep tracking** — one-tap start/stop with elapsed time display
+- **Breastfeeding tracking** — left/right side timers with auto-switch, mutual exclusion with sleep
 - **Diaper logging** — Pee, Poo, or Both buttons
-- **Manual entry** — add past events with date/time pickers
-- **Statistics** — sleep duration chart and daily summaries (3/7/14/30 day ranges)
-- **History** — scrollable list of all entries with swipe-to-delete
+- **Activity logging** — Stroll, Bath, and free-text Note events
+- **Manual entry** — add or edit past events with date/time pickers and validation
+- **Statistics** — sleep, feed, and diaper charts with trend lines (24h/3/7/14/30 day ranges), scrollable charts for large ranges, day vs night sleep breakdown
+- **History** — scrollable list of all entries, editable and deletable
+- **Dropbox sync** — automatic cloud backup and merge across devices
 - **Import/Export** — plain text file format, easy to read and share
 - **Dark mode** — toggle in settings
-- **Survives app kill** — active sleep session persists via SharedPreferences
+- **Survives app kill** — active sleep/feed session persists via SharedPreferences
 
 ## Data Format
 
-Data is stored as a plain text file (chosen by the user via SAF):
+Data is stored as a plain text file (chosen by the user via SAF). Each entry has a unique record ID for sync conflict resolution:
 
 ```
-SLEEP 2026-03-02 08:15 - 09:30
-PEE 2026-03-02 10:45
-POO 2026-03-02 11:30
-PEEPOO 2026-03-02 12:00
+#a1b2c3d4 SLEEP 2026-03-02 08:15 - 09:30
+#b2c3d4e5 FEEDL 2026-03-05 14:30 - 14:45
+#c3d4e5f6 FEEDR 2026-03-05 14:46 - 15:10
+#d4e5f6a7 PEE 2026-03-02 10:45
+#e5f6a7b8 POO 2026-03-02 11:30
+#f6a7b8c9 PEEPOO 2026-03-02 12:00
+#a7b8c9d0 STROLL 2026-03-02 13:00 - 14:00
+#b8c9d0e1 BATH 2026-03-02 18:00
+#c9d0e1f2 NOTE 2026-03-02 19:00 First smile!
 ```
 
 ## Tech Stack
