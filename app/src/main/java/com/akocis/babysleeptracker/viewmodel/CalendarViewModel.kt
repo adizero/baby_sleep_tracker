@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.ActivityEntry
+import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
@@ -22,7 +23,8 @@ data class CalendarDayData(
     val sleepEntries: List<SleepEntry> = emptyList(),
     val diaperEntries: List<DiaperEntry> = emptyList(),
     val activityEntries: List<ActivityEntry> = emptyList(),
-    val feedEntries: List<FeedEntry> = emptyList()
+    val feedEntries: List<FeedEntry> = emptyList(),
+    val bottleFeedEntries: List<BottleFeedEntry> = emptyList()
 ) {
     val totalSleep: Duration
         get() = sleepEntries.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
@@ -30,8 +32,10 @@ data class CalendarDayData(
         get() = feedEntries.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
     val totalDiapers: Int
         get() = diaperEntries.size
+    val totalBottleMl: Int
+        get() = bottleFeedEntries.sumOf { it.amountMl }
     val hasData: Boolean
-        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty() || feedEntries.isNotEmpty()
+        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty() || feedEntries.isNotEmpty() || bottleFeedEntries.isNotEmpty()
 }
 
 class CalendarViewModel(application: Application) : AndroidViewModel(application) {
@@ -91,7 +95,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                     sleepEntries = data.sleepEntries.filter { it.date == date },
                     diaperEntries = data.diaperEntries.filter { it.date == date },
                     activityEntries = data.activityEntries.filter { it.date == date },
-                    feedEntries = data.feedEntries.filter { it.date == date }
+                    feedEntries = data.feedEntries.filter { it.date == date },
+                    bottleFeedEntries = data.bottleFeedEntries.filter { it.date == date }
                 )
             }
 

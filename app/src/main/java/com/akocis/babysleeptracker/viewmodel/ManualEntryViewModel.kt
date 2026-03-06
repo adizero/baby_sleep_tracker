@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BottleFeedEntry
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
@@ -20,7 +22,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
-enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED }
+enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE }
 
 class ManualEntryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -54,6 +56,14 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _feedSide = MutableStateFlow(FeedSide.LEFT)
     val feedSide: StateFlow<FeedSide> = _feedSide
 
+    private val _bottleType = MutableStateFlow(BottleType.DONOR)
+    val bottleType: StateFlow<BottleType> = _bottleType
+
+    private val _bottleAmountMl = MutableStateFlow(
+        prefsRepository.bottlePresetMl.let { if (it > 0) it else 42 }
+    )
+    val bottleAmountMl: StateFlow<Int> = _bottleAmountMl
+
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved
 
@@ -74,6 +84,8 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setActivityType(type: ActivityType) { _activityType.value = type }
     fun setNoteText(text: String) { _noteText.value = text }
     fun setFeedSide(side: FeedSide) { _feedSide.value = side }
+    fun setBottleType(type: BottleType) { _bottleType.value = type }
+    fun setBottleAmountMl(ml: Int) { _bottleAmountMl.value = ml }
 
     fun dismissError() {
         _errorMessage.value = null
@@ -116,11 +128,24 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                     _endTime.value = entry.endTime
                 }
             }
+            is BottleFeedEntry -> {
+                _entryKind.value = EntryKind.BOTTLE
+                _date.value = entry.date
+                _startTime.value = entry.time
+                _bottleType.value = entry.type
+                _bottleAmountMl.value = entry.amountMl
+            }
         }
     }
 
     fun save() {
         val uri = prefsRepository.fileUri ?: return
+
+        // Validate bottle amount
+        if (_entryKind.value == EntryKind.BOTTLE && _bottleAmountMl.value <= 0) {
+            _errorMessage.value = "Amount must be greater than 0"
+            return
+        }
 
         // Validate end time > start time when end time is set
         if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED)) {
@@ -156,6 +181,11 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             FeedEntry(_feedSide.value, _date.value, _startTime.value, end)
                         )
                     }
+                    EntryKind.BOTTLE -> {
+                        EntryParser.formatBottleFeedEntry(
+                            BottleFeedEntry(_bottleType.value, _date.value, _startTime.value, _bottleAmountMl.value)
+                        )
+                    }
                 }
 
                 if (editMode && originalRawLine != null) {
@@ -187,6 +217,12 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             fileRepository.appendFeedEntry(
                                 uri,
                                 FeedEntry(_feedSide.value, _date.value, _startTime.value, end)
+                            )
+                        }
+                        EntryKind.BOTTLE -> {
+                            fileRepository.appendBottleFeedEntry(
+                                uri,
+                                BottleFeedEntry(_bottleType.value, _date.value, _startTime.value, _bottleAmountMl.value)
                             )
                         }
                     }

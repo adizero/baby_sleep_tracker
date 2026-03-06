@@ -49,14 +49,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.StatusBanner
 import com.akocis.babysleeptracker.ui.theme.BathColor
+import com.akocis.babysleeptracker.ui.theme.BottleAmountColor
+import com.akocis.babysleeptracker.ui.theme.DonorColor
 import com.akocis.babysleeptracker.ui.theme.FeedColor
+import com.akocis.babysleeptracker.ui.theme.FormulaColor
 import com.akocis.babysleeptracker.ui.theme.NoteColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PeePooColor
@@ -85,11 +91,14 @@ fun HomeScreen(
     val babyName by viewModel.babyName.collectAsStateWithLifecycle()
     val babyAge by viewModel.babyAge.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val bottlePresetMl by viewModel.bottlePresetMl.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showNoteDialog by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
+    var showBottleAmountDialog by remember { mutableStateOf(false) }
+    var bottleAmountText by remember { mutableStateOf("") }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
@@ -170,6 +179,38 @@ fun HomeScreen(
                     noteText = ""
                     showNoteDialog = false
                 }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Bottle amount dialog
+    if (showBottleAmountDialog) {
+        AlertDialog(
+            onDismissRequest = { showBottleAmountDialog = false },
+            title = { Text("Bottle Amount") },
+            text = {
+                OutlinedTextField(
+                    value = bottleAmountText,
+                    onValueChange = { bottleAmountText = it.filter { c -> c.isDigit() } },
+                    label = { Text("Amount (ml)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val ml = bottleAmountText.toIntOrNull()
+                        if (ml != null && ml > 0) {
+                            viewModel.setBottlePreset(ml)
+                        }
+                        showBottleAmountDialog = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBottleAmountDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -307,6 +348,38 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Bottle feeding buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BigActionButton(
+                    text = "Donor",
+                    containerColor = DonorColor,
+                    onClick = { viewModel.logBottleFeed(BottleType.DONOR) },
+                    modifier = Modifier.weight(1f)
+                )
+                BigActionButton(
+                    text = "${bottlePresetMl}ml",
+                    containerColor = BottleAmountColor,
+                    onClick = {
+                        bottleAmountText = bottlePresetMl.toString()
+                        showBottleAmountDialog = true
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                BigActionButton(
+                    text = "Formula",
+                    containerColor = FormulaColor,
+                    onClick = { viewModel.logBottleFeed(BottleType.FORMULA) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Diaper buttons
             Row(
                 modifier = Modifier
@@ -387,6 +460,9 @@ fun HomeScreen(
                         Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
                         if (stats.feedCount > 0) {
                             Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                        }
+                        if (stats.totalBottleFeeds > 0) {
+                            Text("Bottle: ${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)")
                         }
                         Text("Pee: ${stats.peeCount}  Poo: ${stats.pooCount}  Both: ${stats.peepooCount}")
                         Text("Total diapers: ${stats.totalDiapers}")

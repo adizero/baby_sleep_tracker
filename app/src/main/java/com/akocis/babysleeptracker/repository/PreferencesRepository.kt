@@ -26,6 +26,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_DROPBOX_ACCESS_TOKEN = "dropbox_access_token"
         private const val KEY_DROPBOX_TOKEN_EXPIRY = "dropbox_token_expiry"
         private const val KEY_DROPBOX_FILE_PATH = "dropbox_file_path"
+        private const val KEY_BOTTLE_PRESET_ML = "bottle_preset_ml"
     }
 
     var fileUri: Uri?
@@ -106,6 +107,10 @@ class PreferencesRepository(context: Context) {
 
         return TrackingState.Idle
     }
+
+    var bottlePresetMl: Int
+        get() = prefs.getInt(KEY_BOTTLE_PRESET_ML, -1)
+        set(value) = prefs.edit().putInt(KEY_BOTTLE_PRESET_ML, value).apply()
 
     // Dropbox sync preferences
 

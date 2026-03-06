@@ -3,6 +3,7 @@ package com.akocis.babysleeptracker.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.repository.FileRepository
@@ -23,7 +24,11 @@ data class SummaryStats(
     val longestNap: Duration = Duration.ZERO,
     val shortestNap: Duration = Duration.ZERO,
     val avgFeedPerDay: Duration = Duration.ZERO,
-    val avgFeedSessionsPerDay: Float = 0f
+    val avgFeedSessionsPerDay: Float = 0f,
+    val avgDonorMlPerDay: Float = 0f,
+    val avgFormulaMlPerDay: Float = 0f,
+    val avgDonorCountPerDay: Float = 0f,
+    val avgFormulaCountPerDay: Float = 0f
 )
 
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
@@ -72,12 +77,13 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val sleepEntries = data.sleepEntries
             val diaperEntries = data.diaperEntries
             val feedEntries = data.feedEntries
+            val bottleFeedEntries = data.bottleFeedEntries
             val today = LocalDate.now()
 
             if (_is24hMode.value) {
-                load24hStats(sleepEntries, diaperEntries, feedEntries)
+                load24hStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries)
             } else {
-                loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, today)
+                loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, today)
             }
         }
     }
@@ -85,7 +91,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private fun load24hStats(
         sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
         diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
-        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>
+        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
+        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry> = emptyList()
     ) {
         val now = LocalDateTime.now()
         val cutoff = now.minusHours(24)
@@ -100,6 +107,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
         val recentFeeds = feedEntries.filter {
             it.date.atTime(it.startTime) >= extendedCutoff
+        }
+        val recentBottle = bottleFeedEntries.filter {
+            it.date.atTime(it.time) >= cutoff
         }
 
         // Build 6 four-hour period stats
@@ -152,6 +162,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
+            val periodBottle = recentBottle.filter {
+                val dt = it.date.atTime(it.time)
+                dt >= periodStart && dt < periodEnd
+            }
+
             DayStats(
                 date = periodStart.toLocalDate(),
                 totalSleep = periodSleepDuration,
@@ -165,6 +180,10 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 shortestNap = shortest ?: Duration.ZERO,
                 feedCount = periodFeedCount,
                 totalFeedDuration = periodFeedDuration,
+                donorCount = periodBottle.count { it.type == BottleType.DONOR },
+                donorMl = periodBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
+                formulaCount = periodBottle.count { it.type == BottleType.FORMULA },
+                formulaMl = periodBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
                 label = label
             )
         }
@@ -187,7 +206,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             longestNap = totalLongest,
             shortestNap = totalShortest ?: Duration.ZERO,
             avgFeedPerDay = recentFeeds.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) },
-            avgFeedSessionsPerDay = recentFeeds.size.toFloat()
+            avgFeedSessionsPerDay = recentFeeds.size.toFloat(),
+            avgDonorMlPerDay = recentBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl }.toFloat(),
+            avgFormulaMlPerDay = recentBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }.toFloat(),
+            avgDonorCountPerDay = recentBottle.count { it.type == BottleType.DONOR }.toFloat(),
+            avgFormulaCountPerDay = recentBottle.count { it.type == BottleType.FORMULA }.toFloat()
         )
         _movingAverage.value = emptyList()
         _feedMovingAverage.value = emptyList()
@@ -197,6 +220,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
         diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
         feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
+        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry> = emptyList(),
         today: LocalDate
     ) {
         val days = _daysBack.value
@@ -240,6 +264,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
+            val dayBottle = bottleFeedEntries.filter { it.date == date }
+
             DayStats(
                 date = date,
                 totalSleep = totalSleep,
@@ -252,13 +278,17 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 longestNap = longest,
                 shortestNap = shortest ?: Duration.ZERO,
                 feedCount = feedEntries.count { it.date == date },
-                totalFeedDuration = totalFeedDuration
+                totalFeedDuration = totalFeedDuration,
+                donorCount = dayBottle.count { it.type == BottleType.DONOR },
+                donorMl = dayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
+                formulaCount = dayBottle.count { it.type == BottleType.FORMULA },
+                formulaMl = dayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }
             )
         }
 
         _dayStats.value = statsList
 
-        val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 || it.feedCount > 0 }
+        val daysWithData = statsList.filter { it.sleepCount > 0 || it.totalDiapers > 0 || it.feedCount > 0 || it.totalBottleFeeds > 0 }
         val totalDays = daysWithData.size.coerceAtLeast(1)
         val allNaps = statsList.filter { it.longestNap > Duration.ZERO }
 
@@ -274,7 +304,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             avgFeedPerDay = statsList.fold(Duration.ZERO) { acc, s ->
                 acc.plus(s.totalFeedDuration)
             }.dividedBy(totalDays.toLong()),
-            avgFeedSessionsPerDay = statsList.sumOf { it.feedCount }.toFloat() / totalDays
+            avgFeedSessionsPerDay = statsList.sumOf { it.feedCount }.toFloat() / totalDays,
+            avgDonorMlPerDay = statsList.sumOf { it.donorMl }.toFloat() / totalDays,
+            avgFormulaMlPerDay = statsList.sumOf { it.formulaMl }.toFloat() / totalDays,
+            avgDonorCountPerDay = statsList.sumOf { it.donorCount }.toFloat() / totalDays,
+            avgFormulaCountPerDay = statsList.sumOf { it.formulaCount }.toFloat() / totalDays
         )
 
         // Sleep moving average

@@ -43,7 +43,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.ui.component.BigActionButton
@@ -70,6 +73,8 @@ fun ManualEntryScreen(
     val activityType by viewModel.activityType.collectAsStateWithLifecycle()
     val noteText by viewModel.noteText.collectAsStateWithLifecycle()
     val feedSide by viewModel.feedSide.collectAsStateWithLifecycle()
+    val bottleType by viewModel.bottleType.collectAsStateWithLifecycle()
+    val bottleAmountMl by viewModel.bottleAmountMl.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -122,7 +127,7 @@ fun ManualEntryScreen(
         ) {
             // Entry type toggle (4-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
                 kinds.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
@@ -150,6 +155,35 @@ fun ManualEntryScreen(
                 Text(
                     if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                )
+            }
+
+            // Bottle type and amount (only for bottle entries)
+            if (entryKind == EntryKind.BOTTLE) {
+                Text("Type:", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BottleType.entries.forEach { type ->
+                        FilterChip(
+                            selected = bottleType == type,
+                            onClick = { viewModel.setBottleType(type) },
+                            label = { Text(type.label) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = bottleAmountMl.toString(),
+                    onValueChange = { text ->
+                        text.filter { it.isDigit() }.toIntOrNull()?.let {
+                            viewModel.setBottleAmountMl(it)
+                        }
+                    },
+                    label = { Text("Amount (ml)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
             }
 

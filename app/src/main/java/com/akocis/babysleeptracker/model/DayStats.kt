@@ -16,7 +16,13 @@ data class DayStats(
     val shortestNap: Duration = Duration.ZERO,
     val feedCount: Int = 0,
     val totalFeedDuration: Duration = Duration.ZERO,
+    val donorCount: Int = 0,
+    val donorMl: Int = 0,
+    val formulaCount: Int = 0,
+    val formulaMl: Int = 0,
     val label: String? = null
 ) {
     val totalDiapers: Int get() = peeCount + pooCount + peepooCount
+    val totalBottleFeeds: Int get() = donorCount + formulaCount
+    val totalBottleMl: Int get() = donorMl + formulaMl
 }

@@ -117,6 +117,14 @@ fun StatsScreen(
                     Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}$suffix")
                     Text("Feed: ${DateTimeUtil.formatDuration(summaryStats.avgFeedPerDay)}$suffix")
                     Text("Feed sessions: ${String.format("%.1f", summaryStats.avgFeedSessionsPerDay)}$suffix")
+                    if (summaryStats.avgDonorMlPerDay > 0f || summaryStats.avgFormulaMlPerDay > 0f) {
+                        if (summaryStats.avgDonorMlPerDay > 0f) {
+                            Text("Donor: ${String.format("%.0f", summaryStats.avgDonorMlPerDay)}ml (${String.format("%.1f", summaryStats.avgDonorCountPerDay)} feeds)$suffix")
+                        }
+                        if (summaryStats.avgFormulaMlPerDay > 0f) {
+                            Text("Formula: ${String.format("%.0f", summaryStats.avgFormulaMlPerDay)}ml (${String.format("%.1f", summaryStats.avgFormulaCountPerDay)} feeds)$suffix")
+                        }
+                    }
                     Text("Diapers: ${String.format("%.1f", summaryStats.avgDiapersPerDay)}$suffix")
                     if (summaryStats.longestNap > Duration.ZERO) {
                         Text("Longest nap: ${DateTimeUtil.formatDuration(summaryStats.longestNap)}")
@@ -209,6 +217,9 @@ fun StatsScreen(
                             Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
                             if (stats.feedCount > 0) {
                                 Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                            }
+                            if (stats.totalBottleFeeds > 0) {
+                                Text("Bottle: ${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)")
                             }
                             if (stats.totalDiapers > 0) {
                                 Text("Diapers: ${stats.peeCount} pee, ${stats.pooCount} poo, ${stats.peepooCount} both")

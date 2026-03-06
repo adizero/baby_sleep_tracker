@@ -3,6 +3,7 @@ package com.akocis.babysleeptracker.repository
 import android.content.Context
 import android.net.Uri
 import com.akocis.babysleeptracker.model.ActivityEntry
+import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
@@ -44,6 +45,11 @@ class FileRepository(private val context: Context) {
     suspend fun appendFeedEntry(uri: Uri, entry: FeedEntry) {
         val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
         appendLine(uri, EntryParser.formatFeedEntry(withId))
+    }
+
+    suspend fun appendBottleFeedEntry(uri: Uri, entry: BottleFeedEntry) {
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatBottleFeedEntry(withId))
     }
 
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
@@ -164,6 +170,10 @@ class FileRepository(private val context: Context) {
         }
         sourceData.feedEntries.forEach {
             appendFeedEntry(targetUri, it)
+            count++
+        }
+        sourceData.bottleFeedEntries.forEach {
+            appendBottleFeedEntry(targetUri, it)
             count++
         }
         return count

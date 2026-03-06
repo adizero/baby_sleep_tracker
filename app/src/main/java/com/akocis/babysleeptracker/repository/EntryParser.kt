@@ -2,6 +2,8 @@ package com.akocis.babysleeptracker.repository
 
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BottleFeedEntry
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
@@ -17,6 +19,7 @@ data class ParsedData(
     val diaperEntries: List<DiaperEntry> = emptyList(),
     val activityEntries: List<ActivityEntry> = emptyList(),
     val feedEntries: List<FeedEntry> = emptyList(),
+    val bottleFeedEntries: List<BottleFeedEntry> = emptyList(),
     val babyName: String? = null,
     val babyBirthDate: LocalDate? = null,
     val deletedIds: Set<String> = emptySet()
@@ -47,6 +50,9 @@ object EntryParser {
     )
     private val FEED_ONGOING_REGEX = Regex(
         """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
+    )
+    private val BOTTLE_FEED_REGEX = Regex(
+        """^(DONOR|FORMULA)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(\d+)ml$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -127,6 +133,14 @@ object EntryParser {
             return ActivityEntry(type, date, time, null, id)
         }
 
+        BOTTLE_FEED_REGEX.matchEntire(content)?.let { match ->
+            val type = BottleType.fromString(match.groupValues[1]) ?: return null
+            val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
+            val time = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
+            val amountMl = match.groupValues[4].toInt()
+            return BottleFeedEntry(type, date, time, amountMl, id)
+        }
+
         return null
     }
 
@@ -146,6 +160,7 @@ object EntryParser {
         val diaperEntries = mutableListOf<DiaperEntry>()
         val activityEntries = mutableListOf<ActivityEntry>()
         val feedEntries = mutableListOf<FeedEntry>()
+        val bottleFeedEntries = mutableListOf<BottleFeedEntry>()
         val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
         var babyBirthDate: LocalDate? = null
@@ -169,6 +184,7 @@ object EntryParser {
                 is DiaperEntry -> diaperEntries.add(entry)
                 is ActivityEntry -> activityEntries.add(entry)
                 is FeedEntry -> feedEntries.add(entry)
+                is BottleFeedEntry -> bottleFeedEntries.add(entry)
             }
         }
 
@@ -178,6 +194,7 @@ object EntryParser {
             diaperEntries = diaperEntries.filter { it.id == null || it.id !in deletedIds },
             activityEntries = activityEntries.filter { it.id == null || it.id !in deletedIds },
             feedEntries = feedEntries.filter { it.id == null || it.id !in deletedIds },
+            bottleFeedEntries = bottleFeedEntries.filter { it.id == null || it.id !in deletedIds },
             babyName = babyName,
             babyBirthDate = babyBirthDate,
             deletedIds = deletedIds
@@ -223,6 +240,13 @@ object EntryParser {
         } else {
             "${entry.type.name} $date $time"
         }
+        return if (entry.id != null) "#${entry.id} $body" else body
+    }
+
+    fun formatBottleFeedEntry(entry: BottleFeedEntry): String {
+        val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
+        val time = entry.time.format(DateTimeUtil.TIME_FORMAT)
+        val body = "${entry.type.name} $date $time ${entry.amountMl}ml"
         return if (entry.id != null) "#${entry.id} $body" else body
     }
 

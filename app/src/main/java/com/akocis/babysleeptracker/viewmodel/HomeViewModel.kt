@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BottleFeedEntry
+import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
@@ -57,6 +59,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _babyAge = MutableStateFlow<String?>(null)
     val babyAge: StateFlow<String?> = _babyAge
 
+    private val _bottlePresetMl = MutableStateFlow(42)
+    val bottlePresetMl: StateFlow<Int> = _bottlePresetMl
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
     private var pendingWrite = false
@@ -68,6 +73,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             startTimer()
         }
         loadBabyInfo()
+        loadBottlePreset()
         syncAndRefresh()
     }
 
@@ -277,6 +283,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun logBottleFeed(type: BottleType) {
+        val uri = prefsRepository.fileUri ?: return
+        val now = LocalTime.now().withSecond(0).withNano(0)
+        val amount = _bottlePresetMl.value
+        val entry = BottleFeedEntry(type, LocalDate.now(), now, amount)
+        viewModelScope.launch {
+            try {
+                fileRepository.appendBottleFeedEntry(uri, entry)
+                refreshTodayStats()
+                SyncHelper.notifyDataChanged()
+                showUndo("${type.label} ${amount}ml at $now")
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save bottle feed: ${e.message}"
+            }
+        }
+    }
+
+    fun setBottlePreset(ml: Int) {
+        _bottlePresetMl.value = ml
+        prefsRepository.bottlePresetMl = ml
+    }
+
+    private fun loadBottlePreset() {
+        val saved = prefsRepository.bottlePresetMl
+        if (saved > 0) {
+            _bottlePresetMl.value = saved
+        }
+    }
+
     fun logActivity(type: ActivityType, note: String? = null) {
         val uri = prefsRepository.fileUri ?: return
         val now = LocalTime.now().withSecond(0).withNano(0)
@@ -357,6 +392,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val todayDiapers = data.diaperEntries.filter { it.date == today }
+        val todayBottle = data.bottleFeedEntries.filter { it.date == today }
 
         _todayStats.value = DayStats(
             date = today,
@@ -366,8 +402,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             pooCount = todayDiapers.count { it.type == DiaperType.POO },
             peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
             feedCount = data.feedEntries.count { it.date == today },
-            totalFeedDuration = todayFeedDuration
+            totalFeedDuration = todayFeedDuration,
+            donorCount = todayBottle.count { it.type == BottleType.DONOR },
+            donorMl = todayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
+            formulaCount = todayBottle.count { it.type == BottleType.FORMULA },
+            formulaMl = todayBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }
         )
+
+        // Auto-resolve bottle preset from history if unset
+        if (prefsRepository.bottlePresetMl <= 0 && data.bottleFeedEntries.isNotEmpty()) {
+            val lastAmount = data.bottleFeedEntries.last().amountMl
+            _bottlePresetMl.value = lastAmount
+            prefsRepository.bottlePresetMl = lastAmount
+        }
 
         // Sync tracking state with file contents (skip if a write is in progress)
         if (!pendingWrite) {

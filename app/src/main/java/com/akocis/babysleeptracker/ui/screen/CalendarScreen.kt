@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.ui.theme.BathColor
+import com.akocis.babysleeptracker.ui.theme.DonorColor
 import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PooColor
@@ -258,6 +259,14 @@ private fun CalendarDayCell(
                                 .background(FeedColor)
                         )
                     }
+                    if (dayData.bottleFeedEntries.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(DonorColor)
+                        )
+                    }
                     if (dayData.activityEntries.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -323,6 +332,21 @@ private fun DayDetailCard(dayData: CalendarDayData) {
                     val endText = entry.endTime?.toString() ?: "ongoing"
                     Text(
                         text = "  ${entry.startTime} - $endText ${entry.side.label} (${DateTimeUtil.formatDuration(entry.duration)})",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (dayData.bottleFeedEntries.isNotEmpty()) {
+                Text(
+                    text = "Bottle (${dayData.totalBottleMl}ml)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                dayData.bottleFeedEntries.forEach { entry ->
+                    Text(
+                        text = "  ${entry.time} - ${entry.type.label} ${entry.amountMl}ml",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

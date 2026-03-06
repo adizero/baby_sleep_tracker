@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.ActivityEntry
+import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
@@ -23,7 +24,8 @@ data class HistoryItem(
     val sleepEntry: SleepEntry? = null,
     val diaperEntry: DiaperEntry? = null,
     val activityEntry: ActivityEntry? = null,
-    val feedEntry: FeedEntry? = null
+    val feedEntry: FeedEntry? = null,
+    val bottleFeedEntry: BottleFeedEntry? = null
 )
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
@@ -116,6 +118,21 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
+            data.bottleFeedEntries.forEach { entry ->
+                val line = EntryParser.formatBottleFeedEntry(entry)
+                val sortKey = entry.date.toEpochDay() * 86400 +
+                    entry.time.toSecondOfDay()
+                items.add(
+                    HistoryItem(
+                        id = nextId++,
+                        displayText = "${entry.type.label}: ${entry.date} ${entry.time} ${entry.amountMl}ml",
+                        rawLine = line,
+                        sortKey = sortKey,
+                        bottleFeedEntry = entry
+                    )
+                )
+            }
+
             _entries.value = items.sortedByDescending { it.sortKey }
         }
     }
@@ -144,6 +161,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is DiaperEntry -> entry.id
                     is ActivityEntry -> entry.id
                     is FeedEntry -> entry.id
+                    is BottleFeedEntry -> entry.id
                     else -> null
                 }
                 if (entryId != null) {
@@ -154,6 +172,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is DiaperEntry -> fileRepository.appendDiaperEntry(uri, entry)
                     is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
                     is FeedEntry -> fileRepository.appendFeedEntry(uri, entry)
+                    is BottleFeedEntry -> fileRepository.appendBottleFeedEntry(uri, entry)
                 }
                 loadEntries()
                 SyncHelper.notifyDataChanged()
