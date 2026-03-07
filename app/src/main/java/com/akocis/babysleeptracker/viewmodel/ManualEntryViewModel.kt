@@ -72,6 +72,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
 
     private var editMode = false
     private var originalRawLine: String? = null
+    private var editEntryId: String? = null
 
     val isEditMode: Boolean get() = editMode
 
@@ -95,6 +96,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
         if (editMode) return
         editMode = true
         originalRawLine = rawLine
+        editEntryId = EntryParser.extractId(rawLine)
         when (val entry = EntryParser.parseLine(rawLine)) {
             is SleepEntry -> {
                 _entryKind.value = EntryKind.SLEEP
@@ -188,7 +190,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                     }
                 }
 
-                if (editMode && originalRawLine != null) {
+                if (editMode && editEntryId != null) {
+                    fileRepository.replaceById(uri, editEntryId!!, newLine)
+                } else if (editMode && originalRawLine != null) {
                     fileRepository.updateEntry(uri, originalRawLine!!, newLine)
                 } else {
                     when (_entryKind.value) {

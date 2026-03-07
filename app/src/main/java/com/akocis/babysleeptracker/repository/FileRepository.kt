@@ -90,6 +90,27 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    suspend fun replaceById(uri: Uri, entryId: String, newLine: String) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = readContent(uri)
+                val lines = content.lines().toMutableList()
+                val firstIndex = lines.indexOfFirst {
+                    EntryParser.extractId(it) == entryId
+                }
+
+                // Remove ALL lines with this ID
+                lines.removeAll { EntryParser.extractId(it) == entryId }
+
+                // Insert the new line at the original position (or append)
+                val insertAt = if (firstIndex >= 0) firstIndex.coerceAtMost(lines.size) else lines.size
+                lines.add(insertAt, "#$entryId ${EntryParser.stripId(newLine)}")
+
+                writeContent(uri, lines.joinToString("\n"))
+            }
+        }
+    }
+
     suspend fun updateEntry(uri: Uri, oldLine: String, newLine: String) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
@@ -100,7 +121,6 @@ class FileRepository(private val context: Context) {
                     EntryParser.stripId(it) == strippedOld
                 }
                 if (index >= 0) {
-                    // Preserve the old ID in the new line
                     val existingId = EntryParser.extractId(lines[index])
                     val strippedNew = EntryParser.stripId(newLine)
                     lines[index] = if (existingId != null) {
