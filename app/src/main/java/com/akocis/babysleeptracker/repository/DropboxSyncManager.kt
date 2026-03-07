@@ -227,19 +227,11 @@ class DropboxSyncManager {
         }
         for ((_, lines) in linesByID) {
             if (lines.size <= 1) continue
-            val ongoing = lines.filter {
-                ONGOING_SLEEP_REGEX.matches(it) || ONGOING_FEED_REGEX.matches(it)
-            }
-            if (ongoing.size < lines.size) {
-                // Non-ongoing versions exist; remove all ongoing duplicates
-                allLines.removeAll(ongoing.toSet())
-            } else {
-                // All versions are ongoing with same ID (edited entry vs stale remote);
-                // prefer the local version since user edited it
-                val localVersion = lines.firstOrNull { it in localLines }
-                val toKeep = localVersion ?: lines.first()
-                allLines.removeAll(lines.filter { it != toKeep }.toSet())
-            }
+            // Multiple lines share the same ID — keep only one.
+            // Prefer the local version (user's latest edit).
+            val localVersion = lines.firstOrNull { it in localLines }
+            val toKeep = localVersion ?: lines.first()
+            allLines.removeAll(lines.filter { it != toKeep }.toSet())
         }
 
         // Sort entries by date + time
