@@ -29,10 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.ui.component.DiaperChart
 import com.akocis.babysleeptracker.ui.component.FeedChart
+import com.akocis.babysleeptracker.ui.component.HourlyChart
 import com.akocis.babysleeptracker.ui.component.SleepChart
 import com.akocis.babysleeptracker.ui.component.SleepPieChart
+import com.akocis.babysleeptracker.ui.theme.FeedColor
+import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
 import java.time.Duration
@@ -41,6 +45,7 @@ import java.time.Duration
 @Composable
 fun StatsScreen(
     viewModel: StatsViewModel,
+    prefsRepository: PreferencesRepository,
     onBack: () -> Unit
 ) {
     val dayStats by viewModel.dayStats.collectAsStateWithLifecycle()
@@ -48,7 +53,11 @@ fun StatsScreen(
     val summaryStats by viewModel.summaryStats.collectAsStateWithLifecycle()
     val movingAverage by viewModel.movingAverage.collectAsStateWithLifecycle()
     val feedMovingAverage by viewModel.feedMovingAverage.collectAsStateWithLifecycle()
-    val is24hMode by viewModel.is24hMode.collectAsStateWithLifecycle()
+    val isRollingMode by viewModel.isRollingMode.collectAsStateWithLifecycle()
+    val hourlyStats by viewModel.hourlyStats.collectAsStateWithLifecycle()
+
+    val dayStartHour = prefsRepository.dayStartHour
+    val dayEndHour = prefsRepository.dayEndHour
 
     Scaffold(
         topBar = {
@@ -88,6 +97,11 @@ fun StatsScreen(
                     onClick = { viewModel.setDaysBack(0) },
                     label = { Text("24h") }
                 )
+                FilterChip(
+                    selected = daysBack == -3,
+                    onClick = { viewModel.setDaysBack(-3) },
+                    label = { Text("72h") }
+                )
                 listOf(3, 7, 14, 30).forEach { days ->
                     FilterChip(
                         selected = daysBack == days,
@@ -108,11 +122,15 @@ fun StatsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = if (is24hMode) "Last 24 Hours" else "Averages (${daysBack}d)",
+                        text = when (daysBack) {
+                            0 -> "Last 24 Hours"
+                            -3 -> "Last 72 Hours"
+                            else -> "Averages (${daysBack}d)"
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    val suffix = if (is24hMode) "" else "/day"
+                    val suffix = if (isRollingMode) "" else "/day"
                     Text("Sleep: ${DateTimeUtil.formatDuration(summaryStats.avgSleepPerDay)}$suffix")
                     Text("Naps: ${String.format("%.1f", summaryStats.avgNapsPerDay)}$suffix")
                     Text("Feed: ${DateTimeUtil.formatDuration(summaryStats.avgFeedPerDay)}$suffix")
@@ -176,7 +194,7 @@ fun StatsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (!is24hMode) {
+            if (!isRollingMode) {
                 // Day vs Night sleep pie chart
                 val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
                 val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
@@ -192,7 +210,46 @@ fun StatsScreen(
                     SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
                     Spacer(modifier = Modifier.height(24.dp))
                 }
+            }
 
+            // Hourly breakdown charts
+            if (hourlyStats.size == 24) {
+                Text(
+                    text = "Hourly Sleep",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HourlyChart(
+                    stats = hourlyStats,
+                    valueAccessor = { it.totalSleep },
+                    barColor = SleepButtonColor,
+                    dayStartHour = dayStartHour,
+                    dayEndHour = dayEndHour
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Hourly Feed",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HourlyChart(
+                    stats = hourlyStats,
+                    valueAccessor = { it.totalFeedDuration },
+                    barColor = FeedColor,
+                    dayStartHour = dayStartHour,
+                    dayEndHour = dayEndHour
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            if (!isRollingMode) {
                 // Daily summaries
                 Text(
                     text = "Daily Summary",

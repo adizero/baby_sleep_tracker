@@ -27,6 +27,8 @@ class PreferencesRepository(context: Context) {
         private const val KEY_DROPBOX_TOKEN_EXPIRY = "dropbox_token_expiry"
         private const val KEY_DROPBOX_FILE_PATH = "dropbox_file_path"
         private const val KEY_BOTTLE_PRESET_ML = "bottle_preset_ml"
+        private const val KEY_DAY_START_HOUR = "day_start_hour"
+        private const val KEY_DAY_END_HOUR = "day_end_hour"
     }
 
     var fileUri: Uri?
@@ -107,6 +109,14 @@ class PreferencesRepository(context: Context) {
 
         return TrackingState.Idle
     }
+
+    var dayStartHour: Int
+        get() = prefs.getInt(KEY_DAY_START_HOUR, 7)
+        set(value) = prefs.edit().putInt(KEY_DAY_START_HOUR, value).apply()
+
+    var dayEndHour: Int
+        get() = prefs.getInt(KEY_DAY_END_HOUR, 19)
+        set(value) = prefs.edit().putInt(KEY_DAY_END_HOUR, value).apply()
 
     var bottlePresetMl: Int
         get() = prefs.getInt(KEY_BOTTLE_PRESET_ML, -1)

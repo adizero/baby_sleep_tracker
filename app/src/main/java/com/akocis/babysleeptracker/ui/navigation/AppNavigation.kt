@@ -99,6 +99,7 @@ fun AppNavigation(
             val viewModel: StatsViewModel = viewModel()
             StatsScreen(
                 viewModel = viewModel,
+                prefsRepository = prefsRepository,
                 onBack = { navController.popBackStack() }
             )
         }

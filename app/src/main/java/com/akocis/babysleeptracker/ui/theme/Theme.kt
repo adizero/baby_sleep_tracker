@@ -30,16 +30,21 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurfaceDark
 )
 
-fun isAutoNightTime(): Boolean {
+fun isAutoNightTime(dayStartHour: Int = 7, dayEndHour: Int = 19): Boolean {
     val now = LocalTime.now()
-    // Approximate sunrise ~7:00, sunset ~19:00
-    return now.isBefore(LocalTime.of(7, 0)) || now.isAfter(LocalTime.of(19, 0))
+    val dayStart = LocalTime.of(dayStartHour, 0)
+    val dayEnd = LocalTime.of(dayEndHour, 0)
+    return if (dayStartHour < dayEndHour) {
+        now.isBefore(dayStart) || !now.isBefore(dayEnd)
+    } else {
+        !now.isBefore(dayEnd) && now.isBefore(dayStart)
+    }
 }
 
-fun resolveThemeMode(themeMode: String): Boolean {
+fun resolveThemeMode(themeMode: String, dayStartHour: Int = 7, dayEndHour: Int = 19): Boolean {
     return when (themeMode) {
         "dark" -> true
-        "auto" -> isAutoNightTime()
+        "auto" -> isAutoNightTime(dayStartHour, dayEndHour)
         else -> false
     }
 }

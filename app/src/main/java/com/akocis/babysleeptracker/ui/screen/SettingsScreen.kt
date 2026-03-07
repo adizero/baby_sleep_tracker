@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import android.provider.OpenableColumns
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.ui.component.WheelPicker
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -69,6 +70,8 @@ fun SettingsScreen(
     var babyName by remember { mutableStateOf(prefsRepository.babyName ?: "") }
     var babyBirthDate by remember { mutableStateOf(prefsRepository.babyBirthDate) }
     var showBirthDatePicker by remember { mutableStateOf(false) }
+    var dayStartHour by remember { mutableStateOf(prefsRepository.dayStartHour) }
+    var dayEndHour by remember { mutableStateOf(prefsRepository.dayEndHour) }
 
     val openFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -393,12 +396,68 @@ fun SettingsScreen(
                     }
                     if (themeMode == "auto") {
                         Text(
-                            text = "Switches to dark theme between 7 PM and 7 AM",
+                            text = "Switches to dark theme between ${String.format("%02d:00", dayEndHour)} and ${String.format("%02d:00", dayStartHour)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Day / Night Hours
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Day / Night Hours",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = "Used for day/night stats and auto theme",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
+                    Text(
+                        text = "Day starts at",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    WheelPicker(
+                        items = (0..23).toList(),
+                        initialValue = dayStartHour,
+                        onValueChanged = { hour ->
+                            dayStartHour = hour
+                            prefsRepository.dayStartHour = hour
+                            if (themeMode == "auto") onThemeModeChanged("auto")
+                        },
+                        label = String.format("%02d:00", dayStartHour),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Night starts at",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    WheelPicker(
+                        items = (0..23).toList(),
+                        initialValue = dayEndHour,
+                        onValueChanged = { hour ->
+                            dayEndHour = hour
+                            prefsRepository.dayEndHour = hour
+                            if (themeMode == "auto") onThemeModeChanged("auto")
+                        },
+                        label = String.format("%02d:00", dayEndHour),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 

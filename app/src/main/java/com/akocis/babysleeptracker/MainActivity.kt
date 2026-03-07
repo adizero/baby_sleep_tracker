@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
         var themeMode by mutableStateOf(prefsRepository.themeMode)
 
         setContent {
-            BabySleepTrackerTheme(darkTheme = resolveThemeMode(themeMode)) {
+            BabySleepTrackerTheme(darkTheme = resolveThemeMode(themeMode, prefsRepository.dayStartHour, prefsRepository.dayEndHour)) {
                 val navController = rememberNavController()
                 AppNavigation(
                     navController = navController,

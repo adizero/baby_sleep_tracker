@@ -54,14 +54,15 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val _daysBack = MutableStateFlow(7)
     val daysBack: StateFlow<Int> = _daysBack
 
-    /** true when daysBack==0 (last-24h mode) */
-    private val _is24hMode = MutableStateFlow(false)
-    val is24hMode: StateFlow<Boolean> = _is24hMode
+    /** true when daysBack<=0 (rolling window modes: 0=24h, -3=72h) */
+    private val _isRollingMode = MutableStateFlow(false)
+    val isRollingMode: StateFlow<Boolean> = _isRollingMode
 
-    companion object {
-        private val DAY_START = LocalTime.of(7, 0)
-        private val DAY_END = LocalTime.of(19, 0)
-    }
+    private val _hourlyStats = MutableStateFlow<List<DayStats>>(emptyList())
+    val hourlyStats: StateFlow<List<DayStats>> = _hourlyStats
+
+    private val dayStart: LocalTime get() = LocalTime.of(prefsRepository.dayStartHour, 0)
+    private val dayEnd: LocalTime get() = LocalTime.of(prefsRepository.dayEndHour, 0)
 
     init {
         loadStats()
@@ -69,7 +70,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDaysBack(days: Int) {
         _daysBack.value = days
-        _is24hMode.value = days == 0
+        _isRollingMode.value = days <= 0
         loadStats()
     }
 
@@ -84,15 +85,17 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             val activityEntries = data.activityEntries
             val today = LocalDate.now()
 
-            if (_is24hMode.value) {
-                load24hStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries)
+            if (_daysBack.value <= 0) {
+                val hours = if (_daysBack.value == -3) 72 else 24
+                loadRollingStats(hours, sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries)
             } else {
                 loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries, today)
             }
         }
     }
 
-    private fun load24hStats(
+    private fun loadRollingStats(
+        hours: Int,
         sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
         diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
         feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
@@ -100,9 +103,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         activityEntries: List<com.akocis.babysleeptracker.model.ActivityEntry> = emptyList()
     ) {
         val now = LocalDateTime.now()
-        val cutoff = now.minusHours(24)
+        val cutoff = now.minusHours(hours.toLong())
 
-        // Include entries that could overlap with the 24h window (started up to 24h before cutoff)
+        // Include entries that could overlap with the window (started up to 24h before cutoff)
         val extendedCutoff = cutoff.minusHours(24)
         val recentSleep = sleepEntries.filter {
             it.date.atTime(it.startTime) >= extendedCutoff
@@ -120,8 +123,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             it.date.atTime(it.time) >= cutoff
         }
 
-        // Build 6 four-hour period stats
-        val periodStats = (0 until 6).map { periodIndex ->
+        // Build 4-hour period stats: 24h → 6 periods, 72h → 18 periods
+        val periodCount = hours / 4
+        val periodStats = (0 until periodCount).map { periodIndex ->
             val periodStart = cutoff.plusHours(periodIndex.toLong() * 4)
             val periodEnd = periodStart.plusHours(4)
             val label = "%02d-%02d".format(periodStart.hour, periodEnd.hour % 24)
@@ -163,7 +167,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dur = entry.duration
                 if (dur > longest) longest = dur
                 if (shortest == null || dur < shortest!!) shortest = dur
-                if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
+                if (entry.startTime >= dayStart && entry.startTime < dayEnd) {
                     daySleepDur = daySleepDur.plus(dur)
                 } else {
                     nightSleepDur = nightSleepDur.plus(dur)
@@ -207,22 +211,21 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
         _dayStats.value = periodStats
 
-        // Summary across all 24h — use overlap to clip to the actual window
-        val totalSleepIn24h = recentSleep.fold(Duration.ZERO) { acc, entry ->
+        // Summary across the rolling window
+        val totalSleepInWindow = recentSleep.fold(Duration.ZERO) { acc, entry ->
             val entryStart = entry.date.atTime(entry.startTime)
             acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), cutoff, now))
         }
-        val totalFeedIn24h = recentFeeds.fold(Duration.ZERO) { acc, entry ->
+        val totalFeedInWindow = recentFeeds.fold(Duration.ZERO) { acc, entry ->
             val entryStart = entry.date.atTime(entry.startTime)
             acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), cutoff, now))
         }
 
-        // Count only entries that start within the 24h window
-        val sleepCountIn24h = recentSleep.count {
+        val sleepCountInWindow = recentSleep.count {
             val dt = it.date.atTime(it.startTime)
             dt >= cutoff && dt < now
         }
-        val feedCountIn24h = recentFeeds.count {
+        val feedCountInWindow = recentFeeds.count {
             val dt = it.date.atTime(it.startTime)
             dt >= cutoff && dt < now
         }
@@ -239,13 +242,13 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _summaryStats.value = SummaryStats(
-            avgSleepPerDay = totalSleepIn24h,
-            avgNapsPerDay = sleepCountIn24h.toFloat(),
+            avgSleepPerDay = totalSleepInWindow,
+            avgNapsPerDay = sleepCountInWindow.toFloat(),
             avgDiapersPerDay = recentDiapers.size.toFloat(),
             longestNap = totalLongest,
             shortestNap = totalShortest ?: Duration.ZERO,
-            avgFeedPerDay = totalFeedIn24h,
-            avgFeedSessionsPerDay = feedCountIn24h.toFloat(),
+            avgFeedPerDay = totalFeedInWindow,
+            avgFeedSessionsPerDay = feedCountInWindow.toFloat(),
             avgDonorMlPerDay = recentBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl }.toFloat(),
             avgFormulaMlPerDay = recentBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl }.toFloat(),
             avgDonorCountPerDay = recentBottle.count { it.type == BottleType.DONOR }.toFloat(),
@@ -255,6 +258,76 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         )
         _movingAverage.value = emptyList()
         _feedMovingAverage.value = emptyList()
+
+        // Hourly stats: aggregate into 24 one-hour buckets
+        computeRollingHourlyStats(cutoff, now, recentSleep, recentFeeds, recentDiapers, recentBottle, recentActivities)
+    }
+
+    private fun computeRollingHourlyStats(
+        cutoff: LocalDateTime,
+        now: LocalDateTime,
+        sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
+        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
+        diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
+        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry>,
+        activityEntries: List<com.akocis.babysleeptracker.model.ActivityEntry>
+    ) {
+        // Build hour buckets across the entire rolling window, then collapse into 24 hours
+        val sleepByHour = Array(24) { Duration.ZERO }
+        val feedByHour = Array(24) { Duration.ZERO }
+        val diapersByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.DiaperEntry>() }
+        val bottleByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.BottleFeedEntry>() }
+
+        // Walk each hour bucket in the window and use overlapDuration for sleep/feed
+        var bucketStart = cutoff
+        while (bucketStart < now) {
+            val bucketEnd = bucketStart.plusHours(1).let { if (it > now) now else it }
+            val hour = bucketStart.hour
+
+            sleepEntries.forEach { entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
+                if (overlap > Duration.ZERO) sleepByHour[hour] = sleepByHour[hour].plus(overlap)
+            }
+            feedEntries.forEach { entry ->
+                val entryStart = entry.date.atTime(entry.startTime)
+                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
+                if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+            }
+
+            bucketStart = bucketStart.plusHours(1)
+        }
+
+        // Point events: attribute to the hour they occur in
+        diaperEntries.forEach { entry ->
+            val dt = entry.date.atTime(entry.time)
+            if (dt >= cutoff && dt < now) diapersByHour[dt.hour].add(entry)
+        }
+        bottleFeedEntries.forEach { entry ->
+            val dt = entry.date.atTime(entry.time)
+            if (dt >= cutoff && dt < now) bottleByHour[dt.hour].add(entry)
+        }
+
+        _hourlyStats.value = (0 until 24).map { hour ->
+            val hDiapers = diapersByHour[hour]
+            val hBottle = bottleByHour[hour]
+            DayStats(
+                date = LocalDate.now(),
+                totalSleep = sleepByHour[hour],
+                sleepCount = 0,
+                peeCount = hDiapers.count { it.type == DiaperType.PEE },
+                pooCount = hDiapers.count { it.type == DiaperType.POO },
+                peepooCount = hDiapers.count { it.type == DiaperType.PEEPOO },
+                totalFeedDuration = feedByHour[hour],
+                donorCount = hBottle.count { it.type == BottleType.DONOR },
+                donorMl = hBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
+                formulaCount = hBottle.count { it.type == BottleType.FORMULA },
+                formulaMl = hBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                pumpedCount = hBottle.count { it.type == BottleType.PUMPED },
+                pumpedMl = hBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
+                label = hour.toString()
+            )
+        }
     }
 
     private fun loadDayRangeStats(
@@ -270,20 +343,20 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
         val statsList = (0 until days).map { offset ->
             val date = startDate.plusDays(offset.toLong())
-            val dayStart = date.atStartOfDay()
-            val dayEnd = date.plusDays(1).atStartOfDay()
+            val dayStartDt = date.atStartOfDay()
+            val dayEndDt = date.plusDays(1).atStartOfDay()
 
             // Duration: split across day boundaries (consider entries from previous day)
             val relevantSleep = sleepEntries.filter { it.date == date || it.date == date.minusDays(1) }
             val totalSleep = relevantSleep.fold(Duration.ZERO) { acc, entry ->
                 val entryStart = entry.date.atTime(entry.startTime)
-                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStart, dayEnd))
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStartDt, dayEndDt))
             }
 
             val relevantFeeds = feedEntries.filter { it.date == date || it.date == date.minusDays(1) }
             val totalFeedDuration = relevantFeeds.fold(Duration.ZERO) { acc, entry ->
                 val entryStart = entry.date.atTime(entry.startTime)
-                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStart, dayEnd))
+                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStartDt, dayEndDt))
             }
 
             // Counts, longest/shortest, day/night: attributed to entries starting on this date
@@ -299,7 +372,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dur = entry.duration
                 if (dur > longest) longest = dur
                 if (shortest == null || dur < shortest!!) shortest = dur
-                if (entry.startTime >= DAY_START && entry.startTime < DAY_END) {
+                if (entry.startTime >= dayStart && entry.startTime < dayEnd) {
                     daySleepDur = daySleepDur.plus(dur)
                 } else {
                     nightSleepDur = nightSleepDur.plus(dur)
@@ -380,5 +453,75 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             window.average().toFloat() / 60f
         }
         _feedMovingAverage.value = feedMa
+
+        // Hourly stats: aggregate across all days into 24 hourly buckets, divide by day count
+        computeDayRangeHourlyStats(totalDays, startDate, today, sleepEntries, feedEntries, diaperEntries, bottleFeedEntries)
+    }
+
+    private fun computeDayRangeHourlyStats(
+        totalDays: Int,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        sleepEntries: List<com.akocis.babysleeptracker.model.SleepEntry>,
+        feedEntries: List<com.akocis.babysleeptracker.model.FeedEntry>,
+        diaperEntries: List<com.akocis.babysleeptracker.model.DiaperEntry>,
+        bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry>
+    ) {
+        val sleepByHour = Array(24) { Duration.ZERO }
+        val feedByHour = Array(24) { Duration.ZERO }
+        val diapersByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.DiaperEntry>() }
+        val bottleByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.BottleFeedEntry>() }
+
+        // Walk each day, each hour
+        var date = startDate
+        while (!date.isAfter(endDate)) {
+            for (hour in 0 until 24) {
+                val bucketStart = date.atTime(hour, 0)
+                val bucketEnd = bucketStart.plusHours(1)
+
+                // Only consider sleep/feed entries from this day or previous day
+                sleepEntries.filter { it.date == date || it.date == date.minusDays(1) }.forEach { entry ->
+                    val entryStart = entry.date.atTime(entry.startTime)
+                    val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
+                    if (overlap > Duration.ZERO) sleepByHour[hour] = sleepByHour[hour].plus(overlap)
+                }
+                feedEntries.filter { it.date == date || it.date == date.minusDays(1) }.forEach { entry ->
+                    val entryStart = entry.date.atTime(entry.startTime)
+                    val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
+                    if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+                }
+            }
+            date = date.plusDays(1)
+        }
+
+        // Point events
+        diaperEntries.filter { !it.date.isBefore(startDate) && !it.date.isAfter(endDate) }.forEach { entry ->
+            diapersByHour[entry.time.hour].add(entry)
+        }
+        bottleFeedEntries.filter { !it.date.isBefore(startDate) && !it.date.isAfter(endDate) }.forEach { entry ->
+            bottleByHour[entry.time.hour].add(entry)
+        }
+
+        val divisor = totalDays.toLong().coerceAtLeast(1)
+        _hourlyStats.value = (0 until 24).map { hour ->
+            val hDiapers = diapersByHour[hour]
+            val hBottle = bottleByHour[hour]
+            DayStats(
+                date = LocalDate.now(),
+                totalSleep = sleepByHour[hour].dividedBy(divisor),
+                sleepCount = 0,
+                peeCount = hDiapers.count { it.type == DiaperType.PEE },
+                pooCount = hDiapers.count { it.type == DiaperType.POO },
+                peepooCount = hDiapers.count { it.type == DiaperType.PEEPOO },
+                totalFeedDuration = feedByHour[hour].dividedBy(divisor),
+                donorCount = hBottle.count { it.type == BottleType.DONOR },
+                donorMl = hBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
+                formulaCount = hBottle.count { it.type == BottleType.FORMULA },
+                formulaMl = hBottle.filter { it.type == BottleType.FORMULA }.sumOf { it.amountMl },
+                pumpedCount = hBottle.count { it.type == BottleType.PUMPED },
+                pumpedMl = hBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
+                label = hour.toString()
+            )
+        }
     }
 }
