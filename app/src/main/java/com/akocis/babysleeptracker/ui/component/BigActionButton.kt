@@ -1,5 +1,6 @@
 package com.akocis.babysleeptracker.ui.component
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -31,6 +33,7 @@ fun BigActionButton(
             .padding(horizontal = 2.dp, vertical = 4.dp),
         enabled = enabled,
         shape = RoundedCornerShape(20.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor
@@ -41,7 +44,8 @@ fun BigActionButton(
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
-            softWrap = false
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

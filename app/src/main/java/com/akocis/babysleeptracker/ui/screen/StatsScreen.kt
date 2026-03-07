@@ -194,22 +194,20 @@ fun StatsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (!isRollingMode) {
-                // Day vs Night sleep pie chart
-                val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
-                val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
+            // Day vs Night sleep pie chart
+            val totalDaySleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.daySleep) }
+            val totalNightSleep = dayStats.fold(Duration.ZERO) { acc, s -> acc.plus(s.nightSleep) }
 
-                if (totalDaySleep > Duration.ZERO || totalNightSleep > Duration.ZERO) {
-                    Text(
-                        text = "Day vs Night Sleep",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
+            if (totalDaySleep > Duration.ZERO || totalNightSleep > Duration.ZERO) {
+                Text(
+                    text = "Day vs Night Sleep",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SleepPieChart(daySleep = totalDaySleep, nightSleep = totalNightSleep)
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             // Hourly breakdown charts
