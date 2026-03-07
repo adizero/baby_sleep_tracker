@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import android.provider.OpenableColumns
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
-import com.akocis.babysleeptracker.ui.component.WheelPicker
+import com.akocis.babysleeptracker.ui.component.TimePickerDialog
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -72,6 +72,8 @@ fun SettingsScreen(
     var showBirthDatePicker by remember { mutableStateOf(false) }
     var dayStartHour by remember { mutableStateOf(prefsRepository.dayStartHour) }
     var dayEndHour by remember { mutableStateOf(prefsRepository.dayEndHour) }
+    var showDayStartPicker by remember { mutableStateOf(false) }
+    var showDayEndPicker by remember { mutableStateOf(false) }
 
     val openFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -425,40 +427,48 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
-                    Text(
-                        text = "Day starts at",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    WheelPicker(
-                        items = (0..23).toList(),
-                        initialValue = dayStartHour,
-                        onValueChanged = { hour ->
-                            dayStartHour = hour
-                            prefsRepository.dayStartHour = hour
-                            if (themeMode == "auto") onThemeModeChanged("auto")
-                        },
-                        label = String.format("%02d:00", dayStartHour),
+                    OutlinedButton(
+                        onClick = { showDayStartPicker = true },
                         modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Night starts at",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    WheelPicker(
-                        items = (0..23).toList(),
-                        initialValue = dayEndHour,
-                        onValueChanged = { hour ->
-                            dayEndHour = hour
-                            prefsRepository.dayEndHour = hour
-                            if (themeMode == "auto") onThemeModeChanged("auto")
-                        },
-                        label = String.format("%02d:00", dayEndHour),
+                    ) {
+                        Text("Day starts at ${String.format("%02d:00", dayStartHour)}")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showDayEndPicker = true },
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        Text("Night starts at ${String.format("%02d:00", dayEndHour)}")
+                    }
                 }
+            }
+
+            if (showDayStartPicker) {
+                TimePickerDialog(
+                    title = "Day starts at",
+                    initialTime = java.time.LocalTime.of(dayStartHour, 0),
+                    onConfirm = { time ->
+                        dayStartHour = time.hour
+                        prefsRepository.dayStartHour = time.hour
+                        if (themeMode == "auto") onThemeModeChanged("auto")
+                        showDayStartPicker = false
+                    },
+                    onDismiss = { showDayStartPicker = false }
+                )
+            }
+
+            if (showDayEndPicker) {
+                TimePickerDialog(
+                    title = "Night starts at",
+                    initialTime = java.time.LocalTime.of(dayEndHour, 0),
+                    onConfirm = { time ->
+                        dayEndHour = time.hour
+                        prefsRepository.dayEndHour = time.hour
+                        if (themeMode == "auto") onThemeModeChanged("auto")
+                        showDayEndPicker = false
+                    },
+                    onDismiss = { showDayEndPicker = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
