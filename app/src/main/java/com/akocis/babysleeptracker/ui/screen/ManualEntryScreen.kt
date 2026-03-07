@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.ui.component.WheelPicker
 import com.akocis.babysleeptracker.model.ActivityType
@@ -133,7 +134,7 @@ fun ManualEntryScreen(
                         onClick = { viewModel.setEntryKind(kind) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = kinds.size)
                     ) {
-                        Text(label)
+                        Text(label, maxLines = 1, softWrap = false, fontSize = 12.sp)
                     }
                 }
             }
