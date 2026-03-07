@@ -9,11 +9,13 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Diaper logging** — Pee, Poo, or Both buttons
 - **Activity logging** — Stroll, Bath, and free-text Note events
 - **Manual entry** — add or edit past events with date/time pickers and validation
-- **Statistics** — sleep, feed, and diaper charts with trend lines (24h/3/7/14/30 day ranges), scrollable charts for large ranges, day vs night sleep breakdown
+- **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes
+- **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
+- **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
 - **History** — scrollable list of all entries, editable and deletable
 - **Dropbox sync** — automatic cloud backup and merge across devices
 - **Import/Export** — plain text file format, easy to read and share
-- **Dark mode** — toggle in settings
+- **Theme** — light, dark, or auto (switches based on configurable day/night hours)
 - **Survives app kill** — active sleep/feed session persists via SharedPreferences
 
 ## Data Format
@@ -27,9 +29,12 @@ Data is stored as a plain text file (chosen by the user via SAF). Each entry has
 #d4e5f6a7 PEE 2026-03-02 10:45
 #e5f6a7b8 POO 2026-03-02 11:30
 #f6a7b8c9 PEEPOO 2026-03-02 12:00
-#a7b8c9d0 STROLL 2026-03-02 13:00 - 14:00
-#b8c9d0e1 BATH 2026-03-02 18:00
-#c9d0e1f2 NOTE 2026-03-02 19:00 First smile!
+#a7b8c9d0 DONOR 2026-03-02 12:30 60ml
+#b8c9d0e1 PUMPED 2026-03-02 15:00 90ml
+#c9d0e1f2 FORMULA 2026-03-02 18:00 120ml
+#d0e1f2a3 STROLL 2026-03-02 13:00 - 14:00
+#e1f2a3b4 BATH 2026-03-02 18:00
+#f2a3b4c5 NOTE 2026-03-02 19:00 First smile!
 ```
 
 ## Tech Stack
