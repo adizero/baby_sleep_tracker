@@ -64,7 +64,12 @@ fun WhiteNoiseDialog(
             ) {
                 // Noise type
                 Text("Type", style = MaterialTheme.typography.labelLarge)
-                NoiseType.entries.chunked(4).forEach { rowTypes ->
+                val typeRows = listOf(
+                    listOf(NoiseType.WHITE, NoiseType.PINK, NoiseType.BROWN),
+                    listOf(NoiseType.GRAY, NoiseType.BLUE, NoiseType.VIOLET),
+                    listOf(NoiseType.RAIN, NoiseType.STORM)
+                )
+                typeRows.forEach { rowTypes ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -87,12 +92,16 @@ fun WhiteNoiseDialog(
                                 leadingIcon = null
                             )
                         }
-                        // Pad with spacers if row has fewer than 4
-                        repeat(4 - rowTypes.size) {
+                        repeat(3 - rowTypes.size) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
+                Text(
+                    noiseType.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 // Duration
                 Text("Duration", style = MaterialTheme.typography.labelLarge)
