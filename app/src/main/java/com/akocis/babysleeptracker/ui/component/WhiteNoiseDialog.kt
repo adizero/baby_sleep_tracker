@@ -73,8 +73,9 @@ fun WhiteNoiseDialog(
                             FilterChip(
                                 selected = noiseType == type,
                                 onClick = { noiseType = type },
-                                label = { Text(type.label, fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f)
+                                label = { Text(type.label, fontSize = 11.sp, maxLines = 1, softWrap = false) },
+                                modifier = Modifier.weight(1f),
+                                leadingIcon = null
                             )
                         }
                         // Pad with spacers if row has fewer than 4
