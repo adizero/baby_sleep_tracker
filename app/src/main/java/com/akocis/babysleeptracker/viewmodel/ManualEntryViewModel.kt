@@ -11,7 +11,9 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
+import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
@@ -22,7 +24,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
-enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE }
+enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE, NOISE }
 
 class ManualEntryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -59,6 +61,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _bottleType = MutableStateFlow(BottleType.DONOR)
     val bottleType: StateFlow<BottleType> = _bottleType
 
+    private val _noiseType = MutableStateFlow(NoiseType.WHITE)
+    val noiseType: StateFlow<NoiseType> = _noiseType
+
     private val _bottleAmountMl = MutableStateFlow(
         prefsRepository.bottlePresetMl.let { if (it > 0) it else 42 }
     )
@@ -87,6 +92,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setFeedSide(side: FeedSide) { _feedSide.value = side }
     fun setBottleType(type: BottleType) { _bottleType.value = type }
     fun setBottleAmountMl(ml: Int) { _bottleAmountMl.value = ml }
+    fun setNoiseType(type: NoiseType) { _noiseType.value = type }
 
     fun dismissError() {
         _errorMessage.value = null
@@ -137,6 +143,16 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 _bottleType.value = entry.type
                 _bottleAmountMl.value = entry.amountMl
             }
+            is WhiteNoiseEntry -> {
+                _entryKind.value = EntryKind.NOISE
+                _date.value = entry.date
+                _startTime.value = entry.startTime
+                _noiseType.value = entry.noiseType
+                _hasEndTime.value = entry.endTime != null
+                if (entry.endTime != null) {
+                    _endTime.value = entry.endTime
+                }
+            }
         }
     }
 
@@ -150,7 +166,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         // Validate end time > start time when end time is set
-        if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED)) {
+        if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE)) {
             if (_endTime.value <= _startTime.value) {
                 _errorMessage.value = "End time must be after start time"
                 return
@@ -186,6 +202,12 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                     EntryKind.BOTTLE -> {
                         EntryParser.formatBottleFeedEntry(
                             BottleFeedEntry(_bottleType.value, _date.value, _startTime.value, _bottleAmountMl.value)
+                        )
+                    }
+                    EntryKind.NOISE -> {
+                        val end = if (_hasEndTime.value) _endTime.value else null
+                        EntryParser.formatWhiteNoiseEntry(
+                            WhiteNoiseEntry(_noiseType.value, _date.value, _startTime.value, end)
                         )
                     }
                 }
@@ -227,6 +249,13 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             fileRepository.appendBottleFeedEntry(
                                 uri,
                                 BottleFeedEntry(_bottleType.value, _date.value, _startTime.value, _bottleAmountMl.value)
+                            )
+                        }
+                        EntryKind.NOISE -> {
+                            val end = if (_hasEndTime.value) _endTime.value else null
+                            fileRepository.appendWhiteNoiseEntry(
+                                uri,
+                                WhiteNoiseEntry(_noiseType.value, _date.value, _startTime.value, end)
                             )
                         }
                     }

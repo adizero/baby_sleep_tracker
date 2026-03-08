@@ -8,6 +8,7 @@ import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
+import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
@@ -31,7 +32,8 @@ data class HistoryItem(
     val diaperEntry: DiaperEntry? = null,
     val activityEntry: ActivityEntry? = null,
     val feedEntry: FeedEntry? = null,
-    val bottleFeedEntry: BottleFeedEntry? = null
+    val bottleFeedEntry: BottleFeedEntry? = null,
+    val whiteNoiseEntry: WhiteNoiseEntry? = null
 )
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
@@ -167,6 +169,26 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
+            data.whiteNoiseEntries.forEach { entry ->
+                val line = EntryParser.formatWhiteNoiseEntry(entry)
+                val sortKey = entry.date.toEpochDay() * 86400 +
+                    entry.startTime.toSecondOfDay()
+                val endText = entry.endTime?.format(TIME_FMT) ?: "ongoing"
+                val startText = entry.startTime.format(TIME_FMT)
+                items.add(
+                    HistoryItem(
+                        id = nextId++,
+                        displayText = "${entry.noiseType.label} Noise  $startText - $endText",
+                        durationText = "${entry.noiseType.label} Noise  $startText (${DateTimeUtil.formatDuration(entry.duration)})",
+                        rawLine = line,
+                        sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.startTime.hour,
+                        whiteNoiseEntry = entry
+                    )
+                )
+            }
+
             _entries.value = items.sortedByDescending { it.sortKey }
         }
     }
@@ -196,6 +218,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is ActivityEntry -> entry.id
                     is FeedEntry -> entry.id
                     is BottleFeedEntry -> entry.id
+                    is WhiteNoiseEntry -> entry.id
                     else -> null
                 }
                 if (entryId != null) {
@@ -207,6 +230,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is ActivityEntry -> fileRepository.appendActivityEntry(uri, entry)
                     is FeedEntry -> fileRepository.appendFeedEntry(uri, entry)
                     is BottleFeedEntry -> fileRepository.appendBottleFeedEntry(uri, entry)
+                    is WhiteNoiseEntry -> fileRepository.appendWhiteNoiseEntry(uri, entry)
                 }
                 loadEntries()
                 SyncHelper.notifyDataChanged()

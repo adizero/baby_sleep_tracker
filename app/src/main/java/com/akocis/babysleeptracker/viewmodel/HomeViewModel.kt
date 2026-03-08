@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Intent
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleFeedEntry
@@ -13,11 +14,16 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
+import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
+import com.akocis.babysleeptracker.service.NoiseServiceState
+import com.akocis.babysleeptracker.service.WhiteNoiseService
+import com.akocis.babysleeptracker.ui.component.NoiseSettings
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,19 +68,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _bottlePresetMl = MutableStateFlow(42)
     val bottlePresetMl: StateFlow<Int> = _bottlePresetMl
 
+    val noiseState: StateFlow<NoiseServiceState> = WhiteNoiseService.serviceState
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
+    private var noiseObserverJob: Job? = null
     private var pendingWrite = false
+    private var lastSleepEndDate: LocalDate? = null
+    private var lastSleepEndTime: LocalTime? = null
+    private var pendingNoiseEntry: WhiteNoiseEntry? = null
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
         _hasFile.value = prefsRepository.fileUri != null
-        if (_trackingState.value is TrackingState.Sleeping || _trackingState.value is TrackingState.Feeding) {
-            startTimer()
+        when (_trackingState.value) {
+            is TrackingState.Sleeping, is TrackingState.Feeding -> startTimer()
+            is TrackingState.Idle -> {
+                // Awake timer will start after syncAndRefresh populates lastSleepEnd
+            }
         }
         loadBabyInfo()
         loadBottlePreset()
         syncAndRefresh()
+        observeNoiseState()
     }
 
     fun dismissError() {
@@ -139,7 +155,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         fileRepository.updateEntry(uri, ongoingLine, completedLine)
                         _trackingState.value = TrackingState.Idle
                         prefsRepository.saveTrackingState(TrackingState.Idle)
-                        stopTimer()
+                        lastSleepEndDate = LocalDate.now()
+                        lastSleepEndTime = endTime
+                        startAwakeTimer()
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
                         showUndo("Sleep ${state.startTime} - $endTime")
@@ -248,7 +266,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 finishFeeding(uri, state)
                 _trackingState.value = TrackingState.Idle
                 prefsRepository.saveTrackingState(TrackingState.Idle)
-                stopTimer()
+                startAwakeTimer()
                 refreshTodayStats()
                 SyncHelper.notifyDataChanged()
                 val endTime = LocalTime.now().withSecond(0).withNano(0)
@@ -395,6 +413,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val todayBottle = data.bottleFeedEntries.filter { it.date == today }
         val todayActivities = data.activityEntries.filter { it.date == today }
 
+        // Find the most recent completed sleep entry (from all entries) for awake timer
+        val lastCompletedSleep = data.sleepEntries
+            .filter { !it.isOngoing }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime?.toSecondOfDay() ?: 0) }
+        if (lastCompletedSleep?.endTime != null) {
+            lastSleepEndDate = lastCompletedSleep.date
+            lastSleepEndTime = lastCompletedSleep.endTime
+        }
+
         _todayStats.value = DayStats(
             date = today,
             totalSleep = todaySleepDuration,
@@ -446,7 +473,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value !is TrackingState.Idle -> {
                     _trackingState.value = TrackingState.Idle
                     prefsRepository.saveTrackingState(TrackingState.Idle)
-                    stopTimer()
+                    startAwakeTimer()
+                }
+                _trackingState.value is TrackingState.Idle && timerJob == null && lastSleepEndDate != null -> {
+                    startAwakeTimer()
                 }
             }
         }
@@ -488,5 +518,108 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         timerJob?.cancel()
         timerJob = null
         _elapsedTime.value = ""
+    }
+
+    private fun startAwakeTimer() {
+        timerJob?.cancel()
+        val endDate = lastSleepEndDate
+        val endTime = lastSleepEndTime
+        if (endDate == null || endTime == null) {
+            _elapsedTime.value = ""
+            timerJob = null
+            return
+        }
+        timerJob = viewModelScope.launch {
+            while (true) {
+                _elapsedTime.value = DateTimeUtil.formatElapsed(endDate, endTime)
+                delay(10_000)
+            }
+        }
+    }
+
+    fun getLastNoiseType(): String = prefsRepository.lastNoiseType
+    fun getNoiseVolume(): Float = prefsRepository.noiseVolume
+    fun getNoiseFadeIn(): Int = prefsRepository.noiseFadeIn
+    fun getNoiseFadeOut(): Int = prefsRepository.noiseFadeOut
+
+    fun startNoise(settings: NoiseSettings) {
+        val ctx = getApplication<Application>()
+        val uri = prefsRepository.fileUri ?: return
+
+        // Save prefs
+        prefsRepository.lastNoiseType = settings.noiseType.name
+        prefsRepository.noiseVolume = settings.volume
+        prefsRepository.noiseFadeIn = fadeSecondsToIndex(settings.fadeInSeconds)
+        prefsRepository.noiseFadeOut = fadeSecondsToIndex(settings.fadeOutSeconds)
+
+        // Start service
+        val intent = Intent(ctx, WhiteNoiseService::class.java).apply {
+            putExtra(WhiteNoiseService.EXTRA_NOISE_TYPE, settings.noiseType.name)
+            putExtra(WhiteNoiseService.EXTRA_VOLUME, settings.volume)
+            putExtra(WhiteNoiseService.EXTRA_FADE_IN, settings.fadeInSeconds)
+            putExtra(WhiteNoiseService.EXTRA_FADE_OUT, settings.fadeOutSeconds)
+            putExtra(WhiteNoiseService.EXTRA_DURATION_MS, settings.durationMs)
+        }
+        ctx.startForegroundService(intent)
+
+        // Append ongoing entry
+        val now = LocalTime.now().withSecond(0).withNano(0)
+        val entry = WhiteNoiseEntry(settings.noiseType, LocalDate.now(), now)
+        pendingNoiseEntry = entry
+        viewModelScope.launch {
+            try {
+                fileRepository.appendWhiteNoiseEntry(uri, entry)
+                SyncHelper.notifyDataChanged()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save noise entry: ${e.message}"
+            }
+        }
+    }
+
+    fun stopNoise() {
+        val ctx = getApplication<Application>()
+        val intent = Intent(ctx, WhiteNoiseService::class.java).apply {
+            action = WhiteNoiseService.ACTION_STOP
+        }
+        ctx.startService(intent)
+    }
+
+    private fun observeNoiseState() {
+        noiseObserverJob = viewModelScope.launch {
+            var wasPlaying = false
+            WhiteNoiseService.serviceState.collect { state ->
+                if (wasPlaying && state is NoiseServiceState.Idle) {
+                    // Noise auto-stopped or was stopped — update ongoing entry with end time
+                    completeNoiseEntry()
+                }
+                wasPlaying = state is NoiseServiceState.Playing
+            }
+        }
+    }
+
+    private fun completeNoiseEntry() {
+        val uri = prefsRepository.fileUri ?: return
+        val entry = pendingNoiseEntry ?: return
+        val endTime = LocalTime.now().withSecond(0).withNano(0)
+        val typeName = entry.noiseType.name.lowercase()
+        val ongoingLine = "NOISE ${entry.date.format(DateTimeUtil.DATE_FORMAT)} ${entry.startTime.format(DateTimeUtil.TIME_FORMAT)} - $typeName"
+        val completedLine = "NOISE ${entry.date.format(DateTimeUtil.DATE_FORMAT)} ${entry.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)} $typeName"
+        pendingNoiseEntry = null
+        viewModelScope.launch {
+            try {
+                fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                SyncHelper.notifyDataChanged()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to update noise entry: ${e.message}"
+            }
+        }
+    }
+
+    private fun fadeSecondsToIndex(seconds: Float): Int = when (seconds) {
+        5f -> 1
+        15f -> 2
+        30f -> 3
+        60f -> 4
+        else -> 0
     }
 }

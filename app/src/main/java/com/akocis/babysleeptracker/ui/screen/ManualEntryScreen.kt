@@ -49,6 +49,7 @@ import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
 import com.akocis.babysleeptracker.util.DateTimeUtil
@@ -75,6 +76,7 @@ fun ManualEntryScreen(
     val feedSide by viewModel.feedSide.collectAsStateWithLifecycle()
     val bottleType by viewModel.bottleType.collectAsStateWithLifecycle()
     val bottleAmountMl by viewModel.bottleAmountMl.collectAsStateWithLifecycle()
+    val noiseType by viewModel.noiseType.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -127,7 +129,7 @@ fun ManualEntryScreen(
         ) {
             // Entry type toggle (4-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise")
                 kinds.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
@@ -153,7 +155,7 @@ fun ManualEntryScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                 )
             }
@@ -182,8 +184,25 @@ fun ManualEntryScreen(
                 )
             }
 
-            // End time (for sleep and feed entries)
-            if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) {
+            // Noise type (for noise entries)
+            if (entryKind == EntryKind.NOISE) {
+                Text("Type:", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    NoiseType.entries.forEach { type ->
+                        FilterChip(
+                            selected = noiseType == type,
+                            onClick = { viewModel.setNoiseType(type) },
+                            label = { Text(type.label) }
+                        )
+                    }
+                }
+            }
+
+            // End time (for sleep, feed, and noise entries)
+            if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -307,7 +326,7 @@ fun ManualEntryScreen(
         // Time picker dialogs
         if (showStartTimePicker) {
             TimePickerDialog(
-                title = if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED) "Start Time" else "Time",
+                title = if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start Time" else "Time",
                 initialTime = startTime,
                 onConfirm = {
                     viewModel.setStartTime(it)

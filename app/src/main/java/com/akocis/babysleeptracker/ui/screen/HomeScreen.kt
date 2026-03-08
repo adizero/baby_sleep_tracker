@@ -49,14 +49,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.Manifest
+import android.os.Build
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.TrackingState
+import com.akocis.babysleeptracker.service.NoiseServiceState
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.BottleAmountPickerDialog
 import com.akocis.babysleeptracker.ui.component.StatusBanner
+import com.akocis.babysleeptracker.ui.component.WhiteNoiseDialog
 import com.akocis.babysleeptracker.ui.theme.BathColor
 import com.akocis.babysleeptracker.ui.theme.DonorColor
 import com.akocis.babysleeptracker.ui.theme.FeedColor
@@ -69,6 +74,7 @@ import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.StopButtonColor
 import com.akocis.babysleeptracker.ui.theme.StrollerColor
+import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 
@@ -91,12 +97,24 @@ fun HomeScreen(
     val babyAge by viewModel.babyAge.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val bottlePresetMl by viewModel.bottlePresetMl.collectAsStateWithLifecycle()
+    val noiseState by viewModel.noiseState.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showNoteDialog by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
     var pendingBottleType by remember { mutableStateOf<BottleType?>(null) }
+    var showNoiseDialog by remember { mutableStateOf(false) }
+
+    // Request notification permission on Android 13+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* granted or denied, proceed either way */ }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
@@ -178,6 +196,21 @@ fun HomeScreen(
                     showNoteDialog = false
                 }) { Text("Cancel") }
             }
+        )
+    }
+
+    // White noise dialog
+    if (showNoiseDialog) {
+        WhiteNoiseDialog(
+            initialNoiseType = NoiseType.fromString(viewModel.getLastNoiseType()) ?: NoiseType.WHITE,
+            initialVolume = viewModel.getNoiseVolume(),
+            initialFadeIn = viewModel.getNoiseFadeIn(),
+            initialFadeOut = viewModel.getNoiseFadeOut(),
+            onStart = { settings ->
+                viewModel.startNoise(settings)
+                showNoiseDialog = false
+            },
+            onDismiss = { showNoiseDialog = false }
         )
     }
 
@@ -413,6 +446,39 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // White noise button
+            val isNoisePlaying = noiseState is NoiseServiceState.Playing
+            val noiseElapsed = if (isNoisePlaying) {
+                val playing = noiseState as NoiseServiceState.Playing
+                var elapsed by remember { mutableStateOf(DateTimeUtil.formatElapsed(playing.startDate, playing.startTime)) }
+                LaunchedEffect(playing) {
+                    while (true) {
+                        elapsed = DateTimeUtil.formatElapsed(playing.startDate, playing.startTime)
+                        kotlinx.coroutines.delay(10_000)
+                    }
+                }
+                elapsed
+            } else null
+            val noiseButtonText = if (isNoisePlaying) {
+                val playingType = (noiseState as NoiseServiceState.Playing).noiseType
+                "Stop ${playingType.label} Noise $noiseElapsed"
+            } else {
+                "White Noise"
+            }
+            BigActionButton(
+                text = noiseButtonText,
+                containerColor = if (isNoisePlaying) StopButtonColor else WhiteNoiseColor,
+                onClick = {
+                    if (isNoisePlaying) {
+                        viewModel.stopNoise()
+                    } else {
+                        showNoiseDialog = true
+                    }
+                }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

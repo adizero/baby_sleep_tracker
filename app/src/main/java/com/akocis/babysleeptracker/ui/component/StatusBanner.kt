@@ -43,7 +43,7 @@ fun StatusBanner(
         is TrackingState.Idle -> "Awake"
     }
 
-    val showTimer = trackingState !is TrackingState.Idle && elapsedTime.isNotBlank()
+    val showTimer = elapsedTime.isNotBlank()
 
     Card(
         modifier = modifier

@@ -7,6 +7,7 @@ import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
+import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -50,6 +51,11 @@ class FileRepository(private val context: Context) {
     suspend fun appendBottleFeedEntry(uri: Uri, entry: BottleFeedEntry) {
         val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
         appendLine(uri, EntryParser.formatBottleFeedEntry(withId))
+    }
+
+    suspend fun appendWhiteNoiseEntry(uri: Uri, entry: WhiteNoiseEntry) {
+        val withId = if (entry.id == null) entry.copy(id = EntryParser.generateId()) else entry
+        appendLine(uri, EntryParser.formatWhiteNoiseEntry(withId))
     }
 
     suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
@@ -194,6 +200,10 @@ class FileRepository(private val context: Context) {
         }
         sourceData.bottleFeedEntries.forEach {
             appendBottleFeedEntry(targetUri, it)
+            count++
+        }
+        sourceData.whiteNoiseEntries.forEach {
+            appendWhiteNoiseEntry(targetUri, it)
             count++
         }
         return count

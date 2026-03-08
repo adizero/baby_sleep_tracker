@@ -8,7 +8,9 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
+import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import java.security.SecureRandom
 import java.time.LocalDate
@@ -20,6 +22,7 @@ data class ParsedData(
     val activityEntries: List<ActivityEntry> = emptyList(),
     val feedEntries: List<FeedEntry> = emptyList(),
     val bottleFeedEntries: List<BottleFeedEntry> = emptyList(),
+    val whiteNoiseEntries: List<WhiteNoiseEntry> = emptyList(),
     val babyName: String? = null,
     val babyBirthDate: LocalDate? = null,
     val deletedIds: Set<String> = emptySet()
@@ -53,6 +56,12 @@ object EntryParser {
     )
     private val BOTTLE_FEED_REGEX = Regex(
         """^(DONOR|FORMULA|PUMPED)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(\d+)ml$"""
+    )
+    private val NOISE_REGEX = Regex(
+        """^NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(\w+)$"""
+    )
+    private val NOISE_ONGOING_REGEX = Regex(
+        """^NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s+(\w+)$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -141,6 +150,21 @@ object EntryParser {
             return BottleFeedEntry(type, date, time, amountMl, id)
         }
 
+        NOISE_REGEX.matchEntire(content)?.let { match ->
+            val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
+            val end = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
+            val noiseType = NoiseType.fromString(match.groupValues[4]) ?: return null
+            return WhiteNoiseEntry(noiseType, date, start, end, id)
+        }
+
+        NOISE_ONGOING_REGEX.matchEntire(content)?.let { match ->
+            val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
+            val noiseType = NoiseType.fromString(match.groupValues[3]) ?: return null
+            return WhiteNoiseEntry(noiseType, date, start, null, id)
+        }
+
         return null
     }
 
@@ -161,6 +185,7 @@ object EntryParser {
         val activityEntries = mutableListOf<ActivityEntry>()
         val feedEntries = mutableListOf<FeedEntry>()
         val bottleFeedEntries = mutableListOf<BottleFeedEntry>()
+        val whiteNoiseEntries = mutableListOf<WhiteNoiseEntry>()
         val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
         var babyBirthDate: LocalDate? = null
@@ -185,6 +210,7 @@ object EntryParser {
                 is ActivityEntry -> activityEntries.add(entry)
                 is FeedEntry -> feedEntries.add(entry)
                 is BottleFeedEntry -> bottleFeedEntries.add(entry)
+                is WhiteNoiseEntry -> whiteNoiseEntries.add(entry)
             }
         }
 
@@ -195,6 +221,7 @@ object EntryParser {
             activityEntries = activityEntries.filter { it.id == null || it.id !in deletedIds },
             feedEntries = feedEntries.filter { it.id == null || it.id !in deletedIds },
             bottleFeedEntries = bottleFeedEntries.filter { it.id == null || it.id !in deletedIds },
+            whiteNoiseEntries = whiteNoiseEntries.filter { it.id == null || it.id !in deletedIds },
             babyName = babyName,
             babyBirthDate = babyBirthDate,
             deletedIds = deletedIds
@@ -247,6 +274,19 @@ object EntryParser {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val time = entry.time.format(DateTimeUtil.TIME_FORMAT)
         val body = "${entry.type.name} $date $time ${entry.amountMl}ml"
+        return if (entry.id != null) "#${entry.id} $body" else body
+    }
+
+    fun formatWhiteNoiseEntry(entry: WhiteNoiseEntry): String {
+        val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
+        val start = entry.startTime.format(DateTimeUtil.TIME_FORMAT)
+        val typeName = entry.noiseType.name.lowercase()
+        val body = if (entry.endTime != null) {
+            val end = entry.endTime.format(DateTimeUtil.TIME_FORMAT)
+            "NOISE $date $start - $end $typeName"
+        } else {
+            "NOISE $date $start - $typeName"
+        }
         return if (entry.id != null) "#${entry.id} $body" else body
     }
 

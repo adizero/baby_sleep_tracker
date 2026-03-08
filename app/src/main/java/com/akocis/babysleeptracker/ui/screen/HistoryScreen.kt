@@ -22,10 +22,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,14 +39,18 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +63,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akocis.babysleeptracker.viewmodel.HistoryItem
 import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private sealed class HistoryListItem {
@@ -80,6 +89,8 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val dayStartHour = viewModel.dayStartHour
     val dayEndHour = viewModel.dayEndHour
+    var showDatePicker by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
@@ -124,6 +135,13 @@ fun HistoryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            Icons.Default.CalendarMonth,
+                            contentDescription = "Jump to date",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleShowDuration() }) {
                         Icon(
                             if (showDuration) Icons.Default.AccessTime else Icons.Default.Timelapse,
@@ -136,6 +154,46 @@ fun HistoryScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
+        // Date picker dialog
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = System.currentTimeMillis()
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val selected = Instant.ofEpochMilli(millis)
+                                    .atZone(ZoneId.of("UTC"))
+                                    .toLocalDate()
+                                val index = listItems.indexOfFirst {
+                                    it is HistoryListItem.DateHeader && it.date == selected
+                                }
+                                if (index >= 0) {
+                                    scope.launch { listState.scrollToItem(index) }
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "No entries for that date",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            }
+                            showDatePicker = false
+                        }
+                    ) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+
         if (entries.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -150,7 +208,6 @@ fun HistoryScreen(
                 )
             }
         } else {
-            val listState = rememberLazyListState()
             val totalItems = listItems.size
 
             Box(

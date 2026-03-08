@@ -29,6 +29,10 @@ class PreferencesRepository(context: Context) {
         private const val KEY_BOTTLE_PRESET_ML = "bottle_preset_ml"
         private const val KEY_DAY_START_HOUR = "day_start_hour"
         private const val KEY_DAY_END_HOUR = "day_end_hour"
+        private const val KEY_LAST_NOISE_TYPE = "last_noise_type"
+        private const val KEY_NOISE_VOLUME = "noise_volume"
+        private const val KEY_NOISE_FADE_IN = "noise_fade_in"
+        private const val KEY_NOISE_FADE_OUT = "noise_fade_out"
     }
 
     var fileUri: Uri?
@@ -144,6 +148,22 @@ class PreferencesRepository(context: Context) {
         get() = prefs.getString(KEY_DROPBOX_FILE_PATH, "/baby_sleep_log.txt")
             ?: "/baby_sleep_log.txt"
         set(value) = prefs.edit().putString(KEY_DROPBOX_FILE_PATH, value).apply()
+
+    var lastNoiseType: String
+        get() = prefs.getString(KEY_LAST_NOISE_TYPE, "WHITE") ?: "WHITE"
+        set(value) = prefs.edit().putString(KEY_LAST_NOISE_TYPE, value).apply()
+
+    var noiseVolume: Float
+        get() = prefs.getFloat(KEY_NOISE_VOLUME, 0.5f)
+        set(value) = prefs.edit().putFloat(KEY_NOISE_VOLUME, value).apply()
+
+    var noiseFadeIn: Int
+        get() = prefs.getInt(KEY_NOISE_FADE_IN, 0)
+        set(value) = prefs.edit().putInt(KEY_NOISE_FADE_IN, value).apply()
+
+    var noiseFadeOut: Int
+        get() = prefs.getInt(KEY_NOISE_FADE_OUT, 0)
+        set(value) = prefs.edit().putInt(KEY_NOISE_FADE_OUT, value).apply()
 
     val isDropboxConfigured: Boolean
         get() = !dropboxAppKey.isNullOrBlank() && !dropboxRefreshToken.isNullOrBlank()
