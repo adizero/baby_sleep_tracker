@@ -6,7 +6,9 @@ enum class NoiseType(val label: String) {
     BROWN("Brown"),
     BLUE("Blue"),
     VIOLET("Violet"),
-    GRAY("Gray");
+    GRAY("Gray"),
+    RAIN("Rain"),
+    STORM("Storm");
 
     companion object {
         fun fromString(value: String): NoiseType? = when (value.uppercase()) {
@@ -16,6 +18,8 @@ enum class NoiseType(val label: String) {
             "BLUE" -> BLUE
             "VIOLET" -> VIOLET
             "GRAY" -> GRAY
+            "RAIN" -> RAIN
+            "STORM" -> STORM
             else -> null
         }
     }

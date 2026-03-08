@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import com.akocis.babysleeptracker.model.NoiseType
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.random.Random
 
 class NoiseGenerator {
@@ -73,6 +74,19 @@ class NoiseGenerator {
             var grayPrev1 = 0f
             var grayPrev2 = 0f
 
+            // Rain state: pink base + droplet impulses
+            val rainPinkRows = IntArray(16)
+            var rainPinkSum = 0
+            var rainPinkIdx = 0
+            var dropletDecay = 0f
+
+            // Storm state: brown rumble + dense droplets + thunder
+            var stormBrown = 0.0
+            var stormDropDecay = 0f
+            var thunderPhase = 0.0
+            var thunderEnvelope = 0f
+            var nextThunderSample = (SAMPLE_RATE * (3 + Random.nextInt(8))).toLong()
+
             while (isRunning) {
                 val currentVolume = targetVolume
                 for (i in buffer.indices) {
@@ -121,6 +135,59 @@ class NoiseGenerator {
                             grayPrev2 = grayPrev1
                             grayPrev1 = white
                             shaped * 0.7f
+                        }
+                        NoiseType.RAIN -> {
+                            // Pink noise base for steady rain ambience
+                            rainPinkIdx = (rainPinkIdx + 1) % (1 shl 16)
+                            var ri = rainPinkIdx
+                            for (row in 0 until min(16, rainPinkRows.size)) {
+                                if (ri and 1 == 1) {
+                                    rainPinkSum -= rainPinkRows[row]
+                                    rainPinkRows[row] = ((Random.nextFloat() * 2f - 1f) * 1000).toInt()
+                                    rainPinkSum += rainPinkRows[row]
+                                    break
+                                }
+                                ri = ri shr 1
+                            }
+                            val pinkBase = (rainPinkSum / 1000f / 16f).coerceIn(-1f, 1f) * 0.4f
+
+                            // Random droplet impulses
+                            if (Random.nextFloat() < 0.002f) {
+                                dropletDecay = 0.3f + Random.nextFloat() * 0.4f
+                            }
+                            val droplet = dropletDecay * (Random.nextFloat() * 2f - 1f)
+                            dropletDecay *= 0.992f
+
+                            (pinkBase + droplet).coerceIn(-1f, 1f)
+                        }
+                        NoiseType.STORM -> {
+                            // Brown noise rumble
+                            stormBrown += (Random.nextFloat() * 2f - 1f) * 0.015
+                            stormBrown = stormBrown.coerceIn(-1.0, 1.0)
+                            val rumble = stormBrown.toFloat() * 0.35f
+
+                            // Dense rain droplets
+                            if (Random.nextFloat() < 0.005f) {
+                                stormDropDecay = 0.4f + Random.nextFloat() * 0.5f
+                            }
+                            val drops = stormDropDecay * (Random.nextFloat() * 2f - 1f)
+                            stormDropDecay *= 0.990f
+
+                            // Occasional thunder
+                            val totalSamp = samplesGenerated + i
+                            if (totalSamp >= nextThunderSample && thunderEnvelope <= 0f) {
+                                thunderEnvelope = 0.6f + Random.nextFloat() * 0.3f
+                                thunderPhase = 0.0
+                                nextThunderSample = totalSamp + SAMPLE_RATE * (5 + Random.nextInt(15)).toLong()
+                            }
+                            val thunder = if (thunderEnvelope > 0.001f) {
+                                thunderPhase += 2.0 * Math.PI * (30 + Random.nextInt(50)) / SAMPLE_RATE
+                                val t = sin(thunderPhase).toFloat() * thunderEnvelope
+                                thunderEnvelope *= 0.99985f
+                                t
+                            } else 0f
+
+                            (rumble + drops * 0.6f + thunder).coerceIn(-1f, 1f)
                         }
                     }
 

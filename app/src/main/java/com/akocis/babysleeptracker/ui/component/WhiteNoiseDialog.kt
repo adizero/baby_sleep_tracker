@@ -3,6 +3,7 @@ package com.akocis.babysleeptracker.ui.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -63,30 +64,23 @@ fun WhiteNoiseDialog(
             ) {
                 // Noise type
                 Text("Type", style = MaterialTheme.typography.labelLarge)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    NoiseType.entries.take(3).forEach { type ->
-                        FilterChip(
-                            selected = noiseType == type,
-                            onClick = { noiseType = type },
-                            label = { Text(type.label, fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    NoiseType.entries.drop(3).forEach { type ->
-                        FilterChip(
-                            selected = noiseType == type,
-                            onClick = { noiseType = type },
-                            label = { Text(type.label, fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
+                NoiseType.entries.chunked(4).forEach { rowTypes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        rowTypes.forEach { type ->
+                            FilterChip(
+                                selected = noiseType == type,
+                                onClick = { noiseType = type },
+                                label = { Text(type.label, fontSize = 12.sp) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        // Pad with spacers if row has fewer than 4
+                        repeat(4 - rowTypes.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
 
