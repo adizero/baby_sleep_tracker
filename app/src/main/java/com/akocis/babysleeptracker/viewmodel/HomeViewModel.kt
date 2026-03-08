@@ -430,7 +430,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay() }
         val timeSinceBreastFeed = lastBreastFeed?.let {
             val feedEnd = it.date.atTime(it.endTime ?: it.startTime)
-            DateTimeUtil.formatDuration(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
         // Last bottle feed
@@ -438,7 +438,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
         val timeSinceBottleFeed = lastBottle?.let {
             val bottleTime = it.date.atTime(it.time)
-            DateTimeUtil.formatDuration(Duration.between(bottleTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(bottleTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
         // Last any feed (breast or bottle)
@@ -454,7 +454,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 lastBottle!!.date.atTime(lastBottle.time)
             }
-            DateTimeUtil.formatDuration(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         } else null
 
         // Last pee (PEE or PEEPOO)
@@ -463,7 +463,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
         val timeSincePee = lastPee?.let {
             val peeTime = it.date.atTime(it.time)
-            DateTimeUtil.formatDuration(Duration.between(peeTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(peeTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
         // Last poo (POO or PEEPOO)
@@ -472,7 +472,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
         val timeSincePoo = lastPoo?.let {
             val pooTime = it.date.atTime(it.time)
-            DateTimeUtil.formatDuration(Duration.between(pooTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(pooTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
         // Last bath
@@ -481,7 +481,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
         val timeSinceBath = lastBath?.let {
             val bathTime = it.date.atTime(it.time)
-            DateTimeUtil.formatDuration(Duration.between(bathTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            DateTimeUtil.formatDurationWithDays(Duration.between(bathTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
         _todayStats.value = DayStats(

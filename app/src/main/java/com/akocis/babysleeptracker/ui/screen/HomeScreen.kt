@@ -482,12 +482,137 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Today's stats
             todayStats?.let { stats ->
+                // --- Last card (shown first) ---
+                val hasLastData = stats.timeSinceLastFeed != null ||
+                    stats.timeSinceLastPee != null ||
+                    stats.timeSinceLastPoo != null ||
+                    stats.timeSinceLastBath != null
+                if (hasLastData) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Last",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // Feed row
+                            stats.timeSinceLastFeed?.let {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Feed", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(
+                                        "$it ago",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                            if (stats.timeSinceLastBreastFeed != null && stats.timeSinceLastBottleFeed != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Breast",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                    Text(
+                                        "${stats.timeSinceLastBreastFeed} ago",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Bottle",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                    Text(
+                                        "${stats.timeSinceLastBottleFeed} ago",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                            // Pee / Poo row
+                            if (stats.timeSinceLastPee != null || stats.timeSinceLastPoo != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    stats.timeSinceLastPee?.let {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Pee", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                            Text(
+                                                "$it ago",
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
+                                    stats.timeSinceLastPoo?.let {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Poo", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                            Text(
+                                                "$it ago",
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            // Bath row
+                            stats.timeSinceLastBath?.let {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Bath", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(
+                                        "$it ago",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // --- Today card ---
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
@@ -495,49 +620,72 @@ fun HomeScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Today",
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Sleep")
+                            Text(
+                                "${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         if (stats.feedCount > 0) {
-                            Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Feed")
+                                Text(
+                                    "${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)",
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                         if (stats.totalBottleFeeds > 0) {
-                            Text("Bottle: ${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Bottle")
+                                Text(
+                                    "${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)",
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
-                        Text("Pee: ${stats.peeCount}  Poo: ${stats.pooCount}  Both: ${stats.peepooCount}")
-                        Text("Total diapers: ${stats.totalDiapers}")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Diapers")
+                            Text(
+                                "${stats.totalDiapers} (${stats.peeCount}p ${stats.pooCount}P ${stats.peepooCount}b)",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         if (stats.totalActivities > 0) {
                             val parts = mutableListOf<String>()
                             if (stats.strollerCount > 0) parts.add("${stats.strollerCount} stroll")
                             if (stats.bathCount > 0) parts.add("${stats.bathCount} bath")
                             if (stats.noteCount > 0) parts.add("${stats.noteCount} note")
-                            Text("Activities: ${parts.joinToString(", ")}")
-                        }
-
-                        // Time since last feed / bath
-                        val sinceParts = mutableListOf<String>()
-                        stats.timeSinceLastFeed?.let { sinceParts.add("Feed: $it ago") }
-                        if (stats.timeSinceLastBreastFeed != null && stats.timeSinceLastBottleFeed != null) {
-                            sinceParts.add("  Breast: ${stats.timeSinceLastBreastFeed} ago")
-                            sinceParts.add("  Bottle: ${stats.timeSinceLastBottleFeed} ago")
-                        }
-                        stats.timeSinceLastPee?.let { sinceParts.add("Pee: $it ago") }
-                        stats.timeSinceLastPoo?.let { sinceParts.add("Poo: $it ago") }
-                        stats.timeSinceLastBath?.let { sinceParts.add("Bath: $it ago") }
-                        if (sinceParts.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Last",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            sinceParts.forEach { Text(it) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Activities")
+                                Text(parts.joinToString(", "), fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

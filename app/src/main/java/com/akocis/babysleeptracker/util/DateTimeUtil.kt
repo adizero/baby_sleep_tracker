@@ -19,6 +19,17 @@ object DateTimeUtil {
         }
     }
 
+    fun formatDurationWithDays(duration: Duration): String {
+        val days = duration.toDays()
+        val hours = duration.toHours() % 24
+        val minutes = duration.toMinutes() % 60
+        return when {
+            days > 0 -> "${days}d ${hours}h"
+            hours > 0 -> "${hours}h ${minutes}m"
+            else -> "${minutes}m"
+        }
+    }
+
     fun overlapDuration(
         entryStart: LocalDateTime,
         entryEnd: LocalDateTime,
