@@ -59,13 +59,10 @@ fun WheelPicker(
     }
 
     LaunchedEffect(Unit) {
-        snapshotFlow { listState.isScrollInProgress }
-            .collect { scrolling ->
-                if (!scrolling) {
-                    val idx = selectedIndex
-                    if (idx in items.indices) {
-                        onValueChanged(items[idx])
-                    }
+        snapshotFlow { selectedIndex }
+            .collect { idx ->
+                if (idx in items.indices) {
+                    onValueChanged(items[idx])
                 }
             }
     }
