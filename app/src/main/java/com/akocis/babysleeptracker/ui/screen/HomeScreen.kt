@@ -555,38 +555,32 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            // Pee / Poo row
-                            if (stats.timeSinceLastPee != null || stats.timeSinceLastPoo != null) {
+                            // Pee row
+                            stats.timeSinceLastPee?.let {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    stats.timeSinceLastPee?.let {
-                                        Row(
-                                            modifier = Modifier.weight(1f),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("Pee", color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                            Text(
-                                                "$it ago",
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                    }
-                                    stats.timeSinceLastPoo?.let {
-                                        Row(
-                                            modifier = Modifier.weight(1f),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("Poo", color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                            Text(
-                                                "$it ago",
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                    }
+                                    Text("Pee", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(
+                                        "$it ago",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                            // Poo row
+                            stats.timeSinceLastPoo?.let {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Poo", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(
+                                        "$it ago",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
                                 }
                             }
                             // Bath row
@@ -641,9 +635,37 @@ fun HomeScreen(
                             ) {
                                 Text("Feed")
                                 Text(
-                                    "${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)",
+                                    "${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount})",
                                     fontWeight = FontWeight.Medium
                                 )
+                            }
+                            if (stats.leftFeedCount > 0) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Left", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${DateTimeUtil.formatDuration(stats.leftFeedDuration)} (${stats.leftFeedCount})",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            if (stats.rightFeedCount > 0) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Right", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${DateTimeUtil.formatDuration(stats.rightFeedDuration)} (${stats.rightFeedCount})",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                         if (stats.totalBottleFeeds > 0) {
@@ -653,20 +675,70 @@ fun HomeScreen(
                             ) {
                                 Text("Bottle")
                                 Text(
-                                    "${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)",
+                                    "${stats.totalBottleMl}ml (${stats.totalBottleFeeds})",
                                     fontWeight = FontWeight.Medium
                                 )
                             }
+                            if (stats.donorCount > 0) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Donor", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${stats.donorMl}ml (${stats.donorCount})",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            if (stats.formulaCount > 0) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Formula", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${stats.formulaMl}ml (${stats.formulaCount})",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            if (stats.pumpedCount > 0) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Pumped", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${stats.pumpedMl}ml (${stats.pumpedCount})",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
                         }
+                        // Pee row (pee + peepoo)
+                        val peeTotal = stats.peeCount + stats.peepooCount
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Diapers")
-                            Text(
-                                "${stats.totalDiapers} (${stats.peeCount}p ${stats.pooCount}P ${stats.peepooCount}b)",
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text("Pee")
+                            Text("$peeTotal", fontWeight = FontWeight.Medium)
+                        }
+                        // Poo row (poo + peepoo)
+                        val pooTotal = stats.pooCount + stats.peepooCount
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Poo")
+                            Text("$pooTotal", fontWeight = FontWeight.Medium)
                         }
                         if (stats.totalActivities > 0) {
                             val parts = mutableListOf<String>()
