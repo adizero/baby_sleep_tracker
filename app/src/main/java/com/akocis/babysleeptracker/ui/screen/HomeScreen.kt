@@ -515,6 +515,24 @@ fun HomeScreen(
                             if (stats.noteCount > 0) parts.add("${stats.noteCount} note")
                             Text("Activities: ${parts.joinToString(", ")}")
                         }
+
+                        // Time since last feed / bath
+                        val sinceParts = mutableListOf<String>()
+                        stats.timeSinceLastFeed?.let { sinceParts.add("Feed: $it ago") }
+                        if (stats.timeSinceLastBreastFeed != null && stats.timeSinceLastBottleFeed != null) {
+                            sinceParts.add("  Breast: ${stats.timeSinceLastBreastFeed} ago")
+                            sinceParts.add("  Bottle: ${stats.timeSinceLastBottleFeed} ago")
+                        }
+                        stats.timeSinceLastBath?.let { sinceParts.add("Bath: $it ago") }
+                        if (sinceParts.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Last",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            sinceParts.forEach { Text(it) }
+                        }
                     }
                 }
             }

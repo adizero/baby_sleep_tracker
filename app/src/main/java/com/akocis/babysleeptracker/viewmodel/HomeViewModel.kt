@@ -422,6 +422,50 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             lastSleepEndTime = lastCompletedSleep.endTime
         }
 
+        // Compute "time since" for feeds, bottle feeds, bath (across all entries)
+        val now = LocalDateTime.now()
+
+        // Last breast feed (use end time if completed, start time if ongoing)
+        val lastBreastFeed = data.feedEntries
+            .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay() }
+        val timeSinceBreastFeed = lastBreastFeed?.let {
+            val feedEnd = it.date.atTime(it.endTime ?: it.startTime)
+            DateTimeUtil.formatDuration(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
+        // Last bottle feed
+        val lastBottle = data.bottleFeedEntries
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
+        val timeSinceBottleFeed = lastBottle?.let {
+            val bottleTime = it.date.atTime(it.time)
+            DateTimeUtil.formatDuration(Duration.between(bottleTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
+        // Last any feed (breast or bottle)
+        val lastBreastEpoch = lastBreastFeed?.let {
+            it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay()
+        } ?: -1L
+        val lastBottleEpoch = lastBottle?.let {
+            it.date.toEpochDay() * 86400 + it.time.toSecondOfDay()
+        } ?: -1L
+        val timeSinceAnyFeed = if (lastBreastEpoch >= 0 || lastBottleEpoch >= 0) {
+            val lastFeedDateTime = if (lastBreastEpoch >= lastBottleEpoch) {
+                lastBreastFeed!!.date.atTime(lastBreastFeed.endTime ?: lastBreastFeed.startTime)
+            } else {
+                lastBottle!!.date.atTime(lastBottle.time)
+            }
+            DateTimeUtil.formatDuration(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        } else null
+
+        // Last bath
+        val lastBath = data.activityEntries
+            .filter { it.type == ActivityType.BATH }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
+        val timeSinceBath = lastBath?.let {
+            val bathTime = it.date.atTime(it.time)
+            DateTimeUtil.formatDuration(Duration.between(bathTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
         _todayStats.value = DayStats(
             date = today,
             totalSleep = todaySleepDuration,
@@ -439,7 +483,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             pumpedMl = todayBottle.filter { it.type == BottleType.PUMPED }.sumOf { it.amountMl },
             strollerCount = todayActivities.count { it.type == ActivityType.STROLLER },
             bathCount = todayActivities.count { it.type == ActivityType.BATH },
-            noteCount = todayActivities.count { it.type == ActivityType.NOTE }
+            noteCount = todayActivities.count { it.type == ActivityType.NOTE },
+            timeSinceLastFeed = timeSinceAnyFeed,
+            timeSinceLastBreastFeed = timeSinceBreastFeed,
+            timeSinceLastBottleFeed = timeSinceBottleFeed,
+            timeSinceLastBath = timeSinceBath
         )
 
         // Auto-resolve bottle preset from history if unset

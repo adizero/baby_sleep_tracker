@@ -73,7 +73,16 @@ fun WhiteNoiseDialog(
                             FilterChip(
                                 selected = noiseType == type,
                                 onClick = { noiseType = type },
-                                label = { Text(type.label, fontSize = 11.sp, maxLines = 1, softWrap = false) },
+                                label = {
+                                    Text(
+                                        type.label,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                },
                                 modifier = Modifier.weight(1f),
                                 leadingIcon = null
                             )
