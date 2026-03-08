@@ -40,6 +40,7 @@ import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
 import java.time.Duration
+import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +59,9 @@ fun StatsScreen(
 
     val dayStartHour = prefsRepository.dayStartHour
     val dayEndHour = prefsRepository.dayEndHour
+    val currentHour = LocalTime.now().hour
+    // In rolling mode, the last 4h period is the current one
+    val currentPeriodIndex = if (isRollingMode) dayStats.size - 1 else -1
 
     Scaffold(
         topBar = {
@@ -166,7 +170,7 @@ fun StatsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            SleepChart(stats = dayStats, movingAverage = movingAverage)
+            SleepChart(stats = dayStats, movingAverage = movingAverage, highlightIndex = currentPeriodIndex)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -178,7 +182,7 @@ fun StatsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            FeedChart(stats = dayStats, movingAverage = feedMovingAverage)
+            FeedChart(stats = dayStats, movingAverage = feedMovingAverage, highlightIndex = currentPeriodIndex)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -190,7 +194,7 @@ fun StatsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            DiaperChart(stats = dayStats)
+            DiaperChart(stats = dayStats, highlightIndex = currentPeriodIndex)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -224,7 +228,8 @@ fun StatsScreen(
                     valueAccessor = { it.totalSleep },
                     barColor = SleepButtonColor,
                     dayStartHour = dayStartHour,
-                    dayEndHour = dayEndHour
+                    dayEndHour = dayEndHour,
+                    highlightHour = currentHour
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -241,7 +246,8 @@ fun StatsScreen(
                     valueAccessor = { it.totalFeedDuration },
                     barColor = FeedColor,
                     dayStartHour = dayStartHour,
-                    dayEndHour = dayEndHour
+                    dayEndHour = dayEndHour,
+                    highlightHour = currentHour
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))

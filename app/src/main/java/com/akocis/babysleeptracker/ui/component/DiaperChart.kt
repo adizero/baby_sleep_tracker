@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.model.DayStats
@@ -30,8 +31,10 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DiaperChart(
     stats: List<DayStats>,
+    highlightIndex: Int = -1,
     modifier: Modifier = Modifier
 ) {
+    val highlightColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
     val labelFormatter = DateTimeFormatter.ofPattern("MM/dd")
 
@@ -90,6 +93,17 @@ fun DiaperChart(
                         color = PeePooColor,
                         topLeft = Offset(x, currentY),
                         size = Size(barWidth, segHeight)
+                    )
+                }
+
+                // Highlight current period
+                if (index == highlightIndex && dayStat.totalDiapers > 0) {
+                    val totalBarHeight = chartHeight - currentY
+                    drawRect(
+                        color = highlightColor,
+                        topLeft = Offset(x - 1f, currentY - 1f),
+                        size = Size(barWidth + 2f, totalBarHeight + 2f),
+                        style = Stroke(width = 3f)
                     )
                 }
 

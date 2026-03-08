@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.model.DayStats
@@ -26,10 +27,12 @@ import java.time.format.DateTimeFormatter
 fun SleepChart(
     stats: List<DayStats>,
     movingAverage: List<Float> = emptyList(),
+    highlightIndex: Int = -1,
     modifier: Modifier = Modifier
 ) {
     val barColor = SleepButtonColor
     val trendColor = Color(0xFFEF5350)
+    val highlightColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
     val labelFormatter = DateTimeFormatter.ofPattern("MM/dd")
 
@@ -67,6 +70,15 @@ fun SleepChart(
                     topLeft = Offset(x, chartHeight - barHeight),
                     size = Size(barWidth, barHeight)
                 )
+
+                if (index == highlightIndex) {
+                    drawRect(
+                        color = highlightColor,
+                        topLeft = Offset(x - 1f, chartHeight - barHeight - 1f),
+                        size = Size(barWidth + 2f, barHeight + 2f),
+                        style = Stroke(width = 3f)
+                    )
+                }
 
                 val hours = minutes / 60f
                 val hoursLabel = String.format("%.1fh", hours)

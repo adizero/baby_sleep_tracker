@@ -16,6 +16,8 @@ import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 data class HistoryItem(
     val id: Int,
@@ -23,6 +25,8 @@ data class HistoryItem(
     val durationText: String? = null,
     val rawLine: String,
     val sortKey: Long,
+    val date: LocalDate,
+    val hour: Int,
     val sleepEntry: SleepEntry? = null,
     val diaperEntry: DiaperEntry? = null,
     val activityEntry: ActivityEntry? = null,
@@ -43,6 +47,13 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
+
+    val dayStartHour: Int get() = prefsRepository.dayStartHour
+    val dayEndHour: Int get() = prefsRepository.dayEndHour
+
+    companion object {
+        private val TIME_FMT = DateTimeFormatter.ofPattern("HH:mm")
+    }
 
     init {
         loadEntries()
@@ -68,15 +79,17 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val line = EntryParser.formatSleepEntry(entry)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
-                val endText = entry.endTime?.toString() ?: "ongoing"
-                val durText = "Sleep: ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
+                val endText = entry.endTime?.format(TIME_FMT) ?: "ongoing"
+                val startText = entry.startTime.format(TIME_FMT)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "Sleep: ${entry.date} ${entry.startTime} - $endText",
-                        durationText = durText,
+                        displayText = "Sleep  $startText - $endText",
+                        durationText = "Sleep  $startText (${DateTimeUtil.formatDuration(entry.duration)})",
                         rawLine = line,
                         sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.startTime.hour,
                         sleepEntry = entry
                     )
                 )
@@ -89,9 +102,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "${entry.type.label}: ${entry.date} ${entry.time}",
+                        displayText = "${entry.type.label}  ${entry.time.format(TIME_FMT)}",
                         rawLine = line,
                         sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.time.hour,
                         diaperEntry = entry
                     )
                 )
@@ -105,9 +120,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "${entry.type.label}: ${entry.date} ${entry.time}$noteText",
+                        displayText = "${entry.type.label}  ${entry.time.format(TIME_FMT)}$noteText",
                         rawLine = line,
                         sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.time.hour,
                         activityEntry = entry
                     )
                 )
@@ -117,15 +134,17 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val line = EntryParser.formatFeedEntry(entry)
                 val sortKey = entry.date.toEpochDay() * 86400 +
                     entry.startTime.toSecondOfDay()
-                val endText = entry.endTime?.toString() ?: "ongoing"
-                val durText = "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} (${DateTimeUtil.formatDuration(entry.duration)})"
+                val endText = entry.endTime?.format(TIME_FMT) ?: "ongoing"
+                val startText = entry.startTime.format(TIME_FMT)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "Feed (${entry.side.label}): ${entry.date} ${entry.startTime} - $endText",
-                        durationText = durText,
+                        displayText = "Feed (${entry.side.label})  $startText - $endText",
+                        durationText = "Feed (${entry.side.label})  $startText (${DateTimeUtil.formatDuration(entry.duration)})",
                         rawLine = line,
                         sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.startTime.hour,
                         feedEntry = entry
                     )
                 )
@@ -138,9 +157,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "${entry.type.label}: ${entry.date} ${entry.time} ${entry.amountMl}ml",
+                        displayText = "${entry.type.label}  ${entry.time.format(TIME_FMT)}  ${entry.amountMl}ml",
                         rawLine = line,
                         sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.time.hour,
                         bottleFeedEntry = entry
                     )
                 )

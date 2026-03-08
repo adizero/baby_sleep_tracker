@@ -17,6 +17,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 
 data class SummaryStats(
     val avgSleepPerDay: Duration = Duration.ZERO,
@@ -272,27 +273,31 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         bottleFeedEntries: List<com.akocis.babysleeptracker.model.BottleFeedEntry>,
         activityEntries: List<com.akocis.babysleeptracker.model.ActivityEntry>
     ) {
-        // Build hour buckets across the entire rolling window, then collapse into 24 hours
+        // Build clock-aligned hour buckets across the rolling window, then collapse into 24 hours
         val sleepByHour = Array(24) { Duration.ZERO }
         val feedByHour = Array(24) { Duration.ZERO }
         val diapersByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.DiaperEntry>() }
         val bottleByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.BottleFeedEntry>() }
 
-        // Walk each hour bucket in the window and use overlapDuration for sleep/feed
-        var bucketStart = cutoff
+        // Walk clock-aligned hour buckets, clipping to the actual window
+        var bucketStart = cutoff.truncatedTo(ChronoUnit.HOURS)
         while (bucketStart < now) {
-            val bucketEnd = bucketStart.plusHours(1).let { if (it > now) now else it }
+            val bucketEnd = bucketStart.plusHours(1)
+            val effectiveStart = if (bucketStart < cutoff) cutoff else bucketStart
+            val effectiveEnd = if (bucketEnd > now) now else bucketEnd
             val hour = bucketStart.hour
 
-            sleepEntries.forEach { entry ->
-                val entryStart = entry.date.atTime(entry.startTime)
-                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
-                if (overlap > Duration.ZERO) sleepByHour[hour] = sleepByHour[hour].plus(overlap)
-            }
-            feedEntries.forEach { entry ->
-                val entryStart = entry.date.atTime(entry.startTime)
-                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
-                if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+            if (effectiveStart < effectiveEnd) {
+                sleepEntries.forEach { entry ->
+                    val entryStart = entry.date.atTime(entry.startTime)
+                    val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), effectiveStart, effectiveEnd)
+                    if (overlap > Duration.ZERO) sleepByHour[hour] = sleepByHour[hour].plus(overlap)
+                }
+                feedEntries.forEach { entry ->
+                    val entryStart = entry.date.atTime(entry.startTime)
+                    val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), effectiveStart, effectiveEnd)
+                    if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+                }
             }
 
             bucketStart = bucketStart.plusHours(1)

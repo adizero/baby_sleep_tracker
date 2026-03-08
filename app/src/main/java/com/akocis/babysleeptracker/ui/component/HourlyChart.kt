@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.model.DayStats
@@ -22,10 +24,12 @@ fun HourlyChart(
     barColor: Color,
     dayStartHour: Int = 7,
     dayEndHour: Int = 19,
+    highlightHour: Int = -1,
     modifier: Modifier = Modifier
 ) {
     val textColor = MaterialTheme.colorScheme.onSurface
     val nightShade = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+    val highlightColor = MaterialTheme.colorScheme.primary
 
     Canvas(
         modifier = modifier
@@ -72,6 +76,19 @@ fun HourlyChart(
                 )
             }
 
+            // Highlight current hour with outline
+            if (hour == highlightHour) {
+                val hlY = if (barHeight > 0f) chartHeight - barHeight else chartHeight - 2f
+                val hlH = if (barHeight > 0f) barHeight else 2f
+                drawRoundRect(
+                    color = highlightColor,
+                    topLeft = Offset(x - 1f, hlY - 1f),
+                    size = Size(barWidth + 2f, hlH + 2f),
+                    cornerRadius = CornerRadius(2f),
+                    style = Stroke(width = 3f)
+                )
+            }
+
             // Value label above bar
             if (minutes > 0) {
                 val label = if (minutes >= 60) String.format("%.1fh", minutes / 60f)
@@ -90,15 +107,16 @@ fun HourlyChart(
 
             // Hour label below
             val isKey = hour % 6 == 0
+            val isCurrent = hour == highlightHour
             drawContext.canvas.nativeCanvas.drawText(
                 hour.toString(),
                 x + barWidth / 2,
                 size.height - 4f,
                 android.graphics.Paint().apply {
-                    color = textColor.hashCode()
+                    color = if (isCurrent) highlightColor.hashCode() else textColor.hashCode()
                     textAlign = android.graphics.Paint.Align.CENTER
-                    textSize = if (isKey) 24f else 18f
-                    isFakeBoldText = isKey
+                    textSize = if (isKey || isCurrent) 24f else 18f
+                    isFakeBoldText = isKey || isCurrent
                 }
             )
         }
