@@ -436,12 +436,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Compute "time since" for feeds, bottle feeds, bath (across all entries)
         val now = LocalDateTime.now()
 
-        // Last breast feed (use end time if completed, start time if ongoing)
+        // Last breast feed (time since end; 0m if ongoing)
         val lastBreastFeed = data.feedEntries
             .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay() }
         val timeSinceBreastFeed = lastBreastFeed?.let {
-            val feedEnd = it.date.atTime(it.endTime ?: it.startTime)
-            DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            if (it.isOngoing) "0m"
+            else {
+                val feedEnd = it.date.atTime(it.endTime!!)
+                DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            }
         }
 
         // Last bottle feed
@@ -452,20 +455,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             DateTimeUtil.formatDurationWithDays(Duration.between(bottleTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
-        // Last any feed (breast or bottle)
-        val lastBreastEpoch = lastBreastFeed?.let {
-            it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay()
+        // Last any feed (breast or bottle, time since end)
+        val lastBreastEndEpoch = lastBreastFeed?.let {
+            if (it.isOngoing) Long.MAX_VALUE  // ongoing = most recent
+            else it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay()
         } ?: -1L
         val lastBottleEpoch = lastBottle?.let {
             it.date.toEpochDay() * 86400 + it.time.toSecondOfDay()
         } ?: -1L
-        val timeSinceAnyFeed = if (lastBreastEpoch >= 0 || lastBottleEpoch >= 0) {
-            val lastFeedDateTime = if (lastBreastEpoch >= lastBottleEpoch) {
-                lastBreastFeed!!.date.atTime(lastBreastFeed.endTime ?: lastBreastFeed.startTime)
+        val timeSinceAnyFeed = if (lastBreastEndEpoch >= 0 || lastBottleEpoch >= 0) {
+            if (lastBreastFeed?.isOngoing == true) "0m"
+            else if (lastBreastEndEpoch >= lastBottleEpoch) {
+                val feedEnd = lastBreastFeed!!.date.atTime(lastBreastFeed.endTime!!)
+                DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
             } else {
-                lastBottle!!.date.atTime(lastBottle.time)
+                val bottleTime = lastBottle!!.date.atTime(lastBottle.time)
+                DateTimeUtil.formatDurationWithDays(Duration.between(bottleTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
             }
-            DateTimeUtil.formatDurationWithDays(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         } else null
 
         // Last diaper (any type)
