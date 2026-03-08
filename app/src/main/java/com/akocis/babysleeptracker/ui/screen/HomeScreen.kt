@@ -523,6 +523,8 @@ fun HomeScreen(
                             sinceParts.add("  Breast: ${stats.timeSinceLastBreastFeed} ago")
                             sinceParts.add("  Bottle: ${stats.timeSinceLastBottleFeed} ago")
                         }
+                        stats.timeSinceLastPee?.let { sinceParts.add("Pee: $it ago") }
+                        stats.timeSinceLastPoo?.let { sinceParts.add("Poo: $it ago") }
                         stats.timeSinceLastBath?.let { sinceParts.add("Bath: $it ago") }
                         if (sinceParts.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))

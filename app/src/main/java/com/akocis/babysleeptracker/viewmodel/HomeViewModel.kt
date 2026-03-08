@@ -457,6 +457,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             DateTimeUtil.formatDuration(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         } else null
 
+        // Last pee (PEE or PEEPOO)
+        val lastPee = data.diaperEntries
+            .filter { it.type == DiaperType.PEE || it.type == DiaperType.PEEPOO }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
+        val timeSincePee = lastPee?.let {
+            val peeTime = it.date.atTime(it.time)
+            DateTimeUtil.formatDuration(Duration.between(peeTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
+        // Last poo (POO or PEEPOO)
+        val lastPoo = data.diaperEntries
+            .filter { it.type == DiaperType.POO || it.type == DiaperType.PEEPOO }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
+        val timeSincePoo = lastPoo?.let {
+            val pooTime = it.date.atTime(it.time)
+            DateTimeUtil.formatDuration(Duration.between(pooTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
         // Last bath
         val lastBath = data.activityEntries
             .filter { it.type == ActivityType.BATH }
@@ -487,7 +505,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             timeSinceLastFeed = timeSinceAnyFeed,
             timeSinceLastBreastFeed = timeSinceBreastFeed,
             timeSinceLastBottleFeed = timeSinceBottleFeed,
-            timeSinceLastBath = timeSinceBath
+            timeSinceLastBath = timeSinceBath,
+            timeSinceLastPee = timeSincePee,
+            timeSinceLastPoo = timeSincePoo
         )
 
         // Auto-resolve bottle preset from history if unset
