@@ -34,6 +34,7 @@ data class DayStats(
     val timeSinceLastBreastFeed: String? = null,
     val timeSinceLastBottleFeed: String? = null,
     val timeSinceLastBath: String? = null,
+    val timeSinceLastDiaper: String? = null,
     val timeSinceLastPee: String? = null,
     val timeSinceLastPoo: String? = null
 ) {

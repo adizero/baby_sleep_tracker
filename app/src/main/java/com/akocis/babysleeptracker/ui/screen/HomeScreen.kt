@@ -485,8 +485,7 @@ fun HomeScreen(
             todayStats?.let { stats ->
                 // --- Last card (shown first) ---
                 val hasLastData = stats.timeSinceLastFeed != null ||
-                    stats.timeSinceLastPee != null ||
-                    stats.timeSinceLastPoo != null ||
+                    stats.timeSinceLastDiaper != null ||
                     stats.timeSinceLastBath != null
                 if (hasLastData) {
                     Card(
@@ -555,32 +554,56 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            // Pee row
-                            stats.timeSinceLastPee?.let {
+                            // Diaper row with Pee/Poo sub-rows
+                            stats.timeSinceLastDiaper?.let {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Pee", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text("Diaper", color = MaterialTheme.colorScheme.onSecondaryContainer)
                                     Text(
                                         "$it ago",
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                 }
-                            }
-                            // Poo row
-                            stats.timeSinceLastPoo?.let {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Poo", color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                    Text(
-                                        "$it ago",
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                stats.timeSinceLastPee?.let { pee ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Pee",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            "$pee ago",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                stats.timeSinceLastPoo?.let { poo ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Poo",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            "$poo ago",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
                                 }
                             }
                             // Bath row

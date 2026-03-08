@@ -409,6 +409,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), todayStart, tomorrowStart))
         }
 
+        val relevantLeftFeeds = relevantFeeds.filter { it.side == FeedSide.LEFT }
+        val todayLeftFeedDuration = relevantLeftFeeds.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), todayStart, tomorrowStart))
+        }
+        val relevantRightFeeds = relevantFeeds.filter { it.side == FeedSide.RIGHT }
+        val todayRightFeedDuration = relevantRightFeeds.fold(Duration.ZERO) { acc, entry ->
+            val entryStart = entry.date.atTime(entry.startTime)
+            acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), todayStart, tomorrowStart))
+        }
+
         val todayDiapers = data.diaperEntries.filter { it.date == today }
         val todayBottle = data.bottleFeedEntries.filter { it.date == today }
         val todayActivities = data.activityEntries.filter { it.date == today }
@@ -457,6 +468,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             DateTimeUtil.formatDurationWithDays(Duration.between(lastFeedDateTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         } else null
 
+        // Last diaper (any type)
+        val lastDiaper = data.diaperEntries
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
+        val timeSinceDiaper = lastDiaper?.let {
+            val diaperTime = it.date.atTime(it.time)
+            DateTimeUtil.formatDurationWithDays(Duration.between(diaperTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
         // Last pee (PEE or PEEPOO)
         val lastPee = data.diaperEntries
             .filter { it.type == DiaperType.PEE || it.type == DiaperType.PEEPOO }
@@ -493,6 +512,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             peepooCount = todayDiapers.count { it.type == DiaperType.PEEPOO },
             feedCount = data.feedEntries.count { it.date == today },
             totalFeedDuration = todayFeedDuration,
+            leftFeedDuration = todayLeftFeedDuration,
+            rightFeedDuration = todayRightFeedDuration,
+            leftFeedCount = data.feedEntries.count { it.date == today && it.side == FeedSide.LEFT },
+            rightFeedCount = data.feedEntries.count { it.date == today && it.side == FeedSide.RIGHT },
             donorCount = todayBottle.count { it.type == BottleType.DONOR },
             donorMl = todayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
             formulaCount = todayBottle.count { it.type == BottleType.FORMULA },
@@ -506,6 +529,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             timeSinceLastBreastFeed = timeSinceBreastFeed,
             timeSinceLastBottleFeed = timeSinceBottleFeed,
             timeSinceLastBath = timeSinceBath,
+            timeSinceLastDiaper = timeSinceDiaper,
             timeSinceLastPee = timeSincePee,
             timeSinceLastPoo = timeSincePoo
         )
