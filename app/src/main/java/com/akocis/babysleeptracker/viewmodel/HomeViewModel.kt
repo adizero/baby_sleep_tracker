@@ -474,6 +474,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else null
 
+        // Last sleep (time since end; 0m if ongoing)
+        val lastSleep = data.sleepEntries
+            .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime ?: it.startTime).toSecondOfDay() }
+        val timeSinceSleep = lastSleep?.let {
+            if (it.isOngoing) "0m"
+            else {
+                val sleepEnd = it.date.atTime(it.endTime!!)
+                DateTimeUtil.formatDurationWithDays(Duration.between(sleepEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+            }
+        }
+        // Last nap (sleep <= 60m)
+        val lastNap = data.sleepEntries
+            .filter { !it.isOngoing && it.duration.toMinutes() <= 60 }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+        val timeSinceNap = lastNap?.let {
+            val napEnd = it.date.atTime(it.endTime!!)
+            DateTimeUtil.formatDurationWithDays(Duration.between(napEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+        // Last slumber (sleep > 60m)
+        val lastSlumber = data.sleepEntries
+            .filter { !it.isOngoing && it.duration.toMinutes() > 60 }
+            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+        val timeSinceSlumber = lastSlumber?.let {
+            val slumberEnd = it.date.atTime(it.endTime!!)
+            DateTimeUtil.formatDurationWithDays(Duration.between(slumberEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
+
         // Last diaper (any type)
         val lastDiaper = data.diaperEntries
             .maxByOrNull { it.date.toEpochDay() * 86400 + it.time.toSecondOfDay() }
@@ -537,7 +564,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             timeSinceLastBath = timeSinceBath,
             timeSinceLastDiaper = timeSinceDiaper,
             timeSinceLastPee = timeSincePee,
-            timeSinceLastPoo = timeSincePoo
+            timeSinceLastPoo = timeSincePoo,
+            timeSinceLastSleep = timeSinceSleep,
+            timeSinceLastNap = timeSinceNap,
+            timeSinceLastSlumber = timeSinceSlumber
         )
 
         // Auto-resolve bottle preset from history if unset

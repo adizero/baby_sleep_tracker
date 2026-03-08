@@ -484,7 +484,8 @@ fun HomeScreen(
 
             todayStats?.let { stats ->
                 // --- Last card (shown first) ---
-                val hasLastData = stats.timeSinceLastFeed != null ||
+                val hasLastData = stats.timeSinceLastSleep != null ||
+                    stats.timeSinceLastFeed != null ||
                     stats.timeSinceLastDiaper != null ||
                     stats.timeSinceLastBath != null
                 if (hasLastData) {
@@ -504,6 +505,58 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+                            // Sleep row with Nap/Slumber sub-rows
+                            stats.timeSinceLastSleep?.let {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Sleep", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(
+                                        "$it ago",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                                stats.timeSinceLastNap?.let { nap ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Nap",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            "$nap ago",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                stats.timeSinceLastSlumber?.let { slumber ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Slumber",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            "$slumber ago",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            }
                             // Feed row
                             stats.timeSinceLastFeed?.let {
                                 Row(
