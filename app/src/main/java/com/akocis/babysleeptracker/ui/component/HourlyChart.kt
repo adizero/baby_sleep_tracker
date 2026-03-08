@@ -25,6 +25,7 @@ fun HourlyChart(
     dayStartHour: Int = 7,
     dayEndHour: Int = 19,
     highlightHour: Int = -1,
+    segments: List<Pair<(DayStats) -> Duration, Color>> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val textColor = MaterialTheme.colorScheme.onSurface
@@ -65,21 +66,36 @@ fun HourlyChart(
         // Draw bars
         stats.forEachIndexed { hour, dayStat ->
             val minutes = valueAccessor(dayStat).toMinutes().toFloat()
-            val barHeight = (minutes / maxMinutes) * chartHeight
+            val totalBarHeight = (minutes / maxMinutes) * chartHeight
             val x = hour * slotWidth + barGap
 
-            if (barHeight > 0f) {
+            if (segments.isNotEmpty() && totalBarHeight > 0f) {
+                // Stacked segments
+                var currentY = chartHeight
+                segments.forEach { (accessor, color) ->
+                    val segMinutes = accessor(dayStat).toMinutes().toFloat()
+                    if (segMinutes > 0f) {
+                        val segHeight = (segMinutes / maxMinutes) * chartHeight
+                        currentY -= segHeight
+                        drawRect(
+                            color = color,
+                            topLeft = Offset(x, currentY),
+                            size = Size(barWidth, segHeight)
+                        )
+                    }
+                }
+            } else if (totalBarHeight > 0f) {
                 drawRect(
                     color = barColor,
-                    topLeft = Offset(x, chartHeight - barHeight),
-                    size = Size(barWidth, barHeight)
+                    topLeft = Offset(x, chartHeight - totalBarHeight),
+                    size = Size(barWidth, totalBarHeight)
                 )
             }
 
             // Highlight current hour with outline
             if (hour == highlightHour) {
-                val hlY = if (barHeight > 0f) chartHeight - barHeight else chartHeight - 2f
-                val hlH = if (barHeight > 0f) barHeight else 2f
+                val hlY = if (totalBarHeight > 0f) chartHeight - totalBarHeight else chartHeight - 2f
+                val hlH = if (totalBarHeight > 0f) totalBarHeight else 2f
                 drawRoundRect(
                     color = highlightColor,
                     topLeft = Offset(x - 1f, hlY - 1f),
@@ -96,7 +112,7 @@ fun HourlyChart(
                 drawContext.canvas.nativeCanvas.drawText(
                     label,
                     x + barWidth / 2,
-                    chartHeight - barHeight - 4f,
+                    chartHeight - totalBarHeight - 4f,
                     android.graphics.Paint().apply {
                         color = textColor.hashCode()
                         textAlign = android.graphics.Paint.Align.CENTER

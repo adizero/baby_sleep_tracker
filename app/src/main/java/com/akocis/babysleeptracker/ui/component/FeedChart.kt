@@ -2,15 +2,20 @@ package com.akocis.babysleeptracker.ui.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -20,7 +25,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.model.DayStats
-import com.akocis.babysleeptracker.ui.theme.FeedColor
+import com.akocis.babysleeptracker.ui.theme.FeedLeftColor
+import com.akocis.babysleeptracker.ui.theme.FeedRightColor
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -30,7 +36,6 @@ fun FeedChart(
     highlightIndex: Int = -1,
     modifier: Modifier = Modifier
 ) {
-    val barColor = FeedColor
     val trendColor = Color(0xFFEF5350)
     val highlightColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
@@ -61,41 +66,66 @@ fun FeedChart(
             val chartHeight = size.height - bottomPadding
 
             stats.forEachIndexed { index, dayStat ->
-                val minutes = dayStat.totalFeedDuration.toMinutes().toFloat()
-                val barHeight = (minutes / chartMax) * chartHeight
                 val x = index * (barWidth + gap) + gap / 2
+                var currentY = chartHeight
 
-                drawRect(
-                    color = barColor,
-                    topLeft = Offset(x, chartHeight - barHeight),
-                    size = Size(barWidth, barHeight)
-                )
+                val leftMinutes = dayStat.leftFeedDuration.toMinutes().toFloat()
+                val rightMinutes = dayStat.rightFeedDuration.toMinutes().toFloat()
 
-                if (index == highlightIndex) {
+                // Left segment (bottom)
+                if (leftMinutes > 0) {
+                    val segHeight = (leftMinutes / chartMax) * chartHeight
+                    currentY -= segHeight
+                    drawRect(
+                        color = FeedLeftColor,
+                        topLeft = Offset(x, currentY),
+                        size = Size(barWidth, segHeight)
+                    )
+                }
+
+                // Right segment (top)
+                if (rightMinutes > 0) {
+                    val segHeight = (rightMinutes / chartMax) * chartHeight
+                    currentY -= segHeight
+                    drawRect(
+                        color = FeedRightColor,
+                        topLeft = Offset(x, currentY),
+                        size = Size(barWidth, segHeight)
+                    )
+                }
+
+                // Highlight current period
+                val totalMinutes = dayStat.totalFeedDuration.toMinutes().toFloat()
+                if (index == highlightIndex && totalMinutes > 0) {
+                    val totalBarHeight = chartHeight - currentY
                     drawRect(
                         color = highlightColor,
-                        topLeft = Offset(x - 1f, chartHeight - barHeight - 1f),
-                        size = Size(barWidth + 2f, barHeight + 2f),
+                        topLeft = Offset(x - 1f, currentY - 1f),
+                        size = Size(barWidth + 2f, totalBarHeight + 2f),
                         style = Stroke(width = 3f)
                     )
                 }
 
-                val label = if (minutes >= 60) {
-                    String.format("%.1fh", minutes / 60f)
-                } else {
-                    String.format("%.0fm", minutes)
-                }
-                drawContext.canvas.nativeCanvas.drawText(
-                    label,
-                    x + barWidth / 2,
-                    chartHeight - barHeight - 8f,
-                    android.graphics.Paint().apply {
-                        color = textColor.hashCode()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        textSize = 28f
+                // Duration label on top
+                if (totalMinutes > 0) {
+                    val label = if (totalMinutes >= 60) {
+                        String.format("%.1fh", totalMinutes / 60f)
+                    } else {
+                        String.format("%.0fm", totalMinutes)
                     }
-                )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        label,
+                        x + barWidth / 2,
+                        currentY - 8f,
+                        android.graphics.Paint().apply {
+                            color = textColor.hashCode()
+                            textAlign = android.graphics.Paint.Align.CENTER
+                            textSize = 28f
+                        }
+                    )
+                }
 
+                // Date/period label
                 drawContext.canvas.nativeCanvas.drawText(
                     dayStat.label ?: dayStat.date.format(labelFormatter),
                     x + barWidth / 2,
@@ -126,15 +156,42 @@ fun FeedChart(
                 }
 
                 movingAverage.forEachIndexed { i, value ->
-                    val x = i * (barWidth + gap) + gap / 2 + barWidth / 2
-                    val y = chartHeight - (value * 60f / chartMax) * chartHeight
+                    val cx = i * (barWidth + gap) + gap / 2 + barWidth / 2
+                    val cy = chartHeight - (value * 60f / chartMax) * chartHeight
                     drawCircle(
                         color = trendColor,
                         radius = 6f,
-                        center = Offset(x, y)
+                        center = Offset(cx, cy)
                     )
                 }
             }
         }
+    }
+
+    // Legend
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+    ) {
+        LegendItem(color = FeedLeftColor, label = "Left")
+        LegendItem(color = FeedRightColor, label = "Right")
+    }
+}
+
+@Composable
+private fun LegendItem(
+    color: Color,
+    label: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Canvas(modifier = Modifier.size(12.dp)) {
+            drawRect(color = color, size = size)
+        }
+        Text(text = label, style = MaterialTheme.typography.labelSmall)
     }
 }

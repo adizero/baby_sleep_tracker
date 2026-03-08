@@ -7,6 +7,7 @@ import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DayStats
 import com.akocis.babysleeptracker.model.DiaperType
+import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.util.DateTimeUtil
@@ -136,9 +137,17 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val entryStart = entry.date.atTime(entry.startTime)
                 acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), periodStart, periodEnd))
             }
-            val periodFeedDuration = recentFeeds.fold(Duration.ZERO) { acc, entry ->
+            var periodFeedDuration = Duration.ZERO
+            var periodLeftFeedDuration = Duration.ZERO
+            var periodRightFeedDuration = Duration.ZERO
+            recentFeeds.forEach { entry ->
                 val entryStart = entry.date.atTime(entry.startTime)
-                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), periodStart, periodEnd))
+                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), periodStart, periodEnd)
+                if (overlap > Duration.ZERO) {
+                    periodFeedDuration = periodFeedDuration.plus(overlap)
+                    if (entry.side == FeedSide.LEFT) periodLeftFeedDuration = periodLeftFeedDuration.plus(overlap)
+                    else periodRightFeedDuration = periodRightFeedDuration.plus(overlap)
+                }
             }
 
             // Counts: attributed to period where entry starts
@@ -146,10 +155,13 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dt = it.date.atTime(it.startTime)
                 dt >= periodStart && dt < periodEnd
             }
-            val periodFeedCount = recentFeeds.count {
+            val periodFeedsInPeriod = recentFeeds.filter {
                 val dt = it.date.atTime(it.startTime)
                 dt >= periodStart && dt < periodEnd
             }
+            val periodFeedCount = periodFeedsInPeriod.size
+            val periodLeftFeedCount = periodFeedsInPeriod.count { it.side == FeedSide.LEFT }
+            val periodRightFeedCount = periodFeedsInPeriod.count { it.side == FeedSide.RIGHT }
             val periodDiapers = recentDiapers.filter {
                 val dt = it.date.atTime(it.time)
                 dt >= periodStart && dt < periodEnd
@@ -197,6 +209,10 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 shortestNap = shortest ?: Duration.ZERO,
                 feedCount = periodFeedCount,
                 totalFeedDuration = periodFeedDuration,
+                leftFeedDuration = periodLeftFeedDuration,
+                rightFeedDuration = periodRightFeedDuration,
+                leftFeedCount = periodLeftFeedCount,
+                rightFeedCount = periodRightFeedCount,
                 donorCount = periodBottle.count { it.type == BottleType.DONOR },
                 donorMl = periodBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = periodBottle.count { it.type == BottleType.FORMULA },
@@ -276,6 +292,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         // Build clock-aligned hour buckets across the rolling window, then collapse into 24 hours
         val sleepByHour = Array(24) { Duration.ZERO }
         val feedByHour = Array(24) { Duration.ZERO }
+        val leftFeedByHour = Array(24) { Duration.ZERO }
+        val rightFeedByHour = Array(24) { Duration.ZERO }
         val diapersByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.DiaperEntry>() }
         val bottleByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.BottleFeedEntry>() }
 
@@ -296,7 +314,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 feedEntries.forEach { entry ->
                     val entryStart = entry.date.atTime(entry.startTime)
                     val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), effectiveStart, effectiveEnd)
-                    if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+                    if (overlap > Duration.ZERO) {
+                        feedByHour[hour] = feedByHour[hour].plus(overlap)
+                        if (entry.side == FeedSide.LEFT) leftFeedByHour[hour] = leftFeedByHour[hour].plus(overlap)
+                        else rightFeedByHour[hour] = rightFeedByHour[hour].plus(overlap)
+                    }
                 }
             }
 
@@ -324,6 +346,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 pooCount = hDiapers.count { it.type == DiaperType.POO },
                 peepooCount = hDiapers.count { it.type == DiaperType.PEEPOO },
                 totalFeedDuration = feedByHour[hour],
+                leftFeedDuration = leftFeedByHour[hour],
+                rightFeedDuration = rightFeedByHour[hour],
                 donorCount = hBottle.count { it.type == BottleType.DONOR },
                 donorMl = hBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = hBottle.count { it.type == BottleType.FORMULA },
@@ -359,13 +383,22 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val relevantFeeds = feedEntries.filter { it.date == date || it.date == date.minusDays(1) }
-            val totalFeedDuration = relevantFeeds.fold(Duration.ZERO) { acc, entry ->
+            var totalFeedDuration = Duration.ZERO
+            var leftFeedDur = Duration.ZERO
+            var rightFeedDur = Duration.ZERO
+            relevantFeeds.forEach { entry ->
                 val entryStart = entry.date.atTime(entry.startTime)
-                acc.plus(DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStartDt, dayEndDt))
+                val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), dayStartDt, dayEndDt)
+                if (overlap > Duration.ZERO) {
+                    totalFeedDuration = totalFeedDuration.plus(overlap)
+                    if (entry.side == FeedSide.LEFT) leftFeedDur = leftFeedDur.plus(overlap)
+                    else rightFeedDur = rightFeedDur.plus(overlap)
+                }
             }
 
             // Counts, longest/shortest, day/night: attributed to entries starting on this date
             val daySleep = sleepEntries.filter { it.date == date }
+            val dayFeeds = feedEntries.filter { it.date == date }
             val dayDiapers = diaperEntries.filter { it.date == date }
 
             var daySleepDur = Duration.ZERO
@@ -398,8 +431,12 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 nightSleep = nightSleepDur,
                 longestNap = longest,
                 shortestNap = shortest ?: Duration.ZERO,
-                feedCount = feedEntries.count { it.date == date },
+                feedCount = dayFeeds.size,
                 totalFeedDuration = totalFeedDuration,
+                leftFeedDuration = leftFeedDur,
+                rightFeedDuration = rightFeedDur,
+                leftFeedCount = dayFeeds.count { it.side == FeedSide.LEFT },
+                rightFeedCount = dayFeeds.count { it.side == FeedSide.RIGHT },
                 donorCount = dayBottle.count { it.type == BottleType.DONOR },
                 donorMl = dayBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = dayBottle.count { it.type == BottleType.FORMULA },
@@ -474,6 +511,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val sleepByHour = Array(24) { Duration.ZERO }
         val feedByHour = Array(24) { Duration.ZERO }
+        val leftFeedByHour = Array(24) { Duration.ZERO }
+        val rightFeedByHour = Array(24) { Duration.ZERO }
         val diapersByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.DiaperEntry>() }
         val bottleByHour = Array(24) { mutableListOf<com.akocis.babysleeptracker.model.BottleFeedEntry>() }
 
@@ -493,7 +532,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 feedEntries.filter { it.date == date || it.date == date.minusDays(1) }.forEach { entry ->
                     val entryStart = entry.date.atTime(entry.startTime)
                     val overlap = DateTimeUtil.overlapDuration(entryStart, entryStart.plus(entry.duration), bucketStart, bucketEnd)
-                    if (overlap > Duration.ZERO) feedByHour[hour] = feedByHour[hour].plus(overlap)
+                    if (overlap > Duration.ZERO) {
+                        feedByHour[hour] = feedByHour[hour].plus(overlap)
+                        if (entry.side == FeedSide.LEFT) leftFeedByHour[hour] = leftFeedByHour[hour].plus(overlap)
+                        else rightFeedByHour[hour] = rightFeedByHour[hour].plus(overlap)
+                    }
                 }
             }
             date = date.plusDays(1)
@@ -519,6 +562,8 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 pooCount = hDiapers.count { it.type == DiaperType.POO },
                 peepooCount = hDiapers.count { it.type == DiaperType.PEEPOO },
                 totalFeedDuration = feedByHour[hour].dividedBy(divisor),
+                leftFeedDuration = leftFeedByHour[hour].dividedBy(divisor),
+                rightFeedDuration = rightFeedByHour[hour].dividedBy(divisor),
                 donorCount = hBottle.count { it.type == BottleType.DONOR },
                 donorMl = hBottle.filter { it.type == BottleType.DONOR }.sumOf { it.amountMl },
                 formulaCount = hBottle.count { it.type == BottleType.FORMULA },

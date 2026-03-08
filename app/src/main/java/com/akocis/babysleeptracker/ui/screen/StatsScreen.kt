@@ -36,6 +36,8 @@ import com.akocis.babysleeptracker.ui.component.HourlyChart
 import com.akocis.babysleeptracker.ui.component.SleepChart
 import com.akocis.babysleeptracker.ui.component.SleepPieChart
 import com.akocis.babysleeptracker.ui.theme.FeedColor
+import com.akocis.babysleeptracker.ui.theme.FeedLeftColor
+import com.akocis.babysleeptracker.ui.theme.FeedRightColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.StatsViewModel
@@ -247,7 +249,11 @@ fun StatsScreen(
                     barColor = FeedColor,
                     dayStartHour = dayStartHour,
                     dayEndHour = dayEndHour,
-                    highlightHour = currentHour
+                    highlightHour = currentHour,
+                    segments = listOf(
+                        Pair({ it.leftFeedDuration }, FeedLeftColor),
+                        Pair({ it.rightFeedDuration }, FeedRightColor)
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -281,6 +287,12 @@ fun StatsScreen(
                             Text("Sleep: ${DateTimeUtil.formatDuration(stats.totalSleep)} (${stats.sleepCount} naps)")
                             if (stats.feedCount > 0) {
                                 Text("Feed: ${DateTimeUtil.formatDuration(stats.totalFeedDuration)} (${stats.feedCount} sessions)")
+                                if (stats.leftFeedCount > 0) {
+                                    Text("  L: ${DateTimeUtil.formatDuration(stats.leftFeedDuration)} (${stats.leftFeedCount})")
+                                }
+                                if (stats.rightFeedCount > 0) {
+                                    Text("  R: ${DateTimeUtil.formatDuration(stats.rightFeedDuration)} (${stats.rightFeedCount})")
+                                }
                             }
                             if (stats.totalBottleFeeds > 0) {
                                 Text("Bottle: ${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)")
