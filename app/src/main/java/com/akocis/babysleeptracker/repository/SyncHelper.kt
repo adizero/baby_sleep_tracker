@@ -5,6 +5,8 @@ import com.akocis.babysleeptracker.model.TrackingState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 
@@ -22,6 +24,9 @@ object SyncHelper {
 
     private var debounceJob: Job? = null
     private var periodicJob: Job? = null
+
+    private val _syncCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val syncCompleted: SharedFlow<Unit> = _syncCompleted
 
     fun init(scope: CoroutineScope, prefsRepo: PreferencesRepository, fileRepo: FileRepository) {
         this.scope = scope
@@ -93,7 +98,10 @@ object SyncHelper {
                 prefs.saveTrackingState(
                     TrackingState.Sleeping(ongoingSleep.date, ongoingSleep.startTime)
                 )
+            } else {
+                prefs.saveTrackingState(TrackingState.Idle)
             }
+            _syncCompleted.tryEmit(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "sync failed", e)
         } finally {

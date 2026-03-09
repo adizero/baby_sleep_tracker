@@ -91,6 +91,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         loadBottlePreset()
         syncAndRefresh()
         observeNoiseState()
+        observeSyncCompleted()
     }
 
     fun dismissError() {
@@ -704,6 +705,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             action = WhiteNoiseService.ACTION_STOP
         }
         ctx.startService(intent)
+    }
+
+    private fun observeSyncCompleted() {
+        viewModelScope.launch {
+            SyncHelper.syncCompleted.collect {
+                val uri = prefsRepository.fileUri ?: return@collect
+                refreshTodayStatsInternal(uri)
+            }
+        }
     }
 
     private fun observeNoiseState() {
