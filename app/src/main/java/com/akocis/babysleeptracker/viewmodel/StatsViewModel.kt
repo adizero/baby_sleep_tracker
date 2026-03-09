@@ -180,11 +180,15 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dur = entry.duration
                 if (dur > longest) longest = dur
                 if (shortest == null || dur < shortest!!) shortest = dur
-                if (entry.startTime >= dayStart && entry.startTime < dayEnd) {
-                    daySleepDur = daySleepDur.plus(dur)
-                } else {
-                    nightSleepDur = nightSleepDur.plus(dur)
+                // Split duration between day and night using overlap
+                val entryStart = entry.date.atTime(entry.startTime)
+                val entryEnd = entryStart.plus(dur)
+                var dayPortion = Duration.ZERO
+                for (d in listOf(entry.date, entry.date.plusDays(1))) {
+                    dayPortion = dayPortion.plus(DateTimeUtil.overlapDuration(entryStart, entryEnd, d.atTime(dayStart), d.atTime(dayEnd)))
                 }
+                daySleepDur = daySleepDur.plus(dayPortion)
+                nightSleepDur = nightSleepDur.plus(dur.minus(dayPortion))
             }
 
             val periodBottle = recentBottle.filter {
@@ -410,11 +414,15 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
                 val dur = entry.duration
                 if (dur > longest) longest = dur
                 if (shortest == null || dur < shortest!!) shortest = dur
-                if (entry.startTime >= dayStart && entry.startTime < dayEnd) {
-                    daySleepDur = daySleepDur.plus(dur)
-                } else {
-                    nightSleepDur = nightSleepDur.plus(dur)
+                // Split duration between day and night using overlap
+                val entryStart = entry.date.atTime(entry.startTime)
+                val entryEnd = entryStart.plus(dur)
+                var dayPortion = Duration.ZERO
+                for (d in listOf(entry.date, entry.date.plusDays(1))) {
+                    dayPortion = dayPortion.plus(DateTimeUtil.overlapDuration(entryStart, entryEnd, d.atTime(dayStart), d.atTime(dayEnd)))
                 }
+                daySleepDur = daySleepDur.plus(dayPortion)
+                nightSleepDur = nightSleepDur.plus(dur.minus(dayPortion))
             }
 
             val dayBottle = bottleFeedEntries.filter { it.date == date }
