@@ -14,7 +14,7 @@ object SyncHelper {
 
     private const val TAG = "SyncHelper"
     private const val DEBOUNCE_MS = 2000L
-    private const val PERIODIC_INTERVAL_MS = 5 * 60 * 1000L
+    private const val PERIODIC_INTERVAL_MS = 30 * 1000L
 
     private var scope: CoroutineScope? = null
     private var prefsRepo: PreferencesRepository? = null
