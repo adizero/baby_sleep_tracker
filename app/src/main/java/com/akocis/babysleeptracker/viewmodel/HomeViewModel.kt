@@ -56,6 +56,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _undoLabel = MutableStateFlow<String?>(null)
     val undoLabel: StateFlow<String?> = _undoLabel
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
@@ -379,8 +382,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun syncAndRefresh() {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            SyncHelper.pullLatest()
-            refreshTodayStatsInternal(uri)
+            _isRefreshing.value = true
+            try {
+                SyncHelper.pullLatest()
+                refreshTodayStatsInternal(uri)
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 

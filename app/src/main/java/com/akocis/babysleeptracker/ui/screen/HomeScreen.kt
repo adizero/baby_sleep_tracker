@@ -24,6 +24,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -98,6 +99,7 @@ fun HomeScreen(
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val bottlePresetMl by viewModel.bottlePresetMl.collectAsStateWithLifecycle()
     val noiseState by viewModel.noiseState.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -268,10 +270,16 @@ fun HomeScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.syncAndRefresh() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -306,7 +314,7 @@ fun HomeScreen(
                         createFileLauncher.launch(intent)
                     }
                 )
-                return@Scaffold
+                return@Column
             }
 
             // Status banner
@@ -834,6 +842,7 @@ fun HomeScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
         }
     }
 }
