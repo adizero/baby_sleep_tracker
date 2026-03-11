@@ -47,6 +47,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val _showDuration = MutableStateFlow(false)
     val showDuration: StateFlow<Boolean> = _showDuration
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
@@ -69,8 +72,13 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
         _showDuration.value = !_showDuration.value
     }
 
-    fun loadEntries() {
-        val uri = prefsRepository.fileUri ?: return
+    fun syncAndRefresh() {
+        _isRefreshing.value = true
+        loadEntries { _isRefreshing.value = false }
+    }
+
+    fun loadEntries(onComplete: (() -> Unit)? = null) {
+        val uri = prefsRepository.fileUri ?: run { onComplete?.invoke(); return }
         viewModelScope.launch {
             SyncHelper.pullLatest()
             val data = fileRepository.readAll(uri)
@@ -190,6 +198,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             }
 
             _entries.value = items.sortedByDescending { it.sortKey }
+            onComplete?.invoke()
         }
     }
 

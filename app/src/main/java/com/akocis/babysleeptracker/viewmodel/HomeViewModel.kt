@@ -433,13 +433,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val todayBottle = data.bottleFeedEntries.filter { it.date == today }
         val todayActivities = data.activityEntries.filter { it.date == today }
 
+        // Helper: compute actual end DateTime accounting for midnight crossing
+        fun endDateTime(date: LocalDate, startTime: LocalTime, endTime: LocalTime): LocalDateTime {
+            val endDate = if (endTime < startTime) date.plusDays(1) else date
+            return endDate.atTime(endTime)
+        }
+        // Helper: epoch seconds of end time for sorting (adds 86400 if crossed midnight)
+        fun endEpoch(date: LocalDate, startTime: LocalTime, endTime: LocalTime): Long {
+            val extra = if (endTime < startTime) 86400L else 0L
+            return date.toEpochDay() * 86400 + endTime.toSecondOfDay() + extra
+        }
+
         // Find the most recent completed sleep entry (from all entries) for awake timer
         val lastCompletedSleep = data.sleepEntries
             .filter { !it.isOngoing }
-            .maxByOrNull { it.date.toEpochDay() * 86400 + (it.endTime?.toSecondOfDay() ?: 0) }
+            .maxByOrNull { endEpoch(it.date, it.startTime, it.endTime!!) }
         if (lastCompletedSleep?.endTime != null) {
-            lastSleepEndDate = lastCompletedSleep.date
-            lastSleepEndTime = lastCompletedSleep.endTime
+            val endDt = endDateTime(lastCompletedSleep.date, lastCompletedSleep.startTime, lastCompletedSleep.endTime)
+            lastSleepEndDate = endDt.toLocalDate()
+            lastSleepEndTime = endDt.toLocalTime()
         }
 
         // Compute "time since" for feeds, bottle feeds, bath (across all entries)
@@ -448,9 +460,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Last breast feed (skip ongoing, use end time of last completed)
         val lastBreastFeed = data.feedEntries
             .filter { !it.isOngoing }
-            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+            .maxByOrNull { endEpoch(it.date, it.startTime, it.endTime!!) }
         val timeSinceBreastFeed = lastBreastFeed?.let {
-            val feedEnd = it.date.atTime(it.endTime!!)
+            val feedEnd = endDateTime(it.date, it.startTime, it.endTime!!)
             DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
@@ -464,14 +476,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         // Last any feed (breast or bottle, time since end of last completed)
         val lastBreastEndEpoch = lastBreastFeed?.let {
-            it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay()
+            endEpoch(it.date, it.startTime, it.endTime!!)
         } ?: -1L
         val lastBottleEpoch = lastBottle?.let {
             it.date.toEpochDay() * 86400 + it.time.toSecondOfDay()
         } ?: -1L
         val timeSinceAnyFeed = if (lastBreastEndEpoch >= 0 || lastBottleEpoch >= 0) {
             if (lastBreastEndEpoch >= lastBottleEpoch) {
-                val feedEnd = lastBreastFeed!!.date.atTime(lastBreastFeed.endTime!!)
+                val feedEnd = endDateTime(lastBreastFeed!!.date, lastBreastFeed.startTime, lastBreastFeed.endTime!!)
                 DateTimeUtil.formatDurationWithDays(Duration.between(feedEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
             } else {
                 val bottleTime = lastBottle!!.date.atTime(lastBottle.time)
@@ -482,25 +494,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Last sleep (skip ongoing, use end time of last completed)
         val lastSleep = data.sleepEntries
             .filter { !it.isOngoing }
-            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+            .maxByOrNull { endEpoch(it.date, it.startTime, it.endTime!!) }
         val timeSinceSleep = lastSleep?.let {
-            val sleepEnd = it.date.atTime(it.endTime!!)
+            val sleepEnd = endDateTime(it.date, it.startTime, it.endTime!!)
             DateTimeUtil.formatDurationWithDays(Duration.between(sleepEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
         // Last nap (sleep <= 60m)
         val lastNap = data.sleepEntries
             .filter { !it.isOngoing && it.duration.toMinutes() <= 60 }
-            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+            .maxByOrNull { endEpoch(it.date, it.startTime, it.endTime!!) }
         val timeSinceNap = lastNap?.let {
-            val napEnd = it.date.atTime(it.endTime!!)
+            val napEnd = endDateTime(it.date, it.startTime, it.endTime!!)
             DateTimeUtil.formatDurationWithDays(Duration.between(napEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
         // Last slumber (sleep > 60m)
         val lastSlumber = data.sleepEntries
             .filter { !it.isOngoing && it.duration.toMinutes() > 60 }
-            .maxByOrNull { it.date.toEpochDay() * 86400 + it.endTime!!.toSecondOfDay() }
+            .maxByOrNull { endEpoch(it.date, it.startTime, it.endTime!!) }
         val timeSinceSlumber = lastSlumber?.let {
-            val slumberEnd = it.date.atTime(it.endTime!!)
+            val slumberEnd = endDateTime(it.date, it.startTime, it.endTime!!)
             DateTimeUtil.formatDurationWithDays(Duration.between(slumberEnd, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 

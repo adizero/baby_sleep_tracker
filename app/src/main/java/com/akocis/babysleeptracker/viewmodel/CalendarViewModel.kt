@@ -11,6 +11,7 @@ import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -52,8 +53,20 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _selectedDay = MutableStateFlow<CalendarDayData?>(null)
     val selectedDay: StateFlow<CalendarDayData?> = _selectedDay
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     init {
         loadMonth()
+    }
+
+    fun syncAndRefresh() {
+        _isRefreshing.value = true
+        viewModelScope.launch {
+            SyncHelper.pullLatest()
+            loadMonthInternal()
+            _isRefreshing.value = false
+        }
     }
 
     fun setMonth(yearMonth: YearMonth) {
@@ -79,34 +92,33 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadMonth() {
         val uri = prefsRepository.fileUri ?: return
-        viewModelScope.launch {
-            val data = fileRepository.readAll(uri)
-            val month = _currentMonth.value
-            val dataMap = mutableMapOf<LocalDate, CalendarDayData>()
+        viewModelScope.launch { loadMonthInternal() }
+    }
 
-            // Group entries by date for the current month
-            val monthStart = month.atDay(1)
-            val monthEnd = month.atEndOfMonth()
+    private suspend fun loadMonthInternal() {
+        val uri = prefsRepository.fileUri ?: return
+        val data = fileRepository.readAll(uri)
+        val month = _currentMonth.value
+        val dataMap = mutableMapOf<LocalDate, CalendarDayData>()
 
-            for (day in 1..month.lengthOfMonth()) {
-                val date = month.atDay(day)
-                dataMap[date] = CalendarDayData(
-                    date = date,
-                    sleepEntries = data.sleepEntries.filter { it.date == date },
-                    diaperEntries = data.diaperEntries.filter { it.date == date },
-                    activityEntries = data.activityEntries.filter { it.date == date },
-                    feedEntries = data.feedEntries.filter { it.date == date },
-                    bottleFeedEntries = data.bottleFeedEntries.filter { it.date == date }
-                )
-            }
+        for (day in 1..month.lengthOfMonth()) {
+            val date = month.atDay(day)
+            dataMap[date] = CalendarDayData(
+                date = date,
+                sleepEntries = data.sleepEntries.filter { it.date == date },
+                diaperEntries = data.diaperEntries.filter { it.date == date },
+                activityEntries = data.activityEntries.filter { it.date == date },
+                feedEntries = data.feedEntries.filter { it.date == date },
+                bottleFeedEntries = data.bottleFeedEntries.filter { it.date == date }
+            )
+        }
 
-            _calendarData.value = dataMap
+        _calendarData.value = dataMap
 
-            // Update selected day if it's still in this month
-            _selectedDay.value?.let { selected ->
-                if (selected.date.month == month.month && selected.date.year == month.year) {
-                    _selectedDay.value = dataMap[selected.date]
-                }
+        // Update selected day if it's still in this month
+        _selectedDay.value?.let { selected ->
+            if (selected.date.month == month.month && selected.date.year == month.year) {
+                _selectedDay.value = dataMap[selected.date]
             }
         }
     }

@@ -66,6 +66,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val dayStart: LocalTime get() = LocalTime.of(prefsRepository.dayStartHour, 0)
     private val dayEnd: LocalTime get() = LocalTime.of(prefsRepository.dayEndHour, 0)
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     init {
         loadStats()
     }
@@ -76,7 +79,12 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         loadStats()
     }
 
-    fun loadStats() {
+    fun syncAndRefresh() {
+        _isRefreshing.value = true
+        loadStats { _isRefreshing.value = false }
+    }
+
+    fun loadStats(onComplete: (() -> Unit)? = null) {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
             val data = fileRepository.readAll(uri)
@@ -93,6 +101,7 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 loadDayRangeStats(sleepEntries, diaperEntries, feedEntries, bottleFeedEntries, activityEntries, today)
             }
+            onComplete?.invoke()
         }
     }
 

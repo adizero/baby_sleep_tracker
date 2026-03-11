@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +59,7 @@ fun StatsScreen(
     val feedMovingAverage by viewModel.feedMovingAverage.collectAsStateWithLifecycle()
     val isRollingMode by viewModel.isRollingMode.collectAsStateWithLifecycle()
     val hourlyStats by viewModel.hourlyStats.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     val dayStartHour = prefsRepository.dayStartHour
     val dayEndHour = prefsRepository.dayEndHour
@@ -85,10 +87,16 @@ fun StatsScreen(
             )
         }
     ) { padding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.syncAndRefresh() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
             // Range selector
@@ -313,6 +321,7 @@ fun StatsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
         }
     }
 }
