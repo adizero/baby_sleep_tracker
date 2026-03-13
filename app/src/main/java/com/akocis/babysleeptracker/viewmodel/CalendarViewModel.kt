@@ -8,6 +8,7 @@ import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
@@ -25,7 +26,8 @@ data class CalendarDayData(
     val diaperEntries: List<DiaperEntry> = emptyList(),
     val activityEntries: List<ActivityEntry> = emptyList(),
     val feedEntries: List<FeedEntry> = emptyList(),
-    val bottleFeedEntries: List<BottleFeedEntry> = emptyList()
+    val bottleFeedEntries: List<BottleFeedEntry> = emptyList(),
+    val measurementEntries: List<MeasurementEntry> = emptyList()
 ) {
     val totalSleep: Duration
         get() = sleepEntries.fold(Duration.ZERO) { acc, e -> acc.plus(e.duration) }
@@ -36,7 +38,7 @@ data class CalendarDayData(
     val totalBottleMl: Int
         get() = bottleFeedEntries.sumOf { it.amountMl }
     val hasData: Boolean
-        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty() || feedEntries.isNotEmpty() || bottleFeedEntries.isNotEmpty()
+        get() = sleepEntries.isNotEmpty() || diaperEntries.isNotEmpty() || activityEntries.isNotEmpty() || feedEntries.isNotEmpty() || bottleFeedEntries.isNotEmpty() || measurementEntries.isNotEmpty()
 }
 
 class CalendarViewModel(application: Application) : AndroidViewModel(application) {
@@ -55,6 +57,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    val useMetric: Boolean get() = prefsRepository.useMetric
 
     init {
         loadMonth()
@@ -109,7 +113,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 diaperEntries = data.diaperEntries.filter { it.date == date },
                 activityEntries = data.activityEntries.filter { it.date == date },
                 feedEntries = data.feedEntries.filter { it.date == date },
-                bottleFeedEntries = data.bottleFeedEntries.filter { it.date == date }
+                bottleFeedEntries = data.bottleFeedEntries.filter { it.date == date },
+                measurementEntries = data.measurementEntries.filter { it.date == date }
             )
         }
 

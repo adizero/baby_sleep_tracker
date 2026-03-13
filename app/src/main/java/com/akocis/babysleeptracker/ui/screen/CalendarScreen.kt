@@ -50,6 +50,7 @@ import com.akocis.babysleeptracker.ui.theme.FeedColor
 import com.akocis.babysleeptracker.ui.theme.PeeColor
 import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
+import com.akocis.babysleeptracker.ui.theme.MeasureColor
 import com.akocis.babysleeptracker.ui.theme.StrollerColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.CalendarDayData
@@ -69,6 +70,7 @@ fun CalendarScreen(
     val calendarData by viewModel.calendarData.collectAsStateWithLifecycle()
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val useMetric = viewModel.useMetric
 
     Scaffold(
         topBar = {
@@ -190,7 +192,7 @@ fun CalendarScreen(
 
             // Selected day details
             selectedDay?.let { dayData ->
-                DayDetailCard(dayData)
+                DayDetailCard(dayData, useMetric)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -284,6 +286,14 @@ private fun CalendarDayCell(
                                 .background(StrollerColor)
                         )
                     }
+                    if (dayData.measurementEntries.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(MeasureColor)
+                        )
+                    }
                 }
             }
         }
@@ -291,7 +301,7 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun DayDetailCard(dayData: CalendarDayData) {
+private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -390,6 +400,32 @@ private fun DayDetailCard(dayData: CalendarDayData) {
                     val noteText = if (entry.note != null) " - ${entry.note}" else ""
                     Text(
                         text = "  ${entry.time} - ${entry.type.label}$noteText",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (dayData.measurementEntries.isNotEmpty()) {
+                Text(
+                    text = "Measurements",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                dayData.measurementEntries.forEach { entry ->
+                    val parts = mutableListOf<String>()
+                    entry.weightKg?.let {
+                        parts.add(if (useMetric) "${"%.2f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
+                    }
+                    entry.heightCm?.let {
+                        parts.add(if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                    }
+                    entry.headCm?.let {
+                        parts.add("hc " + if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                    }
+                    val timeText = entry.time?.toString()?.let { "$it - " } ?: ""
+                    Text(
+                        text = "  $timeText${parts.joinToString(", ")}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
