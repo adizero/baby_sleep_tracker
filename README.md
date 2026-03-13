@@ -10,6 +10,8 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Activity logging** — Stroll, Bath, and free-text Note events
 - **Manual entry** — add or edit past events with date/time pickers and validation
 - **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes
+- **White noise** — built-in sound generator (white, pink, brown, gray, blue, violet, rain, storm) with volume, duration, and fade controls
+- **Calendar** — monthly overview with color-coded activity dots and daily detail view
 - **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
 - **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
 - **History** — scrollable list of all entries, editable and deletable
