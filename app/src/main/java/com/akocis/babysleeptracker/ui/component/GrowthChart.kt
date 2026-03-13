@@ -28,6 +28,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.data.WhoGrowthData.PercentileRow
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 
 data class MeasurementPoint(
     val monthAge: Double,
@@ -89,10 +93,10 @@ fun GrowthChart(
             )
         }
 
-        val chartHeight = if (isFullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(220.dp)
+        val chartModifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(220.dp)
 
         Canvas(
-            modifier = chartHeight
+            modifier = chartModifier
                 .pointerInput(measurements, scale, offsetX, offsetY) {
                     detectTapGestures(
                         onTap = { offset ->
@@ -120,7 +124,6 @@ fun GrowthChart(
                         },
                         onDoubleTap = {
                             if (scale > 1.01f) {
-                                // Reset zoom
                                 scale = 1f
                                 offsetX = 0f
                                 offsetY = 0f
@@ -133,11 +136,9 @@ fun GrowthChart(
                 .pointerInput(Unit) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         val newScale = (scale * zoom).coerceIn(1f, 5f)
-                        // Adjust offset so zoom centers on the pinch point
                         offsetX = centroid.x - (centroid.x - offsetX) * (newScale / scale) + pan.x
                         offsetY = centroid.y - (centroid.y - offsetY) * (newScale / scale) + pan.y
                         scale = newScale
-                        // Clamp offset
                         val maxOffX = (size.width * (scale - 1))
                         val maxOffY = (size.height * (scale - 1))
                         offsetX = offsetX.coerceIn(-maxOffX, 0f)
@@ -146,9 +147,9 @@ fun GrowthChart(
                 }
         ) {
             val leftPad = 40f
-            val rightPad = 16f
+            val rightPad = if (isFullscreen) 40f else 16f
             val topPad = 12f
-            val bottomPad = 28f
+            val bottomPad = if (isFullscreen) 48f else 28f
             val chartW = size.width - leftPad - rightPad
             val chartH = size.height - topPad - bottomPad
 
@@ -156,35 +157,74 @@ fun GrowthChart(
             fun yFor(value: Double) = ((topPad + (1 - (value - baseMinY) / (baseMaxY - baseMinY)) * chartH) * scale + offsetY).toFloat()
 
             clipRect {
-                // Draw grid lines
-                val ySteps = 5
-                val yRange = baseMaxY - baseMinY
-                val yStep = yRange / ySteps
+                val textScale = scale.coerceAtMost(2f)
                 val textPaint = android.graphics.Paint().apply {
                     color = labelColor.hashCode()
-                    textSize = 22f * scale.coerceAtMost(2f)
-                }
-                for (i in 0..ySteps) {
-                    val v = baseMinY + i * yStep
-                    val y = yFor(v)
-                    drawLine(gridColor, Offset(xFor(0.0), y), Offset(xFor(visibleMonths.toDouble()), y))
-                    drawContext.canvas.nativeCanvas.drawText(
-                        "%.1f".format(v),
-                        2f * scale + offsetX, y + 4f,
-                        textPaint
-                    )
+                    textSize = 22f * textScale
                 }
 
-                // Month grid
-                val monthStep = if (visibleMonths <= 12) 3 else 6
-                for (m in 0..visibleMonths step monthStep) {
-                    val x = xFor(m.toDouble())
-                    drawLine(gridColor, Offset(x, yFor(baseMaxY)), Offset(x, yFor(baseMinY)))
-                    drawContext.canvas.nativeCanvas.drawText(
-                        "${m}m",
-                        x - 8f * scale.coerceAtMost(2f), yFor(baseMinY) + 20f * scale.coerceAtMost(2f),
-                        textPaint
-                    )
+                // Adaptive Y-axis labels based on zoom
+                val yRange = baseMaxY - baseMinY
+                val visibleYRange = yRange / scale
+                val yStepRaw = visibleYRange / 5.0
+                val magnitude = 10.0.pow(floor(log10(yStepRaw)))
+                val normalized = yStepRaw / magnitude
+                val niceStep = when {
+                    normalized <= 1.0 -> 1.0
+                    normalized <= 2.0 -> 2.0
+                    normalized <= 5.0 -> 5.0
+                    else -> 10.0
+                } * magnitude
+
+                val yStart = floor(baseMinY / niceStep) * niceStep
+                val yEnd = ceil(baseMaxY / niceStep) * niceStep
+                var v = yStart
+                while (v <= yEnd) {
+                    val y = yFor(v)
+                    if (y >= -50f && y <= size.height + 50f) {
+                        drawLine(gridColor, Offset(xFor(0.0), y), Offset(xFor(visibleMonths.toDouble()), y))
+                        drawContext.canvas.nativeCanvas.drawText(
+                            "%.1f".format(v),
+                            2f * scale + offsetX, y + 4f,
+                            textPaint
+                        )
+                    }
+                    v += niceStep
+                }
+
+                // Adaptive X-axis labels based on zoom
+                // Determine step: at 1x show 3m or 6m, zoomed in show 1m, further show weeks
+                val visibleMonthRange = visibleMonths.toDouble() / scale
+                val xStepMonths: Double
+                val useWeeks: Boolean
+                when {
+                    visibleMonthRange <= 3.0 -> { xStepMonths = 0.25; useWeeks = true }   // ~1 week
+                    visibleMonthRange <= 6.0 -> { xStepMonths = 0.5; useWeeks = true }     // ~2 weeks
+                    visibleMonthRange <= 12.0 -> { xStepMonths = 1.0; useWeeks = false }
+                    visibleMonthRange <= 18.0 -> { xStepMonths = 2.0; useWeeks = false }
+                    visibleMonthRange <= 24.0 -> { xStepMonths = 3.0; useWeeks = false }
+                    else -> { xStepMonths = 6.0; useWeeks = false }
+                }
+
+                val xLabelY = yFor(baseMinY) + 20f * textScale
+                var m = 0.0
+                while (m <= visibleMonths) {
+                    val x = xFor(m)
+                    if (x >= -50f && x <= size.width + 50f) {
+                        drawLine(gridColor, Offset(x, yFor(baseMaxY)), Offset(x, yFor(baseMinY)))
+                        val label = if (useWeeks) {
+                            val weeks = (m * 30.4375 / 7).toInt()
+                            "${weeks}w"
+                        } else {
+                            "${m.toInt()}m"
+                        }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            label,
+                            x - 8f * textScale, xLabelY,
+                            textPaint
+                        )
+                    }
+                    m += xStepMonths
                 }
 
                 // Draw percentile curves
@@ -199,10 +239,10 @@ fun GrowthChart(
                         if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                     }
                     val strokeW = if (pIdx == 2) 2.5f else 1.5f
-                    val style = if (pIdx == 2) Stroke(width = strokeW * scale.coerceAtMost(2f)) else Stroke(width = strokeW * scale.coerceAtMost(2f), pathEffect = dashEffect)
+                    val style = if (pIdx == 2) Stroke(width = strokeW * textScale)
+                                else Stroke(width = strokeW * textScale, pathEffect = dashEffect)
                     drawPath(path, percentileColors[pIdx], style = style)
 
-                    // Label at right edge
                     val lastRow = visiblePercentiles.last()
                     val labelX = xFor(lastRow.monthAge.toDouble()) + 2f
                     val labelY = yFor(accessor(lastRow))
@@ -211,7 +251,7 @@ fun GrowthChart(
                         labelX, labelY + 4f,
                         android.graphics.Paint().apply {
                             color = percentileColors[pIdx].hashCode()
-                            textSize = 18f * scale.coerceAtMost(2f)
+                            textSize = 18f * textScale
                         }
                     )
                 }
@@ -225,21 +265,20 @@ fun GrowthChart(
                         val y = yFor(point.value)
                         if (i == 0) mPath.moveTo(x, y) else mPath.lineTo(x, y)
                     }
-                    drawPath(mPath, accentColor, style = Stroke(width = 3f * scale.coerceAtMost(2f)))
+                    drawPath(mPath, accentColor, style = Stroke(width = 3f * textScale))
 
                     sorted.forEach { point ->
                         val x = xFor(point.monthAge)
                         val y = yFor(point.value)
-                        val dotSize = 7f * scale.coerceAtMost(2f)
+                        val dotSize = 7f * textScale
                         drawCircle(accentColor, dotSize, Offset(x, y))
                         drawCircle(Color.White, dotSize / 2f, Offset(x, y))
                     }
 
-                    // Highlight selected
                     selectedPoint?.let { point ->
                         val x = xFor(point.monthAge)
                         val y = yFor(point.value)
-                        val dotSize = 11f * scale.coerceAtMost(2f)
+                        val dotSize = 11f * textScale
                         drawCircle(accentColor, dotSize, Offset(x, y))
                         drawCircle(Color.White, dotSize / 2f, Offset(x, y))
                     }

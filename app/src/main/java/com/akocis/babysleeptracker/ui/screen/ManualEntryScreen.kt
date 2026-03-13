@@ -48,6 +48,8 @@ import com.akocis.babysleeptracker.ui.component.WheelPicker
 import com.akocis.babysleeptracker.model.ActivityType
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.ui.component.BigActionButton
@@ -77,6 +79,10 @@ fun ManualEntryScreen(
     val bottleType by viewModel.bottleType.collectAsStateWithLifecycle()
     val bottleAmountMl by viewModel.bottleAmountMl.collectAsStateWithLifecycle()
     val noiseType by viewModel.noiseType.collectAsStateWithLifecycle()
+    val measureWeightText by viewModel.measureWeightText.collectAsStateWithLifecycle()
+    val measureHeightText by viewModel.measureHeightText.collectAsStateWithLifecycle()
+    val measureHeadText by viewModel.measureHeadText.collectAsStateWithLifecycle()
+    val measureIsMetric by viewModel.measureIsMetric.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -129,7 +135,7 @@ fun ManualEntryScreen(
         ) {
             // Entry type toggle (4-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise", EntryKind.MEASURE to "Growth")
                 kinds.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
@@ -149,15 +155,17 @@ fun ManualEntryScreen(
                 Text("Date: ${date.format(DateTimeUtil.DATE_FORMAT)}")
             }
 
-            // Start time / Time
-            OutlinedButton(
-                onClick = { showStartTimePicker = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
-                    else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
-                )
+            // Start time / Time (not for measurements)
+            if (entryKind != EntryKind.MEASURE) {
+                OutlinedButton(
+                    onClick = { showStartTimePicker = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                        else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    )
+                }
             }
 
             // Bottle type and amount (only for bottle entries)
@@ -283,6 +291,46 @@ fun ManualEntryScreen(
                         maxLines = 3
                     )
                 }
+            }
+
+            // Measurement fields (only for measure entries)
+            if (entryKind == EntryKind.MEASURE) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val unitOptions = listOf(true to "Metric", false to "Imperial")
+                    unitOptions.forEachIndexed { index, (metric, label) ->
+                        SegmentedButton(
+                            selected = measureIsMetric == metric,
+                            onClick = { viewModel.setMeasureIsMetric(metric) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = unitOptions.size)
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = measureWeightText,
+                    onValueChange = { viewModel.setMeasureWeightText(it) },
+                    label = { Text(if (measureIsMetric) "Weight (kg)" else "Weight (lbs)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = measureHeightText,
+                    onValueChange = { viewModel.setMeasureHeightText(it) },
+                    label = { Text(if (measureIsMetric) "Length (cm)" else "Length (in)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = measureHeadText,
+                    onValueChange = { viewModel.setMeasureHeadText(it) },
+                    label = { Text(if (measureIsMetric) "Head circ. (cm)" else "Head circ. (in)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -7,6 +7,7 @@ import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.repository.EntryParser
@@ -33,7 +34,8 @@ data class HistoryItem(
     val activityEntry: ActivityEntry? = null,
     val feedEntry: FeedEntry? = null,
     val bottleFeedEntry: BottleFeedEntry? = null,
-    val whiteNoiseEntry: WhiteNoiseEntry? = null
+    val whiteNoiseEntry: WhiteNoiseEntry? = null,
+    val measurementEntry: MeasurementEntry? = null
 )
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
@@ -197,6 +199,33 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
+            val useMetric = prefsRepository.useMetric
+            data.measurementEntries.forEach { entry ->
+                val line = EntryParser.formatMeasurementEntry(entry)
+                val sortKey = entry.date.toEpochDay() * 86400 + 43200L // noon
+                val parts = mutableListOf<String>()
+                entry.weightKg?.let {
+                    parts.add(if (useMetric) "${"%.2f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
+                }
+                entry.heightCm?.let {
+                    parts.add(if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                }
+                entry.headCm?.let {
+                    parts.add("hc " + if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                }
+                items.add(
+                    HistoryItem(
+                        id = nextId++,
+                        displayText = "Measure  ${parts.joinToString("  ")}",
+                        rawLine = line,
+                        sortKey = sortKey,
+                        date = entry.date,
+                        hour = 12,
+                        measurementEntry = entry
+                    )
+                )
+            }
+
             _entries.value = items.sortedByDescending { it.sortKey }
             onComplete?.invoke()
         }
@@ -228,6 +257,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is FeedEntry -> entry.id
                     is BottleFeedEntry -> entry.id
                     is WhiteNoiseEntry -> entry.id
+                    is MeasurementEntry -> entry.id
                     else -> null
                 }
                 if (entryId != null) {
@@ -240,6 +270,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is FeedEntry -> fileRepository.appendFeedEntry(uri, entry)
                     is BottleFeedEntry -> fileRepository.appendBottleFeedEntry(uri, entry)
                     is WhiteNoiseEntry -> fileRepository.appendWhiteNoiseEntry(uri, entry)
+                    is MeasurementEntry -> fileRepository.appendMeasurementEntry(uri, entry)
                 }
                 loadEntries()
                 SyncHelper.notifyDataChanged()
