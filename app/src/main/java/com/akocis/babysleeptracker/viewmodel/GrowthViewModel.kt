@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.akocis.babysleeptracker.model.BabySex
 import com.akocis.babysleeptracker.model.MeasurementEntry
+import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
@@ -57,6 +58,27 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
             fileRepository.appendMeasurementEntry(uri, entry)
+            SyncHelper.notifyDataChanged()
+            loadData()
+        }
+    }
+
+    fun updateMeasurement(old: MeasurementEntry, updated: MeasurementEntry) {
+        val uri = prefsRepository.fileUri ?: return
+        val id = old.id ?: return
+        viewModelScope.launch {
+            val newLine = EntryParser.formatMeasurementEntry(updated.copy(id = id))
+            fileRepository.replaceById(uri, id, newLine)
+            SyncHelper.notifyDataChanged()
+            loadData()
+        }
+    }
+
+    fun deleteMeasurement(entry: MeasurementEntry) {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            val line = EntryParser.formatMeasurementEntry(entry)
+            fileRepository.deleteEntry(uri, line)
             SyncHelper.notifyDataChanged()
             loadData()
         }
