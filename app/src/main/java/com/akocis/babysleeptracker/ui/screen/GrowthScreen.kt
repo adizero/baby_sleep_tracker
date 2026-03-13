@@ -56,9 +56,12 @@ import com.akocis.babysleeptracker.data.WhoGrowthData
 import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.ui.component.GrowthChart
 import com.akocis.babysleeptracker.ui.component.MeasurementPoint
+import com.akocis.babysleeptracker.ui.component.TimePickerDialog
+import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.GrowthViewModel
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -408,7 +411,9 @@ private fun MeasurementDialog(
     val isEdit = existing != null
     var isMetric by remember { mutableStateOf(useMetric) }
     var date by remember { mutableStateOf(existing?.date ?: LocalDate.now()) }
+    var time by remember { mutableStateOf(existing?.time ?: java.time.LocalTime.now().withSecond(0).withNano(0)) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     // Initialize text fields: convert from metric storage to display units
     var weightText by remember {
@@ -476,6 +481,19 @@ private fun MeasurementDialog(
         return
     }
 
+    if (showTimePicker) {
+        TimePickerDialog(
+            title = "Time",
+            initialTime = time,
+            onConfirm = {
+                time = it
+                showTimePicker = false
+            },
+            onDismiss = { showTimePicker = false }
+        )
+        return
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -507,6 +525,19 @@ private fun MeasurementDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showDatePicker = true },
+                    enabled = false,
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                // Time selector
+                OutlinedTextField(
+                    value = time.format(DateTimeUtil.TIME_FORMAT),
+                    onValueChange = {},
+                    label = { Text("Time") },
+                    readOnly = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showTimePicker = true },
                     enabled = false,
                     singleLine = true
                 )
@@ -571,7 +602,7 @@ private fun MeasurementDialog(
                     val weightKg = w?.let { if (isMetric) it else it / 2.20462 }
                     val heightCm = h?.let { if (isMetric) it else it * 2.54 }
                     val headCm = c?.let { if (isMetric) it else it * 2.54 }
-                    onConfirm(MeasurementEntry(date, weightKg, heightCm, headCm, existing?.id))
+                    onConfirm(MeasurementEntry(date, weightKg, heightCm, headCm, existing?.id, time))
                 }
             ) { Text("Save") }
         },

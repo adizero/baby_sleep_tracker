@@ -155,17 +155,15 @@ fun ManualEntryScreen(
                 Text("Date: ${date.format(DateTimeUtil.DATE_FORMAT)}")
             }
 
-            // Start time / Time (not for measurements)
-            if (entryKind != EntryKind.MEASURE) {
-                OutlinedButton(
-                    onClick = { showStartTimePicker = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
-                        else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
-                    )
-                }
+            // Start time / Time
+            OutlinedButton(
+                onClick = { showStartTimePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                )
             }
 
             // Bottle type and amount (only for bottle entries)

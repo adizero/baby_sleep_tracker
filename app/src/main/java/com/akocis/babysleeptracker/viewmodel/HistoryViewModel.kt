@@ -202,7 +202,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             val useMetric = prefsRepository.useMetric
             data.measurementEntries.forEach { entry ->
                 val line = EntryParser.formatMeasurementEntry(entry)
-                val sortKey = entry.date.toEpochDay() * 86400 + 43200L // noon
+                val timeSeconds = entry.time?.toSecondOfDay()?.toLong() ?: 43200L
+                val sortKey = entry.date.toEpochDay() * 86400 + timeSeconds
+                val timeText = entry.time?.format(TIME_FMT)?.let { "$it  " } ?: ""
                 val parts = mutableListOf<String>()
                 entry.weightKg?.let {
                     parts.add(if (useMetric) "${"%.2f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
@@ -216,11 +218,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "Measure  ${parts.joinToString("  ")}",
+                        displayText = "Measure  $timeText${parts.joinToString("  ")}",
                         rawLine = line,
                         sortKey = sortKey,
                         date = entry.date,
-                        hour = 12,
+                        hour = entry.time?.hour ?: 12,
                         measurementEntry = entry
                     )
                 )

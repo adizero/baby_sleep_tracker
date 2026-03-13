@@ -1,8 +1,12 @@
 package com.akocis.babysleeptracker.ui.component
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,9 +29,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.akocis.babysleeptracker.data.WhoGrowthData.PercentileRow
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
@@ -133,16 +139,44 @@ fun GrowthChart(
                         }
                     )
                 }
-                .pointerInput(Unit) {
-                    detectTransformGestures { centroid, pan, zoom, _ ->
-                        val newScale = (scale * zoom).coerceIn(1f, 5f)
-                        offsetX = centroid.x - (centroid.x - offsetX) * (newScale / scale) + pan.x
-                        offsetY = centroid.y - (centroid.y - offsetY) * (newScale / scale) + pan.y
-                        scale = newScale
-                        val maxOffX = (size.width * (scale - 1))
-                        val maxOffY = (size.height * (scale - 1))
-                        offsetX = offsetX.coerceIn(-maxOffX, 0f)
-                        offsetY = offsetY.coerceIn(-maxOffY, 0f)
+                .pointerInput(scale) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var isZoomed = scale > 1.01f
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val pointers = event.changes
+
+                            if (pointers.size >= 2) {
+                                // Multi-finger: always handle zoom/pan
+                                val zoom = event.calculateZoom()
+                                val pan = event.calculatePan()
+                                val centroid = event.calculateCentroid()
+
+                                val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                offsetX = centroid.x - (centroid.x - offsetX) * (newScale / scale) + pan.x
+                                offsetY = centroid.y - (centroid.y - offsetY) * (newScale / scale) + pan.y
+                                scale = newScale
+                                val maxOffX = (size.width * (scale - 1))
+                                val maxOffY = (size.height * (scale - 1))
+                                offsetX = offsetX.coerceIn(-maxOffX, 0f)
+                                offsetY = offsetY.coerceIn(-maxOffY, 0f)
+
+                                pointers.forEach { it.consume() }
+                                isZoomed = scale > 1.01f
+                            } else if (pointers.size == 1 && isZoomed) {
+                                // Single finger pan only when zoomed
+                                val change = pointers[0]
+                                if (change.positionChanged()) {
+                                    val pan = change.position - change.previousPosition
+                                    offsetX = (offsetX + pan.x).coerceIn(-(size.width * (scale - 1)), 0f)
+                                    offsetY = (offsetY + pan.y).coerceIn(-(size.height * (scale - 1)), 0f)
+                                    change.consume()
+                                }
+                            }
+                            // Single finger when NOT zoomed: don't consume, let parent scroll
+                        } while (pointers.any { it.pressed })
                     }
                 }
         ) {
@@ -193,20 +227,20 @@ fun GrowthChart(
                 }
 
                 // Adaptive X-axis labels based on zoom
-                // Determine step: at 1x show 3m or 6m, zoomed in show 1m, further show weeks
                 val visibleMonthRange = visibleMonths.toDouble() / scale
                 val xStepMonths: Double
                 val useWeeks: Boolean
                 when {
-                    visibleMonthRange <= 3.0 -> { xStepMonths = 0.25; useWeeks = true }   // ~1 week
-                    visibleMonthRange <= 6.0 -> { xStepMonths = 0.5; useWeeks = true }     // ~2 weeks
+                    visibleMonthRange <= 3.0 -> { xStepMonths = 0.25; useWeeks = true }
+                    visibleMonthRange <= 6.0 -> { xStepMonths = 0.5; useWeeks = true }
                     visibleMonthRange <= 12.0 -> { xStepMonths = 1.0; useWeeks = false }
                     visibleMonthRange <= 18.0 -> { xStepMonths = 2.0; useWeeks = false }
                     visibleMonthRange <= 24.0 -> { xStepMonths = 3.0; useWeeks = false }
                     else -> { xStepMonths = 6.0; useWeeks = false }
                 }
 
-                val xLabelY = yFor(baseMinY) + 20f * textScale
+                // X-axis labels at fixed position below chart, not affected by zoom offset
+                val xLabelY = size.height - bottomPad + 20f
                 var m = 0.0
                 while (m <= visibleMonths) {
                     val x = xFor(m)

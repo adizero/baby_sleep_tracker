@@ -53,7 +53,7 @@ object EntryParser {
         """^BABY\s+(.+?)\s+(\d{4}-\d{2}-\d{2})(?:\s+(BOY|GIRL))?$"""
     )
     private val MEASURE_REGEX = Regex(
-        """^MEASURE\s+(\d{4}-\d{2}-\d{2})(?:\s+w([\d.]+))?(?:\s+h([\d.]+))?(?:\s+c([\d.]+))?$"""
+        """^MEASURE\s+(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?(?:\s+w([\d.]+))?(?:\s+h([\d.]+))?(?:\s+c([\d.]+))?$"""
     )
     private val FEED_REGEX = Regex(
         """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
@@ -174,10 +174,13 @@ object EntryParser {
 
         MEASURE_REGEX.matchEntire(content)?.let { match ->
             val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
-            val weight = match.groupValues[2].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
-            val height = match.groupValues[3].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
-            val head = match.groupValues[4].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
-            return MeasurementEntry(date, weight, height, head, id)
+            val time = match.groupValues[2].takeIf { it.isNotEmpty() }?.let {
+                LocalTime.parse(it, DateTimeUtil.TIME_FORMAT)
+            }
+            val weight = match.groupValues[3].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            val height = match.groupValues[4].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            val head = match.groupValues[5].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            return MeasurementEntry(date, weight, height, head, id, time)
         }
 
         return null
@@ -321,6 +324,7 @@ object EntryParser {
     fun formatMeasurementEntry(entry: MeasurementEntry): String {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val parts = mutableListOf("MEASURE", date)
+        entry.time?.let { parts.add(it.format(DateTimeUtil.TIME_FORMAT)) }
         entry.weightKg?.let { parts.add("w${"%.2f".format(it)}") }
         entry.heightCm?.let { parts.add("h${"%.1f".format(it)}") }
         entry.headCm?.let { parts.add("c${"%.1f".format(it)}") }

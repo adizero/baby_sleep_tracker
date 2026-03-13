@@ -173,6 +173,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
             is MeasurementEntry -> {
                 _entryKind.value = EntryKind.MEASURE
                 _date.value = entry.date
+                _startTime.value = entry.time ?: LocalTime.now()
                 val useMetric = prefsRepository.useMetric
                 _measureIsMetric.value = useMetric
                 _measureWeightText.value = entry.weightKg?.let {
@@ -262,7 +263,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                         val heightCm = h?.let { if (isMetric) it else it * 2.54 }
                         val headCm = c?.let { if (isMetric) it else it * 2.54 }
                         EntryParser.formatMeasurementEntry(
-                            MeasurementEntry(_date.value, weightKg, heightCm, headCm)
+                            MeasurementEntry(_date.value, weightKg, heightCm, headCm, time = _startTime.value)
                         )
                     }
                 }
@@ -323,7 +324,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             val headCm = c?.let { if (isMetric) it else it * 2.54 }
                             fileRepository.appendMeasurementEntry(
                                 uri,
-                                MeasurementEntry(_date.value, weightKg, heightCm, headCm)
+                                MeasurementEntry(_date.value, weightKg, heightCm, headCm, time = _startTime.value)
                             )
                         }
                     }
