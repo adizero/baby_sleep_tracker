@@ -63,11 +63,15 @@ class FileRepository(private val context: Context) {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
                 val lines = content.lines().toMutableList()
-                val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
-                val newLine = EntryParser.formatBabyInfo(name, birthDate, sex)
+                val babyLineIndex = lines.indexOfFirst {
+                    EntryParser.stripId(it.trim()).startsWith("BABY ")
+                }
                 if (babyLineIndex >= 0) {
+                    val existingId = EntryParser.extractId(lines[babyLineIndex])
+                    val newLine = EntryParser.formatBabyInfo(name, birthDate, sex, existingId)
                     lines[babyLineIndex] = newLine
                 } else {
+                    val newLine = EntryParser.formatBabyInfo(name, birthDate, sex)
                     lines.add(0, newLine)
                 }
                 writeContent(uri, lines.joinToString("\n"))

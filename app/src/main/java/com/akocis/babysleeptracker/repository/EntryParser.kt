@@ -188,7 +188,7 @@ object EntryParser {
 
     fun parseBabyInfo(content: String): Pair<String?, LocalDate?> {
         content.lines().forEach { line ->
-            BABY_REGEX.matchEntire(line.trim())?.let { match ->
+            BABY_REGEX.matchEntire(stripId(line.trim()))?.let { match ->
                 val name = match.groupValues[1]
                 val date = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
                 return name to date
@@ -316,9 +316,11 @@ object EntryParser {
         return if (entry.id != null) "#${entry.id} $body" else body
     }
 
-    fun formatBabyInfo(name: String, birthDate: LocalDate, sex: BabySex? = null): String {
+    fun formatBabyInfo(name: String, birthDate: LocalDate, sex: BabySex? = null, id: String? = null): String {
         val base = "BABY $name ${birthDate.format(DateTimeUtil.DATE_FORMAT)}"
-        return if (sex != null) "$base ${sex.name}" else base
+        val body = if (sex != null) "$base ${sex.name}" else base
+        val entryId = id ?: generateId()
+        return "#$entryId $body"
     }
 
     fun formatMeasurementEntry(entry: MeasurementEntry): String {

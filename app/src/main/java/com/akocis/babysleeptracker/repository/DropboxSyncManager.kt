@@ -34,7 +34,7 @@ class DropboxSyncManager {
         private val COMPLETED_FEED_REGEX = Regex(
             """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
-        private val BABY_REGEX = Regex("""^BABY\s+.+""")
+        private val BABY_REGEX = Regex("""^(?:#[0-9a-f]{8}\s+)?BABY\s+.+""")
         private val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
         private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
     }
