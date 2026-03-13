@@ -58,19 +58,29 @@ class FileRepository(private val context: Context) {
         appendLine(uri, EntryParser.formatWhiteNoiseEntry(withId))
     }
 
-    suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate) {
+    suspend fun saveBabyInfo(uri: Uri, name: String, birthDate: LocalDate, sex: com.akocis.babysleeptracker.model.BabySex? = null) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
                 val lines = content.lines().toMutableList()
                 val babyLineIndex = lines.indexOfFirst { it.trim().startsWith("BABY ") }
-                val newLine = EntryParser.formatBabyInfo(name, birthDate)
+                val newLine = EntryParser.formatBabyInfo(name, birthDate, sex)
                 if (babyLineIndex >= 0) {
                     lines[babyLineIndex] = newLine
                 } else {
                     lines.add(0, newLine)
                 }
                 writeContent(uri, lines.joinToString("\n"))
+            }
+        }
+    }
+
+    suspend fun appendMeasurementEntry(uri: Uri, entry: com.akocis.babysleeptracker.model.MeasurementEntry) {
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val content = readContent(uri)
+                val newLine = EntryParser.formatMeasurementEntry(entry)
+                writeContent(uri, if (content.endsWith("\n") || content.isEmpty()) "$content$newLine\n" else "$content\n$newLine\n")
             }
         }
     }

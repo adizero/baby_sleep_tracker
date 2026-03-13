@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -87,7 +88,8 @@ fun HomeScreen(
     onNavigateToStats: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToCalendar: () -> Unit = {}
+    onNavigateToCalendar: () -> Unit = {},
+    onNavigateToGrowth: () -> Unit = {}
 ) {
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
     val elapsedTime by viewModel.elapsedTime.collectAsStateWithLifecycle()
@@ -255,6 +257,9 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onNavigateToCalendar) {
                         Icon(Icons.Default.CalendarMonth, "Calendar", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    IconButton(onClick = onNavigateToGrowth) {
+                        Icon(Icons.AutoMirrored.Filled.ShowChart, "Growth", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     IconButton(onClick = onNavigateToStats) {
                         Icon(Icons.Default.BarChart, "Stats", tint = MaterialTheme.colorScheme.onPrimary)

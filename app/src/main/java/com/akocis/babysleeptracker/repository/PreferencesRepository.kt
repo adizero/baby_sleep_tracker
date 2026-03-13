@@ -33,6 +33,8 @@ class PreferencesRepository(context: Context) {
         private const val KEY_NOISE_VOLUME = "noise_volume"
         private const val KEY_NOISE_FADE_IN = "noise_fade_in"
         private const val KEY_NOISE_FADE_OUT = "noise_fade_out"
+        private const val KEY_BABY_SEX = "baby_sex"
+        private const val KEY_USE_METRIC = "use_metric"
     }
 
     var fileUri: Uri?
@@ -54,6 +56,14 @@ class PreferencesRepository(context: Context) {
     var babyBirthDate: LocalDate?
         get() = prefs.getString(KEY_BABY_BIRTH_DATE, null)?.let { LocalDate.parse(it) }
         set(value) = prefs.edit().putString(KEY_BABY_BIRTH_DATE, value?.toString()).apply()
+
+    var babySex: String?
+        get() = prefs.getString(KEY_BABY_SEX, null)
+        set(value) = prefs.edit().putString(KEY_BABY_SEX, value).apply()
+
+    var useMetric: Boolean
+        get() = prefs.getBoolean(KEY_USE_METRIC, true)
+        set(value) = prefs.edit().putBoolean(KEY_USE_METRIC, value).apply()
 
     fun saveTrackingState(state: TrackingState) {
         when (state) {

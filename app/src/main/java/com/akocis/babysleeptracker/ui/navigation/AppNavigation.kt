@@ -20,8 +20,10 @@ import com.akocis.babysleeptracker.ui.screen.HomeScreen
 import com.akocis.babysleeptracker.ui.screen.ManualEntryScreen
 import com.akocis.babysleeptracker.ui.screen.SettingsScreen
 import com.akocis.babysleeptracker.ui.screen.StatsScreen
+import com.akocis.babysleeptracker.ui.screen.GrowthScreen
 import com.akocis.babysleeptracker.ui.screen.SyncScreen
 import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
+import com.akocis.babysleeptracker.viewmodel.GrowthViewModel
 import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import com.akocis.babysleeptracker.viewmodel.ManualEntryViewModel
@@ -37,6 +39,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val CALENDAR = "calendar"
     const val SYNC = "sync"
+    const val GROWTH = "growth"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -69,7 +72,8 @@ fun AppNavigation(
                 onNavigateToStats = { navController.navigate(Routes.STATS) },
                 onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
-                onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) }
+                onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) },
+                onNavigateToGrowth = { navController.navigate(Routes.GROWTH) }
             )
         }
         composable(Routes.MANUAL_ENTRY) {
@@ -141,6 +145,13 @@ fun AppNavigation(
         composable(Routes.CALENDAR) {
             val viewModel: CalendarViewModel = viewModel()
             CalendarScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.GROWTH) {
+            val viewModel: GrowthViewModel = viewModel()
+            GrowthScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )

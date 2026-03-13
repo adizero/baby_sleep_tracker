@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.OpenableColumns
+import com.akocis.babysleeptracker.model.BabySex
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
@@ -69,6 +70,8 @@ fun SettingsScreen(
     var themeMode by remember { mutableStateOf(prefsRepository.themeMode) }
     var babyName by remember { mutableStateOf(prefsRepository.babyName ?: "") }
     var babyBirthDate by remember { mutableStateOf(prefsRepository.babyBirthDate) }
+    var babySex by remember { mutableStateOf(prefsRepository.babySex?.let { BabySex.fromString(it) }) }
+    var useMetric by remember { mutableStateOf(prefsRepository.useMetric) }
     var showBirthDatePicker by remember { mutableStateOf(false) }
     var dayStartHour by remember { mutableStateOf(prefsRepository.dayStartHour) }
     var dayEndHour by remember { mutableStateOf(prefsRepository.dayEndHour) }
@@ -126,7 +129,7 @@ fun SettingsScreen(
                             if (uri != null && babyName.isNotBlank()) {
                                 scope.launch {
                                     try {
-                                        fileRepository.saveBabyInfo(uri, babyName, selected)
+                                        fileRepository.saveBabyInfo(uri, babyName, selected, babySex)
                                     } catch (_: Exception) {
                                         // File write may fail
                                     }
@@ -206,6 +209,22 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val sexOptions = listOf(null to "Not set", BabySex.BOY to "Boy", BabySex.GIRL to "Girl")
+                        sexOptions.forEachIndexed { index, (sex, label) ->
+                            SegmentedButton(
+                                selected = babySex == sex,
+                                onClick = {
+                                    babySex = sex
+                                    prefsRepository.babySex = sex?.name
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = sexOptions.size)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = {
                             if (babyName.isNotBlank()) {
@@ -215,7 +234,7 @@ fun SettingsScreen(
                                 if (uri != null && bd != null) {
                                     scope.launch {
                                         try {
-                                            fileRepository.saveBabyInfo(uri, babyName, bd)
+                                            fileRepository.saveBabyInfo(uri, babyName, bd, babySex)
                                             snackbarHostState.showSnackbar("Baby info saved")
                                         } catch (_: Exception) {
                                             snackbarHostState.showSnackbar("Failed to save to file")
@@ -404,6 +423,45 @@ fun SettingsScreen(
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Units
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Units",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val unitOptions = listOf(true to "Metric", false to "Imperial")
+                        unitOptions.forEachIndexed { index, (metric, label) ->
+                            SegmentedButton(
+                                selected = useMetric == metric,
+                                onClick = {
+                                    useMetric = metric
+                                    prefsRepository.useMetric = metric
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = unitOptions.size)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                    Text(
+                        text = if (useMetric) "kg, cm" else "lbs, in",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 

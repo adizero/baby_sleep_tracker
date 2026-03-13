@@ -632,6 +632,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _babyAge.value = formatAge(data.babyBirthDate)
             prefsRepository.babyBirthDate = data.babyBirthDate
         }
+        if (data.babySex != null) {
+            prefsRepository.babySex = data.babySex.name
+        }
     }
 
     fun onFileSelected(uri: Uri) {

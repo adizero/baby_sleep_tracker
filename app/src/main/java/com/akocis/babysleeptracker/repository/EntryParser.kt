@@ -2,12 +2,14 @@ package com.akocis.babysleeptracker.repository
 
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BabySex
 import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.WhiteNoiseEntry
@@ -23,8 +25,10 @@ data class ParsedData(
     val feedEntries: List<FeedEntry> = emptyList(),
     val bottleFeedEntries: List<BottleFeedEntry> = emptyList(),
     val whiteNoiseEntries: List<WhiteNoiseEntry> = emptyList(),
+    val measurementEntries: List<MeasurementEntry> = emptyList(),
     val babyName: String? = null,
     val babyBirthDate: LocalDate? = null,
+    val babySex: BabySex? = null,
     val deletedIds: Set<String> = emptySet()
 )
 
@@ -46,7 +50,10 @@ object EntryParser {
         """^NOTE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(.+)$"""
     )
     private val BABY_REGEX = Regex(
-        """^BABY\s+(.+?)\s+(\d{4}-\d{2}-\d{2})$"""
+        """^BABY\s+(.+?)\s+(\d{4}-\d{2}-\d{2})(?:\s+(BOY|GIRL))?$"""
+    )
+    private val MEASURE_REGEX = Regex(
+        """^MEASURE\s+(\d{4}-\d{2}-\d{2})(?:\s+w([\d.]+))?(?:\s+h([\d.]+))?(?:\s+c([\d.]+))?$"""
     )
     private val FEED_REGEX = Regex(
         """^(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
@@ -165,6 +172,14 @@ object EntryParser {
             return WhiteNoiseEntry(noiseType, date, start, null, id)
         }
 
+        MEASURE_REGEX.matchEntire(content)?.let { match ->
+            val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
+            val weight = match.groupValues[2].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            val height = match.groupValues[3].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            val head = match.groupValues[4].takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+            return MeasurementEntry(date, weight, height, head, id)
+        }
+
         return null
     }
 
@@ -186,9 +201,11 @@ object EntryParser {
         val feedEntries = mutableListOf<FeedEntry>()
         val bottleFeedEntries = mutableListOf<BottleFeedEntry>()
         val whiteNoiseEntries = mutableListOf<WhiteNoiseEntry>()
+        val measurementEntries = mutableListOf<MeasurementEntry>()
         val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
         var babyBirthDate: LocalDate? = null
+        var babySex: BabySex? = null
 
         content.lines().forEach { line ->
             val trimmed = line.trim()
@@ -202,6 +219,9 @@ object EntryParser {
             BABY_REGEX.matchEntire(stripId(trimmed))?.let { match ->
                 babyName = match.groupValues[1]
                 babyBirthDate = LocalDate.parse(match.groupValues[2], DateTimeUtil.DATE_FORMAT)
+                if (match.groupValues[3].isNotEmpty()) {
+                    babySex = BabySex.fromString(match.groupValues[3])
+                }
                 return@forEach
             }
             when (val entry = parseLine(line)) {
@@ -211,6 +231,7 @@ object EntryParser {
                 is FeedEntry -> feedEntries.add(entry)
                 is BottleFeedEntry -> bottleFeedEntries.add(entry)
                 is WhiteNoiseEntry -> whiteNoiseEntries.add(entry)
+                is MeasurementEntry -> measurementEntries.add(entry)
             }
         }
 
@@ -222,8 +243,10 @@ object EntryParser {
             feedEntries = feedEntries.filter { it.id == null || it.id !in deletedIds },
             bottleFeedEntries = bottleFeedEntries.filter { it.id == null || it.id !in deletedIds },
             whiteNoiseEntries = whiteNoiseEntries.filter { it.id == null || it.id !in deletedIds },
+            measurementEntries = measurementEntries.filter { it.id == null || it.id !in deletedIds },
             babyName = babyName,
             babyBirthDate = babyBirthDate,
+            babySex = babySex,
             deletedIds = deletedIds
         )
     }
@@ -290,7 +313,19 @@ object EntryParser {
         return if (entry.id != null) "#${entry.id} $body" else body
     }
 
-    fun formatBabyInfo(name: String, birthDate: LocalDate): String {
-        return "BABY $name ${birthDate.format(DateTimeUtil.DATE_FORMAT)}"
+    fun formatBabyInfo(name: String, birthDate: LocalDate, sex: BabySex? = null): String {
+        val base = "BABY $name ${birthDate.format(DateTimeUtil.DATE_FORMAT)}"
+        return if (sex != null) "$base ${sex.name}" else base
+    }
+
+    fun formatMeasurementEntry(entry: MeasurementEntry): String {
+        val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
+        val parts = mutableListOf("MEASURE", date)
+        entry.weightKg?.let { parts.add("w${"%.2f".format(it)}") }
+        entry.heightCm?.let { parts.add("h${"%.1f".format(it)}") }
+        entry.headCm?.let { parts.add("c${"%.1f".format(it)}") }
+        val body = parts.joinToString(" ")
+        val id = entry.id ?: generateId()
+        return "#$id $body"
     }
 }
