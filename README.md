@@ -61,4 +61,4 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## License
 
-Copyright 2026 Adrian Kocis. All rights reserved.
+Copyright (c) 2026 Adrian Kocis. Licensed under the [MIT License](LICENSE).
