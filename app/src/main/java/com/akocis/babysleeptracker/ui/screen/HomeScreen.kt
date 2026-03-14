@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Icon
@@ -702,10 +703,26 @@ fun HomeScreen(
                             }
                             // Measurement rows
                             if (stats.lastWeightText != null || stats.lastHeightText != null || stats.lastHeadText != null) {
-                                Text(
-                                    "Measure",
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
                                 )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Measure",
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    stats.timeSinceLastMeasure?.let {
+                                        Text(
+                                            "$it ago",
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
                                 stats.lastWeightText?.let { wt ->
                                     Row(
                                         modifier = Modifier

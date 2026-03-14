@@ -612,6 +612,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 if (pct.isNotEmpty()) "$valText ($pct)" else valText
             } else valText
         }
+        val timeSinceMeasure = latestMeasurement?.let {
+            val measureTime = it.date.atTime(it.time ?: java.time.LocalTime.NOON)
+            DateTimeUtil.formatDurationWithDays(Duration.between(measureTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
+        }
 
         _todayStats.value = DayStats(
             date = today,
@@ -647,7 +651,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             timeSinceLastSlumber = timeSinceSlumber,
             lastWeightText = lastWeightText,
             lastHeightText = lastHeightText,
-            lastHeadText = lastHeadText
+            lastHeadText = lastHeadText,
+            timeSinceLastMeasure = timeSinceMeasure
         )
 
         // Auto-resolve bottle preset from history if unset
