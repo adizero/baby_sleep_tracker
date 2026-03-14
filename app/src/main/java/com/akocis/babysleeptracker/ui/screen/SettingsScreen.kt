@@ -70,8 +70,22 @@ fun SettingsScreen(
     var themeMode by remember { mutableStateOf(prefsRepository.themeMode) }
     var babyName by remember { mutableStateOf(prefsRepository.babyName ?: "") }
     var babyBirthDate by remember { mutableStateOf(prefsRepository.babyBirthDate) }
-    var babySex by remember { mutableStateOf(prefsRepository.babySex?.let { BabySex.fromString(it) }) }
+    var babySex by remember { mutableStateOf(prefsRepository.babySex?.let { BabySex.fromString(it) } ?: BabySex.BOY) }
     var useMetric by remember { mutableStateOf(prefsRepository.useMetric) }
+
+    // Auto-save baby info to file whenever name, birth date, or sex change
+    fun autoSaveBabyInfo() {
+        val uri = prefsRepository.fileUri ?: return
+        val name = babyName.takeIf { it.isNotBlank() } ?: return
+        val bd = babyBirthDate ?: return
+        prefsRepository.babyName = name
+        prefsRepository.babySex = babySex.name
+        scope.launch {
+            try {
+                fileRepository.saveBabyInfo(uri, name, bd, babySex)
+            } catch (_: Exception) {}
+        }
+    }
     var showBirthDatePicker by remember { mutableStateOf(false) }
     var dayStartHour by remember { mutableStateOf(prefsRepository.dayStartHour) }
     var dayEndHour by remember { mutableStateOf(prefsRepository.dayEndHour) }
@@ -124,17 +138,7 @@ fun SettingsScreen(
                                 .toLocalDate()
                             babyBirthDate = selected
                             prefsRepository.babyBirthDate = selected
-                            // Save to file too
-                            val uri = prefsRepository.fileUri
-                            if (uri != null && babyName.isNotBlank()) {
-                                scope.launch {
-                                    try {
-                                        fileRepository.saveBabyInfo(uri, babyName, selected, babySex)
-                                    } catch (_: Exception) {
-                                        // File write may fail
-                                    }
-                                }
-                            }
+                            autoSaveBabyInfo()
                         }
                         showBirthDatePicker = false
                     }
@@ -191,7 +195,11 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = babyName,
-                        onValueChange = { babyName = it },
+                        onValueChange = {
+                            babyName = it
+                            prefsRepository.babyName = it
+                            autoSaveBabyInfo()
+                        },
                         label = { Text("Baby Name") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
@@ -210,54 +218,20 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        val sexOptions = listOf(null to "Not set", BabySex.BOY to "Boy", BabySex.GIRL to "Girl")
+                        val sexOptions = listOf(BabySex.BOY to "Boy", BabySex.GIRL to "Girl")
                         sexOptions.forEachIndexed { index, (sex, label) ->
                             SegmentedButton(
                                 selected = babySex == sex,
                                 onClick = {
                                     babySex = sex
-                                    prefsRepository.babySex = sex?.name
+                                    prefsRepository.babySex = sex.name
+                                    autoSaveBabyInfo()
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index = index, count = sexOptions.size)
                             ) {
                                 Text(label)
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = {
-                            if (babyName.isNotBlank()) {
-                                prefsRepository.babyName = babyName
-                                val uri = prefsRepository.fileUri
-                                val bd = babyBirthDate
-                                if (uri != null && bd != null) {
-                                    scope.launch {
-                                        try {
-                                            fileRepository.saveBabyInfo(uri, babyName, bd, babySex)
-                                            snackbarHostState.showSnackbar("Baby info saved")
-                                        } catch (_: Exception) {
-                                            snackbarHostState.showSnackbar("Failed to save to file")
-                                        }
-                                    }
-                                } else if (bd == null) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Please set a birth date first")
-                                    }
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Name saved to preferences")
-                                    }
-                                }
-                            } else {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Please enter a name")
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Save Baby Info")
                     }
                 }
             }

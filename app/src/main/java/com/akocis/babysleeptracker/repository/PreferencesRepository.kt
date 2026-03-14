@@ -58,7 +58,7 @@ class PreferencesRepository(context: Context) {
         set(value) = prefs.edit().putString(KEY_BABY_BIRTH_DATE, value?.toString()).apply()
 
     var babySex: String?
-        get() = prefs.getString(KEY_BABY_SEX, null)
+        get() = prefs.getString(KEY_BABY_SEX, "BOY")
         set(value) = prefs.edit().putString(KEY_BABY_SEX, value).apply()
 
     var useMetric: Boolean

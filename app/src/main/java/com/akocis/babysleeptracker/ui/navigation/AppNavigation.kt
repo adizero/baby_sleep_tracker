@@ -40,6 +40,7 @@ object Routes {
     const val CALENDAR = "calendar"
     const val SYNC = "sync"
     const val GROWTH = "growth"
+    const val MANUAL_ENTRY_MEASURE = "manual_entry_measure"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -78,6 +79,16 @@ fun AppNavigation(
         }
         composable(Routes.MANUAL_ENTRY) {
             val viewModel: ManualEntryViewModel = viewModel()
+            ManualEntryScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.MANUAL_ENTRY_MEASURE) {
+            val viewModel: ManualEntryViewModel = viewModel()
+            LaunchedEffect(Unit) {
+                viewModel.setEntryKind(com.akocis.babysleeptracker.viewmodel.EntryKind.MEASURE)
+            }
             ManualEntryScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() }
@@ -149,11 +160,24 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(Routes.GROWTH) {
+        composable(Routes.GROWTH) { backStackEntry ->
             val viewModel: GrowthViewModel = viewModel()
+            DisposableEffect(backStackEntry.lifecycle) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        viewModel.loadData()
+                    }
+                }
+                backStackEntry.lifecycle.addObserver(observer)
+                onDispose { backStackEntry.lifecycle.removeObserver(observer) }
+            }
             GrowthScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onAddMeasurement = { navController.navigate(Routes.MANUAL_ENTRY_MEASURE) },
+                onEditMeasurement = { rawLine ->
+                    navController.navigate(Routes.editEntry(rawLine))
+                }
             )
         }
     }

@@ -83,4 +83,20 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
             loadData()
         }
     }
+
+    fun reAddMeasurement(rawLine: String) {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            val entry = EntryParser.parseLine(rawLine)
+            if (entry is MeasurementEntry) {
+                val entryId = entry.id
+                if (entryId != null) {
+                    fileRepository.removeDeletionTombstone(uri, entryId)
+                }
+                fileRepository.appendMeasurementEntry(uri, entry)
+                SyncHelper.notifyDataChanged()
+                loadData()
+            }
+        }
+    }
 }
