@@ -13,7 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 object SyncHelper {
 
     private const val TAG = "SyncHelper"
-    private const val DEBOUNCE_MS = 2000L
+    private const val DEBOUNCE_MS = 500L
     private const val PERIODIC_INTERVAL_MS = 30 * 1000L
 
     private var scope: CoroutineScope? = null
@@ -43,6 +43,7 @@ object SyncHelper {
 
         debounceJob?.cancel()
         debounceJob = s.launch {
+            delay(DEBOUNCE_MS)
             doSync(f, p)
         }
     }
@@ -69,7 +70,7 @@ object SyncHelper {
     }
 
     private suspend fun doSync(fileRepo: FileRepository, prefs: PreferencesRepository) {
-        if (!syncMutex.tryLock()) return
+        syncMutex.lock()
         try {
             val uri = prefs.fileUri ?: return
             val accessToken = getValidAccessToken(prefs)
