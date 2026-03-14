@@ -51,6 +51,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val _showDuration = MutableStateFlow(false)
     val showDuration: StateFlow<Boolean> = _showDuration
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
@@ -78,13 +81,15 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     fun syncAndRefresh() {
         _isRefreshing.value = true
-        loadEntries { _isRefreshing.value = false }
+        viewModelScope.launch {
+            SyncHelper.pullLatest()
+            loadEntries { _isRefreshing.value = false }
+        }
     }
 
     fun loadEntries(onComplete: (() -> Unit)? = null) {
-        val uri = prefsRepository.fileUri ?: run { onComplete?.invoke(); return }
+        val uri = prefsRepository.fileUri ?: run { _isLoading.value = false; onComplete?.invoke(); return }
         viewModelScope.launch {
-            SyncHelper.pullLatest()
             val data = fileRepository.readAll(uri)
             val items = mutableListOf<HistoryItem>()
             var nextId = 0
@@ -252,6 +257,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             }
 
             _entries.value = items.sortedByDescending { it.sortKey }
+            _isLoading.value = false
             onComplete?.invoke()
         }
     }

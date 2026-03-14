@@ -84,6 +84,7 @@ fun HistoryScreen(
     onEditEntry: (HistoryItem) -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val showDuration by viewModel.showDuration.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -205,7 +206,7 @@ fun HistoryScreen(
             }
         }
 
-        if (entries.isEmpty()) {
+        if (entries.isEmpty() && !isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -216,7 +217,7 @@ fun HistoryScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
-        } else {
+        } else if (entries.isNotEmpty()) {
             val totalItems = listItems.size
 
             Box(modifier = Modifier.fillMaxSize()) {

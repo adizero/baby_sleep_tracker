@@ -28,6 +28,9 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
     private val _babyBirthDate = MutableStateFlow<LocalDate?>(null)
     val babyBirthDate: StateFlow<LocalDate?> = _babyBirthDate
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
@@ -39,17 +42,20 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
 
     fun syncAndRefresh() {
         _isRefreshing.value = true
-        loadData { _isRefreshing.value = false }
+        viewModelScope.launch {
+            SyncHelper.pullLatest()
+            loadData { _isRefreshing.value = false }
+        }
     }
 
     fun loadData(onComplete: (() -> Unit)? = null) {
-        val uri = prefsRepository.fileUri ?: run { onComplete?.invoke(); return }
+        val uri = prefsRepository.fileUri ?: run { _isLoading.value = false; onComplete?.invoke(); return }
         viewModelScope.launch {
-            SyncHelper.pullLatest()
             val data = fileRepository.readAll(uri)
             _measurements.value = data.measurementEntries.sortedBy { it.date }
             _babySex.value = data.babySex ?: prefsRepository.babySex?.let { BabySex.fromString(it) }
             _babyBirthDate.value = data.babyBirthDate ?: prefsRepository.babyBirthDate
+            _isLoading.value = false
             onComplete?.invoke()
         }
     }

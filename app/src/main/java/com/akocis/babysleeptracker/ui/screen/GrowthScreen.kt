@@ -69,6 +69,7 @@ fun GrowthScreen(
     val measurements by viewModel.measurements.collectAsStateWithLifecycle()
     val babySex by viewModel.babySex.collectAsStateWithLifecycle()
     val babyBirthDate by viewModel.babyBirthDate.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val useMetric = viewModel.useMetric
     val scope = rememberCoroutineScope()
@@ -154,7 +155,7 @@ fun GrowthScreen(
             val birthDate = babyBirthDate
             val sex = babySex
 
-            if (birthDate == null) {
+            if (birthDate == null && !isLoading) {
                 Text(
                     "Set baby's birth date in Settings to see growth charts.",
                     style = MaterialTheme.typography.bodyLarge,
