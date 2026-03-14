@@ -7,11 +7,19 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,8 +99,58 @@ fun GrowthChart(
         )
 
         selectedPoint?.let { point ->
+            val ageText = run {
+                val totalMonths = point.monthAge
+                val months = totalMonths.toInt()
+                val days = ((totalMonths - months) * 30.4375).toInt()
+                if (months > 0 && days > 0) "${months}m ${days}d"
+                else if (months > 0) "${months}m"
+                else "${days}d"
+            }
+            val percentileText = run {
+                if (percentileData.isEmpty()) ""
+                else {
+                    // Find the two surrounding rows and interpolate
+                    val age = point.monthAge
+                    val below = percentileData.lastOrNull { it.monthAge <= age }
+                    val above = percentileData.firstOrNull { it.monthAge >= age }
+                    if (below == null && above == null) ""
+                    else {
+                        fun interpValue(getPct: (PercentileRow) -> Double): Double {
+                            if (below == null) return getPct(above!!)
+                            if (above == null || below == above) return getPct(below)
+                            val t = (age - below.monthAge) / (above.monthAge - below.monthAge)
+                            return getPct(below) + t * (getPct(above) - getPct(below))
+                        }
+                        val pctValues = listOf(
+                            3 to interpValue { it.p3 },
+                            15 to interpValue { it.p15 },
+                            50 to interpValue { it.p50 },
+                            85 to interpValue { it.p85 },
+                            97 to interpValue { it.p97 }
+                        )
+                        val v = point.value
+                        when {
+                            v <= pctValues[0].second -> "<3rd"
+                            v >= pctValues[4].second -> ">97th"
+                            else -> {
+                                // Find the two bracketing percentiles and interpolate
+                                val lower = pctValues.last { it.second <= v }
+                                val upper = pctValues.first { it.second >= v }
+                                if (lower == upper) "${lower.first}th"
+                                else {
+                                    val t = (v - lower.second) / (upper.second - lower.second)
+                                    val pct = lower.first + t * (upper.first - lower.first)
+                                    "~${pct.toInt()}th"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Text(
-                text = "${point.label}: ${"%.1f".format(point.value)} $unit",
+                text = "$ageText: ${"%.1f".format(point.value)} $unit" +
+                    if (percentileText.isNotEmpty()) " ($percentileText percentile)" else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = accentColor,
                 modifier = Modifier.padding(bottom = 2.dp)
@@ -101,6 +159,7 @@ fun GrowthChart(
 
         val chartModifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(220.dp)
 
+        Box {
         Canvas(
             modifier = chartModifier
                 .pointerInput(measurements, scale, offsetX, offsetY) {
@@ -139,17 +198,18 @@ fun GrowthChart(
                         }
                     )
                 }
-                .pointerInput(scale) {
+                .pointerInput(Unit) {
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
+                        awaitFirstDown(requireUnconsumed = false)
                         var isZoomed = scale > 1.01f
+                        var hadMultiTouch = false
 
                         do {
                             val event = awaitPointerEvent()
                             val pointers = event.changes
 
                             if (pointers.size >= 2) {
-                                // Multi-finger: always handle zoom/pan
+                                hadMultiTouch = true
                                 val zoom = event.calculateZoom()
                                 val pan = event.calculatePan()
                                 val centroid = event.calculateCentroid()
@@ -165,8 +225,8 @@ fun GrowthChart(
 
                                 pointers.forEach { it.consume() }
                                 isZoomed = scale > 1.01f
-                            } else if (pointers.size == 1 && isZoomed) {
-                                // Single finger pan only when zoomed
+                            } else if (pointers.size == 1 && (isZoomed || hadMultiTouch)) {
+                                // Single finger pan when zoomed or continuing a pinch gesture
                                 val change = pointers[0]
                                 if (change.positionChanged()) {
                                     val pan = change.position - change.previousPosition
@@ -175,7 +235,6 @@ fun GrowthChart(
                                     change.consume()
                                 }
                             }
-                            // Single finger when NOT zoomed: don't consume, let parent scroll
                         } while (pointers.any { it.pressed })
                     }
                 }
@@ -318,6 +377,42 @@ fun GrowthChart(
                     }
                 }
             }
+        }
+        // Zoom buttons
+        Row(
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.BottomEnd)
+                .padding(4.dp)
+        ) {
+            IconButton(
+                onClick = {
+                    val newScale = (scale * 1.5f).coerceAtMost(5f)
+                    val cx = 0.5f  // zoom toward center
+                    val cy = 0.5f
+                    offsetX -= cx * (newScale - scale) * 300f
+                    offsetY -= cy * (newScale - scale) * 300f
+                    scale = newScale
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Add, "Zoom in", modifier = Modifier.size(18.dp))
+            }
+            IconButton(
+                onClick = {
+                    val newScale = (scale / 1.5f).coerceAtLeast(1f)
+                    if (newScale <= 1.01f) {
+                        scale = 1f; offsetX = 0f; offsetY = 0f
+                    } else {
+                        offsetX *= newScale / scale
+                        offsetY *= newScale / scale
+                        scale = newScale
+                    }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Remove, "Zoom out", modifier = Modifier.size(18.dp))
+            }
+        }
         }
     }
 }
