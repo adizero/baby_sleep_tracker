@@ -83,11 +83,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
         _isRefreshing.value = true
         viewModelScope.launch {
             SyncHelper.pullLatest()
-            loadEntries { _isRefreshing.value = false }
+            loadEntries(onComplete = { _isRefreshing.value = false }, sync = false)
         }
     }
 
-    fun loadEntries(onComplete: (() -> Unit)? = null) {
+    fun loadEntries(onComplete: (() -> Unit)? = null, sync: Boolean = true) {
         val uri = prefsRepository.fileUri ?: run { _isLoading.value = false; onComplete?.invoke(); return }
         viewModelScope.launch {
             val data = fileRepository.readAll(uri)
@@ -259,6 +259,10 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             _entries.value = items.sortedByDescending { it.sortKey }
             _isLoading.value = false
             onComplete?.invoke()
+            if (sync) {
+                SyncHelper.pullLatest()
+                loadEntries(sync = false)
+            }
         }
     }
 

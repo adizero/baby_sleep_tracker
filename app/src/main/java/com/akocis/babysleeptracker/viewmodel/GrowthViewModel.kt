@@ -44,11 +44,11 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
         _isRefreshing.value = true
         viewModelScope.launch {
             SyncHelper.pullLatest()
-            loadData { _isRefreshing.value = false }
+            loadData(onComplete = { _isRefreshing.value = false }, sync = false)
         }
     }
 
-    fun loadData(onComplete: (() -> Unit)? = null) {
+    fun loadData(onComplete: (() -> Unit)? = null, sync: Boolean = true) {
         val uri = prefsRepository.fileUri ?: run { _isLoading.value = false; onComplete?.invoke(); return }
         viewModelScope.launch {
             val data = fileRepository.readAll(uri)
@@ -57,6 +57,10 @@ class GrowthViewModel(application: Application) : AndroidViewModel(application) 
             _babyBirthDate.value = data.babyBirthDate ?: prefsRepository.babyBirthDate
             _isLoading.value = false
             onComplete?.invoke()
+            if (sync) {
+                SyncHelper.pullLatest()
+                loadData(sync = false)
+            }
         }
     }
 
