@@ -35,10 +35,10 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _date = MutableStateFlow(LocalDate.now())
     val date: StateFlow<LocalDate> = _date
 
-    private val _startTime = MutableStateFlow(LocalTime.of(8, 0))
+    private val _startTime = MutableStateFlow(LocalTime.now().withSecond(0).withNano(0))
     val startTime: StateFlow<LocalTime> = _startTime
 
-    private val _endTime = MutableStateFlow(LocalTime.of(9, 0))
+    private val _endTime = MutableStateFlow(LocalTime.now().withSecond(0).withNano(0).plusHours(1))
     val endTime: StateFlow<LocalTime> = _endTime
 
     private val _hasEndTime = MutableStateFlow(true)
