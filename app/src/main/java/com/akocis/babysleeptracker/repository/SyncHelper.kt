@@ -43,7 +43,6 @@ object SyncHelper {
 
         debounceJob?.cancel()
         debounceJob = s.launch {
-            delay(DEBOUNCE_MS)
             doSync(f, p)
         }
     }
