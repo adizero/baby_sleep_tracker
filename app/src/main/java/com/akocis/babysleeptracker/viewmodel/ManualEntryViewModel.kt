@@ -177,7 +177,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 val useMetric = prefsRepository.useMetric
                 _measureIsMetric.value = useMetric
                 _measureWeightText.value = entry.weightKg?.let {
-                    if (useMetric) "%.2f".format(it) else "%.1f".format(it * 2.20462)
+                    if (useMetric) "%.3f".format(it) else "%.1f".format(it * 2.20462)
                 } ?: ""
                 _measureHeightText.value = entry.heightCm?.let {
                     if (useMetric) "%.1f".format(it) else "%.1f".format(it / 2.54)

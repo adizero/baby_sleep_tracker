@@ -327,7 +327,7 @@ object EntryParser {
         val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
         val parts = mutableListOf("MEASURE", date)
         entry.time?.let { parts.add(it.format(DateTimeUtil.TIME_FORMAT)) }
-        entry.weightKg?.let { parts.add("w${"%.2f".format(it)}") }
+        entry.weightKg?.let { parts.add("w${"%.3f".format(it)}") }
         entry.heightCm?.let { parts.add("h${"%.1f".format(it)}") }
         entry.headCm?.let { parts.add("c${"%.1f".format(it)}") }
         val body = parts.joinToString(" ")

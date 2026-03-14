@@ -342,7 +342,7 @@ fun GrowthScreen(
 
 private fun formatValue(metricValue: Double, useMetric: Boolean, isWeight: Boolean): String {
     return if (useMetric) {
-        if (isWeight) "${"%.2f".format(metricValue)} kg" else "${"%.1f".format(metricValue)} cm"
+        if (isWeight) "${"%.3f".format(metricValue)} kg" else "${"%.1f".format(metricValue)} cm"
     } else {
         if (isWeight) "${"%.1f".format(metricValue * 2.20462)} lbs" else "${"%.1f".format(metricValue / 2.54)} in"
     }
