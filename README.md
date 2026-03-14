@@ -4,18 +4,21 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 
 ## Features
 
-- **Sleep tracking** — one-tap start/stop with elapsed time display
+- **Sleep tracking** — one-tap start/stop with elapsed time display and awake timer
 - **Breastfeeding tracking** — left/right side timers with auto-switch, mutual exclusion with sleep
 - **Diaper logging** — Pee, Poo, or Both buttons
 - **Activity logging** — Stroll, Bath, and free-text Note events
-- **Manual entry** — add or edit past events with date/time pickers and validation
+- **Manual entry** — add or edit past events with date/time pickers and validation, prefilled with current time
 - **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes
-- **White noise** — built-in sound generator (white, pink, brown, gray, blue, violet, rain, storm) with volume, duration, and fade controls
+- **White noise** — built-in sound generator (white, pink, brown, gray, blue, violet, rain, storm) with volume, duration, and fade controls; tracked in history
+- **High contrast viewer** — built-in high contrast images for newborn visual stimulation with multiple patterns, color schemes (including three-color), and auto-advancement; viewing sessions tracked in history
+- **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan, and percentile display; latest measurements shown on home screen
 - **Calendar** — monthly overview with color-coded activity dots and daily detail view
 - **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
+- **Home dashboard** — today's stats, time since last sleep/feed/diaper/bath/measurement, and latest growth measurements with percentiles
 - **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
-- **History** — scrollable list of all entries, editable and deletable
-- **Dropbox sync** — automatic cloud backup and merge across devices
+- **History** — scrollable list of all entries with date jump, editable and deletable with undo
+- **Dropbox sync** — automatic cloud backup and merge across devices with immediate sync on changes
 - **Import/Export** — plain text file format, easy to read and share
 - **Theme** — light, dark, or auto (switches based on configurable day/night hours)
 - **Survives app kill** — active sleep/feed session persists via SharedPreferences
@@ -37,6 +40,9 @@ Data is stored as a plain text file (chosen by the user via SAF). Each entry has
 #d0e1f2a3 STROLL 2026-03-02 13:00 - 14:00
 #e1f2a3b4 BATH 2026-03-02 18:00
 #f2a3b4c5 NOTE 2026-03-02 19:00 First smile!
+#a2b3c4d5 NOISE 2026-03-02 20:00 - 20:30 white
+#b3c4d5e6 HC 2026-03-02 09:00 - 09:15 BW,RW
+#c4d5e6f7 MEASURE 2026-03-02 10:00 3.500kg 51.0cm 35.0hc
 ```
 
 ## Tech Stack
