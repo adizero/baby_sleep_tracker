@@ -177,18 +177,20 @@ fun HistoryScreen(
                                 val selected = Instant.ofEpochMilli(millis)
                                     .atZone(ZoneId.of("UTC"))
                                     .toLocalDate()
-                                val index = listItems.indexOfFirst {
+                                var index = listItems.indexOfFirst {
                                     it is HistoryListItem.DateHeader && it.date == selected
+                                }
+                                if (index < 0) {
+                                    // Find nearest date header
+                                    val headers = listItems.mapIndexedNotNull { i, item ->
+                                        if (item is HistoryListItem.DateHeader) i to item.date else null
+                                    }
+                                    if (headers.isNotEmpty()) {
+                                        index = headers.minBy { kotlin.math.abs(it.second.toEpochDay() - selected.toEpochDay()) }.first
+                                    }
                                 }
                                 if (index >= 0) {
                                     scope.launch { listState.scrollToItem(index) }
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "No entries for that date",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
                                 }
                             }
                             showDatePicker = false
