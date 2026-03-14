@@ -55,6 +55,12 @@ fun AppNavigation(
     fileRepository: FileRepository,
     onThemeModeChanged: (String) -> Unit
 ) {
+    val safePopBack: () -> Unit = {
+        if (navController.currentDestination?.route != Routes.HOME) {
+            navController.popBackStack()
+        }
+    }
+
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) { backStackEntry ->
             val viewModel: HomeViewModel = viewModel()
@@ -81,7 +87,7 @@ fun AppNavigation(
             val viewModel: ManualEntryViewModel = viewModel()
             ManualEntryScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.MANUAL_ENTRY_MEASURE) {
@@ -91,7 +97,7 @@ fun AppNavigation(
             }
             ManualEntryScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(
@@ -107,7 +113,7 @@ fun AppNavigation(
             }
             ManualEntryScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.STATS) {
@@ -115,7 +121,7 @@ fun AppNavigation(
             StatsScreen(
                 viewModel = viewModel,
                 prefsRepository = prefsRepository,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.HISTORY) { backStackEntry ->
@@ -131,7 +137,7 @@ fun AppNavigation(
             }
             HistoryScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() },
+                onBack = safePopBack,
                 onEditEntry = { item ->
                     navController.navigate(Routes.editEntry(item.rawLine))
                 }
@@ -143,21 +149,21 @@ fun AppNavigation(
                 fileRepository = fileRepository,
                 onThemeModeChanged = onThemeModeChanged,
                 onNavigateToSync = { navController.navigate(Routes.SYNC) },
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.SYNC) {
             val viewModel: SyncViewModel = viewModel()
             SyncScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.CALENDAR) {
             val viewModel: CalendarViewModel = viewModel()
             CalendarScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() }
+                onBack = safePopBack
             )
         }
         composable(Routes.GROWTH) { backStackEntry ->
@@ -173,7 +179,7 @@ fun AppNavigation(
             }
             GrowthScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() },
+                onBack = safePopBack,
                 onAddMeasurement = { navController.navigate(Routes.MANUAL_ENTRY_MEASURE) },
                 onEditMeasurement = { rawLine ->
                     navController.navigate(Routes.editEntry(rawLine))
