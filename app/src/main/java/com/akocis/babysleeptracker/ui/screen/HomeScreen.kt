@@ -76,6 +76,7 @@ import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.StopButtonColor
 import com.akocis.babysleeptracker.ui.theme.StrollerColor
+import com.akocis.babysleeptracker.ui.theme.HighContrastColor
 import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
@@ -89,7 +90,8 @@ fun HomeScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCalendar: () -> Unit = {},
-    onNavigateToGrowth: () -> Unit = {}
+    onNavigateToGrowth: () -> Unit = {},
+    onNavigateToHighContrast: () -> Unit = {}
 ) {
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
     val elapsedTime by viewModel.elapsedTime.collectAsStateWithLifecycle()
@@ -491,6 +493,15 @@ fun HomeScreen(
                         showNoiseDialog = true
                     }
                 }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // High contrast images button
+            BigActionButton(
+                text = "High Contrast",
+                containerColor = HighContrastColor,
+                onClick = onNavigateToHighContrast
             )
 
             Spacer(modifier = Modifier.height(24.dp))

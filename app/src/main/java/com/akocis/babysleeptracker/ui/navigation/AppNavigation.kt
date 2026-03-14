@@ -21,6 +21,7 @@ import com.akocis.babysleeptracker.ui.screen.ManualEntryScreen
 import com.akocis.babysleeptracker.ui.screen.SettingsScreen
 import com.akocis.babysleeptracker.ui.screen.StatsScreen
 import com.akocis.babysleeptracker.ui.screen.GrowthScreen
+import com.akocis.babysleeptracker.ui.screen.HighContrastScreen
 import com.akocis.babysleeptracker.ui.screen.SyncScreen
 import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
 import com.akocis.babysleeptracker.viewmodel.GrowthViewModel
@@ -41,6 +42,7 @@ object Routes {
     const val SYNC = "sync"
     const val GROWTH = "growth"
     const val MANUAL_ENTRY_MEASURE = "manual_entry_measure"
+    const val HIGH_CONTRAST = "high_contrast"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -80,7 +82,8 @@ fun AppNavigation(
                 onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) },
-                onNavigateToGrowth = { navController.navigate(Routes.GROWTH) }
+                onNavigateToGrowth = { navController.navigate(Routes.GROWTH) },
+                onNavigateToHighContrast = { navController.navigate(Routes.HIGH_CONTRAST) }
             )
         }
         composable(Routes.MANUAL_ENTRY) {
@@ -184,6 +187,12 @@ fun AppNavigation(
                 onEditMeasurement = { rawLine ->
                     navController.navigate(Routes.editEntry(rawLine))
                 }
+            )
+        }
+        composable(Routes.HIGH_CONTRAST) {
+            HighContrastScreen(
+                prefsRepository = prefsRepository,
+                onBack = safePopBack
             )
         }
     }

@@ -54,5 +54,6 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.material.icons.extended)
     implementation(libs.navigation.compose)
+    implementation(libs.documentfile)
     debugImplementation(libs.ui.tooling)
 }

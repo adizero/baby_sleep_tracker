@@ -35,6 +35,14 @@ class PreferencesRepository(context: Context) {
         private const val KEY_NOISE_FADE_OUT = "noise_fade_out"
         private const val KEY_BABY_SEX = "baby_sex"
         private const val KEY_USE_METRIC = "use_metric"
+        private const val KEY_HC_USE_GENERATED = "hc_use_generated"
+        private const val KEY_HC_SLIDESHOW = "hc_slideshow"
+        private const val KEY_HC_SLIDESHOW_DELAY = "hc_slideshow_delay"
+        private const val KEY_HC_TRANSITION = "hc_transition"
+        private const val KEY_HC_KEEP_SCREEN_ON = "hc_keep_screen_on"
+        private const val KEY_HC_FOLDER_URI = "hc_folder_uri"
+        private const val KEY_HC_ENABLED_PATTERNS = "hc_enabled_patterns"
+        private const val KEY_HC_ENABLED_COLORS = "hc_enabled_colors"
     }
 
     var fileUri: Uri?
@@ -177,6 +185,39 @@ class PreferencesRepository(context: Context) {
 
     val isDropboxConfigured: Boolean
         get() = !dropboxAppKey.isNullOrBlank() && !dropboxRefreshToken.isNullOrBlank()
+
+    // High contrast image preferences
+    var hcUseGenerated: Boolean
+        get() = prefs.getBoolean(KEY_HC_USE_GENERATED, true)
+        set(value) = prefs.edit().putBoolean(KEY_HC_USE_GENERATED, value).apply()
+
+    var hcSlideshow: Boolean
+        get() = prefs.getBoolean(KEY_HC_SLIDESHOW, true)
+        set(value) = prefs.edit().putBoolean(KEY_HC_SLIDESHOW, value).apply()
+
+    var hcSlideshowDelay: Int
+        get() = prefs.getInt(KEY_HC_SLIDESHOW_DELAY, 10)
+        set(value) = prefs.edit().putInt(KEY_HC_SLIDESHOW_DELAY, value).apply()
+
+    var hcTransition: String
+        get() = prefs.getString(KEY_HC_TRANSITION, "FADE") ?: "FADE"
+        set(value) = prefs.edit().putString(KEY_HC_TRANSITION, value).apply()
+
+    var hcKeepScreenOn: Boolean
+        get() = prefs.getBoolean(KEY_HC_KEEP_SCREEN_ON, true)
+        set(value) = prefs.edit().putBoolean(KEY_HC_KEEP_SCREEN_ON, value).apply()
+
+    var hcFolderUri: String?
+        get() = prefs.getString(KEY_HC_FOLDER_URI, null)
+        set(value) = prefs.edit().putString(KEY_HC_FOLDER_URI, value).apply()
+
+    var hcEnabledPatterns: String
+        get() = prefs.getString(KEY_HC_ENABLED_PATTERNS, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_HC_ENABLED_PATTERNS, value).apply()
+
+    var hcEnabledColors: String
+        get() = prefs.getString(KEY_HC_ENABLED_COLORS, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_HC_ENABLED_COLORS, value).apply()
 
     fun clearDropbox() {
         prefs.edit()
