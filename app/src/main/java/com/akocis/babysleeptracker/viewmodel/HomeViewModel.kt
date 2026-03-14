@@ -94,7 +94,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         loadBabyInfo()
         loadBottlePreset()
-        syncAndRefresh()
+        syncAndRefresh(showIndicator = false)
         observeNoiseState()
         observeSyncCompleted()
     }
@@ -381,15 +381,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun syncAndRefresh() {
+    fun syncAndRefresh(showIndicator: Boolean = true) {
         val uri = prefsRepository.fileUri ?: return
         viewModelScope.launch {
-            _isRefreshing.value = true
+            if (showIndicator) _isRefreshing.value = true
             try {
                 SyncHelper.pullLatest()
                 refreshTodayStatsInternal(uri)
             } finally {
-                _isRefreshing.value = false
+                if (showIndicator) _isRefreshing.value = false
             }
         }
     }

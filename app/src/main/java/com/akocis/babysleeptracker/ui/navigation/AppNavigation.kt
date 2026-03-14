@@ -69,7 +69,7 @@ fun AppNavigation(
             DisposableEffect(backStackEntry.lifecycle) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
-                        viewModel.syncAndRefresh()
+                        viewModel.syncAndRefresh(showIndicator = false)
                     }
                 }
                 backStackEntry.lifecycle.addObserver(observer)
