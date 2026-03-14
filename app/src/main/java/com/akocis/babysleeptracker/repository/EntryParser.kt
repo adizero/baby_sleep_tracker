@@ -9,6 +9,7 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.HighContrastEntry
 import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
@@ -26,6 +27,7 @@ data class ParsedData(
     val bottleFeedEntries: List<BottleFeedEntry> = emptyList(),
     val whiteNoiseEntries: List<WhiteNoiseEntry> = emptyList(),
     val measurementEntries: List<MeasurementEntry> = emptyList(),
+    val highContrastEntries: List<HighContrastEntry> = emptyList(),
     val babyName: String? = null,
     val babyBirthDate: LocalDate? = null,
     val babySex: BabySex? = null,
@@ -69,6 +71,12 @@ object EntryParser {
     )
     private val NOISE_ONGOING_REGEX = Regex(
         """^NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s+(\w+)$"""
+    )
+    private val HC_REGEX = Regex(
+        """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""
+    )
+    private val HC_ONGOING_REGEX = Regex(
+        """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(.+))?$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -172,6 +180,21 @@ object EntryParser {
             return WhiteNoiseEntry(noiseType, date, start, null, id)
         }
 
+        HC_REGEX.matchEntire(content)?.let { match ->
+            val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
+            val end = LocalTime.parse(match.groupValues[3], DateTimeUtil.TIME_FORMAT)
+            val colors = match.groupValues[4].takeIf { it.isNotEmpty() } ?: ""
+            return HighContrastEntry(date, start, end, colors, id)
+        }
+
+        HC_ONGOING_REGEX.matchEntire(content)?.let { match ->
+            val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
+            val start = LocalTime.parse(match.groupValues[2], DateTimeUtil.TIME_FORMAT)
+            val colors = match.groupValues[3].takeIf { it.isNotEmpty() } ?: ""
+            return HighContrastEntry(date, start, null, colors, id)
+        }
+
         MEASURE_REGEX.matchEntire(content)?.let { match ->
             val date = LocalDate.parse(match.groupValues[1], DateTimeUtil.DATE_FORMAT)
             val time = match.groupValues[2].takeIf { it.isNotEmpty() }?.let {
@@ -204,6 +227,7 @@ object EntryParser {
         val feedEntries = mutableListOf<FeedEntry>()
         val bottleFeedEntries = mutableListOf<BottleFeedEntry>()
         val whiteNoiseEntries = mutableListOf<WhiteNoiseEntry>()
+        val highContrastEntries = mutableListOf<HighContrastEntry>()
         val measurementEntries = mutableListOf<MeasurementEntry>()
         val deletedIds = mutableSetOf<String>()
         var babyName: String? = null
@@ -234,6 +258,7 @@ object EntryParser {
                 is FeedEntry -> feedEntries.add(entry)
                 is BottleFeedEntry -> bottleFeedEntries.add(entry)
                 is WhiteNoiseEntry -> whiteNoiseEntries.add(entry)
+                is HighContrastEntry -> highContrastEntries.add(entry)
                 is MeasurementEntry -> measurementEntries.add(entry)
             }
         }
@@ -246,6 +271,7 @@ object EntryParser {
             feedEntries = feedEntries.filter { it.id == null || it.id !in deletedIds },
             bottleFeedEntries = bottleFeedEntries.filter { it.id == null || it.id !in deletedIds },
             whiteNoiseEntries = whiteNoiseEntries.filter { it.id == null || it.id !in deletedIds },
+            highContrastEntries = highContrastEntries.filter { it.id == null || it.id !in deletedIds },
             measurementEntries = measurementEntries.filter { it.id == null || it.id !in deletedIds },
             babyName = babyName,
             babyBirthDate = babyBirthDate,
@@ -321,6 +347,19 @@ object EntryParser {
         val body = if (sex != null) "$base ${sex.name}" else base
         val entryId = id ?: generateId()
         return "#$entryId $body"
+    }
+
+    fun formatHighContrastEntry(entry: HighContrastEntry): String {
+        val date = entry.date.format(DateTimeUtil.DATE_FORMAT)
+        val start = entry.startTime.format(DateTimeUtil.TIME_FORMAT)
+        val colorsPart = if (entry.colors.isNotEmpty()) " ${entry.colors}" else ""
+        val body = if (entry.endTime != null) {
+            val end = entry.endTime.format(DateTimeUtil.TIME_FORMAT)
+            "HC $date $start - $end$colorsPart"
+        } else {
+            "HC $date $start -$colorsPart"
+        }
+        return if (entry.id != null) "#${entry.id} $body" else body
     }
 
     fun formatMeasurementEntry(entry: MeasurementEntry): String {

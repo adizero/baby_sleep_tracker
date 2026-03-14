@@ -511,7 +511,10 @@ fun HomeScreen(
                 val hasLastData = stats.timeSinceLastSleep != null ||
                     stats.timeSinceLastFeed != null ||
                     stats.timeSinceLastDiaper != null ||
-                    stats.timeSinceLastBath != null
+                    stats.timeSinceLastBath != null ||
+                    stats.lastWeightText != null ||
+                    stats.lastHeightText != null ||
+                    stats.lastHeadText != null
                 if (hasLastData) {
                     Card(
                         modifier = Modifier
@@ -695,6 +698,70 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
+                                }
+                            }
+                            // Measurement rows
+                            if (stats.lastWeightText != null || stats.lastHeightText != null || stats.lastHeadText != null) {
+                                Text(
+                                    "Measure",
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                stats.lastWeightText?.let { wt ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Weight",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            wt,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                stats.lastHeightText?.let { ht ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Height",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            ht,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                stats.lastHeadText?.let { hdt ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Head",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            hdt,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
                                 }
                             }
                         }

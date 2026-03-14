@@ -70,11 +70,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
+import com.akocis.babysleeptracker.model.HighContrastEntry
+import com.akocis.babysleeptracker.repository.EntryParser
+import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.ui.component.ColorScheme
 import com.akocis.babysleeptracker.ui.component.HighContrastImageGenerator
 import com.akocis.babysleeptracker.ui.component.PatternType
+import com.akocis.babysleeptracker.util.DateTimeUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalTime
 
 enum class TransitionType(val label: String) {
     NONE("None"),
@@ -86,6 +96,7 @@ enum class TransitionType(val label: String) {
 @Composable
 fun HighContrastScreen(
     prefsRepository: PreferencesRepository,
+    fileRepository: FileRepository,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -143,6 +154,7 @@ fun HighContrastScreen(
     if (showViewer) {
         HighContrastViewer(
             prefsRepository = prefsRepository,
+            fileRepository = fileRepository,
             useGenerated = useGenerated,
             slideshow = slideshow,
             slideshowDelay = slideshowDelay,
@@ -389,6 +401,7 @@ fun HighContrastScreen(
 @Composable
 private fun HighContrastViewer(
     prefsRepository: PreferencesRepository,
+    fileRepository: FileRepository,
     useGenerated: Boolean,
     slideshow: Boolean,
     slideshowDelay: Int,
@@ -400,6 +413,42 @@ private fun HighContrastViewer(
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Build color abbreviation string
+    val colorsAbbrev = remember(enabledColors) {
+        enabledColors.joinToString(",") { cs ->
+            cs.name.split("_").joinToString("") { it.first().toString() }
+        }
+    }
+
+    // Log HC entry on start, update on exit
+    val startDate = remember { LocalDate.now() }
+    val startTime = remember { LocalTime.now().withSecond(0).withNano(0) }
+    DisposableEffect(Unit) {
+        val uri = prefsRepository.fileUri
+        if (uri != null) {
+            val entry = HighContrastEntry(startDate, startTime, null, colorsAbbrev)
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    fileRepository.appendHighContrastEntry(uri, entry)
+                    SyncHelper.notifyDataChanged()
+                } catch (_: Exception) {}
+            }
+        }
+        onDispose {
+            if (uri != null) {
+                val endTime = LocalTime.now().withSecond(0).withNano(0)
+                val ongoingLine = "HC ${startDate.format(DateTimeUtil.DATE_FORMAT)} ${startTime.format(DateTimeUtil.TIME_FORMAT)} - $colorsAbbrev"
+                val completedLine = "HC ${startDate.format(DateTimeUtil.DATE_FORMAT)} ${startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)} $colorsAbbrev"
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                        SyncHelper.notifyDataChanged()
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
 
     // Keep screen on
     val activity = context as? Activity

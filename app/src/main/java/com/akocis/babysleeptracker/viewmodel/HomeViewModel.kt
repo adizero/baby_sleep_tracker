@@ -5,8 +5,10 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Intent
+import com.akocis.babysleeptracker.data.WhoGrowthData
 import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.ActivityType
+import com.akocis.babysleeptracker.model.BabySex
 import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.BottleType
 import com.akocis.babysleeptracker.model.DayStats
@@ -551,6 +553,66 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             DateTimeUtil.formatDurationWithDays(Duration.between(bathTime, now).let { d -> if (d.isNegative) d.plusHours(24) else d })
         }
 
+        // Latest measurement with percentiles
+        val useMetric = prefsRepository.useMetric
+        val birthDate = prefsRepository.babyBirthDate
+        val babySex = prefsRepository.babySex?.let { BabySex.fromString(it) }
+        val latestMeasurement = data.measurementEntries.maxByOrNull { it.date.toEpochDay() }
+
+        fun calcPercentile(value: Double, percentileData: List<WhoGrowthData.PercentileRow>, monthAge: Double): String {
+            val below = percentileData.lastOrNull { it.monthAge <= monthAge }
+            val above = percentileData.firstOrNull { it.monthAge >= monthAge }
+            if (below == null && above == null) return ""
+            fun interp(getPct: (WhoGrowthData.PercentileRow) -> Double): Double {
+                if (below == null) return getPct(above!!)
+                if (above == null || below == above) return getPct(below)
+                val t = (monthAge - below.monthAge) / (above.monthAge - below.monthAge)
+                return getPct(below) + t * (getPct(above) - getPct(below))
+            }
+            val pcts = listOf(
+                3 to interp { it.p3 }, 15 to interp { it.p15 }, 50 to interp { it.p50 },
+                85 to interp { it.p85 }, 97 to interp { it.p97 }
+            )
+            return when {
+                value <= pcts[0].second -> "<3rd"
+                value >= pcts[4].second -> ">97th"
+                else -> {
+                    val lower = pcts.last { it.second <= value }
+                    val upper = pcts.first { it.second >= value }
+                    if (lower == upper) "${lower.first}th"
+                    else {
+                        val t = (value - lower.second) / (upper.second - lower.second)
+                        "~${(lower.first + t * (upper.first - lower.first)).toInt()}th"
+                    }
+                }
+            }
+        }
+
+        val lastWeightText = latestMeasurement?.weightKg?.let { w ->
+            val valText = if (useMetric) "${"%.3f".format(w)} kg" else "${"%.1f".format(w * 2.20462)} lbs"
+            if (birthDate != null && babySex != null) {
+                val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
+                val pct = calcPercentile(w, WhoGrowthData.getWeight(babySex), monthAge)
+                if (pct.isNotEmpty()) "$valText ($pct)" else valText
+            } else valText
+        }
+        val lastHeightText = latestMeasurement?.heightCm?.let { h ->
+            val valText = if (useMetric) "${"%.1f".format(h)} cm" else "${"%.1f".format(h / 2.54)} in"
+            if (birthDate != null && babySex != null) {
+                val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
+                val pct = calcPercentile(h, WhoGrowthData.getLength(babySex), monthAge)
+                if (pct.isNotEmpty()) "$valText ($pct)" else valText
+            } else valText
+        }
+        val lastHeadText = latestMeasurement?.headCm?.let { c ->
+            val valText = if (useMetric) "${"%.1f".format(c)} cm" else "${"%.1f".format(c / 2.54)} in"
+            if (birthDate != null && babySex != null) {
+                val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
+                val pct = calcPercentile(c, WhoGrowthData.getHead(babySex), monthAge)
+                if (pct.isNotEmpty()) "$valText ($pct)" else valText
+            } else valText
+        }
+
         _todayStats.value = DayStats(
             date = today,
             totalSleep = todaySleepDuration,
@@ -582,7 +644,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             timeSinceLastPoo = timeSincePoo,
             timeSinceLastSleep = timeSinceSleep,
             timeSinceLastNap = timeSinceNap,
-            timeSinceLastSlumber = timeSinceSlumber
+            timeSinceLastSlumber = timeSinceSlumber,
+            lastWeightText = lastWeightText,
+            lastHeightText = lastHeightText,
+            lastHeadText = lastHeadText
         )
 
         // Auto-resolve bottle preset from history if unset

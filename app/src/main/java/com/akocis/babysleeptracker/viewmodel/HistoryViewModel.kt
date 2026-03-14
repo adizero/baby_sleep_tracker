@@ -7,6 +7,7 @@ import com.akocis.babysleeptracker.model.ActivityEntry
 import com.akocis.babysleeptracker.model.BottleFeedEntry
 import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.FeedEntry
+import com.akocis.babysleeptracker.model.HighContrastEntry
 import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.WhiteNoiseEntry
@@ -35,6 +36,7 @@ data class HistoryItem(
     val feedEntry: FeedEntry? = null,
     val bottleFeedEntry: BottleFeedEntry? = null,
     val whiteNoiseEntry: WhiteNoiseEntry? = null,
+    val highContrastEntry: HighContrastEntry? = null,
     val measurementEntry: MeasurementEntry? = null
 )
 
@@ -199,6 +201,27 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
+            data.highContrastEntries.forEach { entry ->
+                val line = EntryParser.formatHighContrastEntry(entry)
+                val sortKey = entry.date.toEpochDay() * 86400 +
+                    entry.startTime.toSecondOfDay()
+                val endText = entry.endTime?.format(TIME_FMT) ?: "ongoing"
+                val startText = entry.startTime.format(TIME_FMT)
+                val colorsText = if (entry.colors.isNotEmpty()) "  ${entry.colors}" else ""
+                items.add(
+                    HistoryItem(
+                        id = nextId++,
+                        displayText = "HC  $startText - $endText$colorsText",
+                        durationText = "HC  $startText (${DateTimeUtil.formatDuration(entry.duration)})$colorsText",
+                        rawLine = line,
+                        sortKey = sortKey,
+                        date = entry.date,
+                        hour = entry.startTime.hour,
+                        highContrastEntry = entry
+                    )
+                )
+            }
+
             val useMetric = prefsRepository.useMetric
             data.measurementEntries.forEach { entry ->
                 val line = EntryParser.formatMeasurementEntry(entry)
@@ -259,6 +282,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is FeedEntry -> entry.id
                     is BottleFeedEntry -> entry.id
                     is WhiteNoiseEntry -> entry.id
+                    is HighContrastEntry -> entry.id
                     is MeasurementEntry -> entry.id
                     else -> null
                 }
@@ -272,6 +296,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     is FeedEntry -> fileRepository.appendFeedEntry(uri, entry)
                     is BottleFeedEntry -> fileRepository.appendBottleFeedEntry(uri, entry)
                     is WhiteNoiseEntry -> fileRepository.appendWhiteNoiseEntry(uri, entry)
+                    is HighContrastEntry -> fileRepository.appendHighContrastEntry(uri, entry)
                     is MeasurementEntry -> fileRepository.appendMeasurementEntry(uri, entry)
                 }
                 loadEntries()

@@ -39,7 +39,10 @@ data class DayStats(
     val timeSinceLastPoo: String? = null,
     val timeSinceLastSleep: String? = null,
     val timeSinceLastNap: String? = null,
-    val timeSinceLastSlumber: String? = null
+    val timeSinceLastSlumber: String? = null,
+    val lastWeightText: String? = null,
+    val lastHeightText: String? = null,
+    val lastHeadText: String? = null
 ) {
     val totalDiapers: Int get() = peeCount + pooCount + peepooCount
     val totalBottleFeeds: Int get() = donorCount + formulaCount + pumpedCount

@@ -192,6 +192,7 @@ fun AppNavigation(
         composable(Routes.HIGH_CONTRAST) {
             HighContrastScreen(
                 prefsRepository = prefsRepository,
+                fileRepository = fileRepository,
                 onBack = safePopBack
             )
         }

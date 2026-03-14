@@ -34,6 +34,18 @@ class DropboxSyncManager {
         private val COMPLETED_FEED_REGEX = Regex(
             """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
+        private val ONGOING_NOISE_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s+(\w+)$"""
+        )
+        private val COMPLETED_NOISE_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(\w+)$"""
+        )
+        private val ONGOING_HC_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(.+))?$"""
+        )
+        private val COMPLETED_HC_REGEX = Regex(
+            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""
+        )
         private val BABY_REGEX = Regex("""^(?:#[0-9a-f]{8}\s+)?BABY\s+.+""")
         private val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
         private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
@@ -213,6 +225,37 @@ class DropboxSyncManager {
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_FEED_REGEX.matchEntire(line) ?: return@any false
                 cm.groupValues[1] == tag && cm.groupValues[2] == date && cm.groupValues[3] == startTime
+            }
+            if (hasCompleted) {
+                allLines.remove(ongoing)
+            }
+        }
+
+        // Resolve ongoing vs completed noise: if both exist, keep completed
+        val ongoingNoises = allLines.filter { ONGOING_NOISE_REGEX.matches(it) }
+        for (ongoing in ongoingNoises) {
+            val match = ONGOING_NOISE_REGEX.matchEntire(ongoing) ?: continue
+            val date = match.groupValues[1]
+            val startTime = match.groupValues[2]
+            val noiseType = match.groupValues[3]
+            val hasCompleted = allLines.any { line ->
+                val cm = COMPLETED_NOISE_REGEX.matchEntire(line) ?: return@any false
+                cm.groupValues[1] == date && cm.groupValues[2] == startTime && cm.groupValues[4] == noiseType
+            }
+            if (hasCompleted) {
+                allLines.remove(ongoing)
+            }
+        }
+
+        // Resolve ongoing vs completed HC: if both exist, keep completed
+        val ongoingHc = allLines.filter { ONGOING_HC_REGEX.matches(it) }
+        for (ongoing in ongoingHc) {
+            val match = ONGOING_HC_REGEX.matchEntire(ongoing) ?: continue
+            val date = match.groupValues[1]
+            val startTime = match.groupValues[2]
+            val hasCompleted = allLines.any { line ->
+                val cm = COMPLETED_HC_REGEX.matchEntire(line) ?: return@any false
+                cm.groupValues[1] == date && cm.groupValues[2] == startTime
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)
