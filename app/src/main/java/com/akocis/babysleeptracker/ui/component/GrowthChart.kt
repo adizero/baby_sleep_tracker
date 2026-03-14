@@ -166,10 +166,11 @@ fun GrowthChart(
                     detectTapGestures(
                         onTap = { offset ->
                             if (measurements.isEmpty()) return@detectTapGestures
-                            val leftPad = 40f
-                            val rightPad = 16f
-                            val topPad = 12f
-                            val bottomPad = 28f
+                            val dp = density
+                            val leftPad = 16f * dp
+                            val rightPad = if (isFullscreen) 16f * dp else 8f * dp
+                            val topPad = 4f * dp
+                            val bottomPad = if (isFullscreen) 24f * dp else 14f * dp
                             val chartW = size.width - leftPad - rightPad
                             val chartH = size.height - topPad - bottomPad
 
@@ -239,10 +240,11 @@ fun GrowthChart(
                     }
                 }
         ) {
-            val leftPad = 40f
-            val rightPad = if (isFullscreen) 40f else 16f
-            val topPad = 12f
-            val bottomPad = if (isFullscreen) 48f else 28f
+            val dp = density
+            val leftPad = 16f * dp
+            val rightPad = if (isFullscreen) 16f * dp else 8f * dp
+            val topPad = 4f * dp
+            val bottomPad = if (isFullscreen) 24f * dp else 14f * dp
             val chartW = size.width - leftPad - rightPad
             val chartH = size.height - topPad - bottomPad
 
@@ -253,7 +255,7 @@ fun GrowthChart(
                 val textScale = scale.coerceAtMost(2f)
                 val textPaint = android.graphics.Paint().apply {
                     color = labelColor.hashCode()
-                    textSize = 22f * textScale
+                    textSize = 10f * dp * textScale
                 }
 
                 // Adaptive Y-axis labels based on zoom
@@ -278,7 +280,7 @@ fun GrowthChart(
                         drawLine(gridColor, Offset(xFor(0.0), y), Offset(xFor(visibleMonths.toDouble()), y))
                         drawContext.canvas.nativeCanvas.drawText(
                             "%.1f".format(v),
-                            2f * scale + offsetX, y + 4f,
+                            2f * scale + offsetX, y + 2f * dp,
                             textPaint
                         )
                     }
@@ -299,7 +301,7 @@ fun GrowthChart(
                 }
 
                 // X-axis labels at fixed position below chart, not affected by zoom offset
-                val xLabelY = size.height - bottomPad + 20f
+                val xLabelY = size.height - bottomPad + 14f * dp
                 var m = 0.0
                 while (m <= visibleMonths) {
                     val x = xFor(m)
@@ -313,7 +315,7 @@ fun GrowthChart(
                         }
                         drawContext.canvas.nativeCanvas.drawText(
                             label,
-                            x - 8f * textScale, xLabelY,
+                            x - 4f * dp * textScale, xLabelY,
                             textPaint
                         )
                     }
@@ -341,10 +343,10 @@ fun GrowthChart(
                     val labelY = yFor(accessor(lastRow))
                     drawContext.canvas.nativeCanvas.drawText(
                         percentileLabels[pIdx],
-                        labelX, labelY + 4f,
+                        labelX, labelY + 2f * dp,
                         android.graphics.Paint().apply {
                             color = percentileColors[pIdx].hashCode()
-                            textSize = 18f * textScale
+                            textSize = 8f * dp * textScale
                         }
                     )
                 }
