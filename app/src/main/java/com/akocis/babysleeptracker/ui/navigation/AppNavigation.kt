@@ -193,9 +193,11 @@ fun AppNavigation(
             )
         }
         composable(Routes.HIGH_CONTRAST) {
+            val homeViewModel: HomeViewModel = viewModel()
             HighContrastScreen(
                 prefsRepository = prefsRepository,
-                fileRepository = fileRepository,
+                onStartHcEntry = { colorsAbbrev -> homeViewModel.startHcEntry(colorsAbbrev) },
+                onStopHcEntry = { homeViewModel.stopHcEntry() },
                 onBack = safePopBack
             )
         }

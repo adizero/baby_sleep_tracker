@@ -70,17 +70,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
-import com.akocis.babysleeptracker.model.HighContrastEntry
-import com.akocis.babysleeptracker.repository.EntryParser
-import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
-import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.ui.component.ColorScheme
 import com.akocis.babysleeptracker.ui.component.HighContrastImageGenerator
 import com.akocis.babysleeptracker.ui.component.PatternType
 import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalTime
 
 enum class TransitionType(val label: String) {
     NONE("None"),
@@ -92,7 +86,8 @@ enum class TransitionType(val label: String) {
 @Composable
 fun HighContrastScreen(
     prefsRepository: PreferencesRepository,
-    fileRepository: FileRepository,
+    onStartHcEntry: (colorsAbbrev: String) -> Unit,
+    onStopHcEntry: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -121,40 +116,6 @@ fun HighContrastScreen(
     }
 
     var showViewer by remember { mutableStateOf(false) }
-    var hcEntryId by remember { mutableStateOf<String?>(null) }
-    var hcStartDate by remember { mutableStateOf<LocalDate?>(null) }
-    var hcStartTime by remember { mutableStateOf<LocalTime?>(null) }
-    var hcColorsAbbrev by remember { mutableStateOf("") }
-
-    // Handle HC entry lifecycle via LaunchedEffect — runs as a proper suspend coroutine
-    LaunchedEffect(showViewer) {
-        val uri = prefsRepository.fileUri ?: return@LaunchedEffect
-        if (showViewer && hcEntryId == null) {
-            // Viewer just opened — append ongoing entry
-            val date = LocalDate.now()
-            val time = LocalTime.now().withSecond(0).withNano(0)
-            val id = EntryParser.generateId()
-            val colors = enabledColors.joinToString(",") { cs ->
-                cs.name.split("_").joinToString("") { it.first().toString() }
-            }
-            hcEntryId = id
-            hcStartDate = date
-            hcStartTime = time
-            hcColorsAbbrev = colors
-            val entry = HighContrastEntry(date, time, null, colors, id)
-            fileRepository.appendHighContrastEntry(uri, entry)
-            SyncHelper.notifyDataChanged()
-        } else if (!showViewer && hcEntryId != null) {
-            // Viewer just closed — update ongoing entry to completed
-            val id = hcEntryId!!
-            val endTime = LocalTime.now().withSecond(0).withNano(0)
-            val completed = HighContrastEntry(hcStartDate!!, hcStartTime!!, endTime, hcColorsAbbrev)
-            val completedLine = EntryParser.formatHighContrastEntry(completed)
-            hcEntryId = null
-            fileRepository.replaceById(uri, id, completedLine)
-            SyncHelper.notifyDataChanged()
-        }
-    }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -191,7 +152,10 @@ fun HighContrastScreen(
             enabledPatterns = enabledPatterns,
             enabledColors = enabledColors,
             folderUri = folderUri,
-            onExit = { showViewer = false }
+            onExit = {
+                onStopHcEntry()
+                showViewer = false
+            }
         )
         return
     }
@@ -403,6 +367,10 @@ fun HighContrastScreen(
             OutlinedButton(
                 onClick = {
                     savePrefs()
+                    val colorsAbbrev = enabledColors.joinToString(",") { cs ->
+                        cs.name.split("_").joinToString("") { it.first().toString() }
+                    }
+                    onStartHcEntry(colorsAbbrev)
                     showViewer = true
                 },
                 modifier = Modifier

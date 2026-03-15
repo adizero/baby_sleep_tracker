@@ -16,6 +16,7 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.HighContrastEntry
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
@@ -84,6 +85,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastSleepEndDate: LocalDate? = null
     private var lastSleepEndTime: LocalTime? = null
     private var pendingNoiseEntry: WhiteNoiseEntry? = null
+    private var pendingHcEntry: HighContrastEntry? = null
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
@@ -826,6 +828,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun getNoiseVolume(): Float = prefsRepository.noiseVolume
     fun getNoiseFadeIn(): Int = prefsRepository.noiseFadeIn
     fun getNoiseFadeOut(): Int = prefsRepository.noiseFadeOut
+
+    fun startHcEntry(colorsAbbrev: String) {
+        val uri = prefsRepository.fileUri ?: return
+        val now = LocalTime.now().withSecond(0).withNano(0)
+        val id = EntryParser.generateId()
+        val entry = HighContrastEntry(LocalDate.now(), now, null, colorsAbbrev, id)
+        pendingHcEntry = entry
+        viewModelScope.launch {
+            try {
+                fileRepository.appendHighContrastEntry(uri, entry)
+                SyncHelper.notifyDataChanged()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to save HC entry: ${e.message}"
+            }
+        }
+    }
+
+    fun stopHcEntry() {
+        val uri = prefsRepository.fileUri ?: return
+        val entry = pendingHcEntry ?: return
+        val entryId = entry.id ?: return
+        val endTime = LocalTime.now().withSecond(0).withNano(0)
+        val completed = entry.copy(endTime = endTime)
+        val completedLine = EntryParser.formatHighContrastEntry(completed)
+        pendingHcEntry = null
+        viewModelScope.launch {
+            try {
+                fileRepository.replaceById(uri, entryId, completedLine)
+                SyncHelper.notifyDataChanged()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to update HC entry: ${e.message}"
+            }
+        }
+    }
 
     fun startNoise(settings: NoiseSettings) {
         val ctx = getApplication<Application>()
