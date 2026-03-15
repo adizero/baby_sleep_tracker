@@ -43,6 +43,12 @@ class PreferencesRepository(context: Context) {
         private const val KEY_HC_FOLDER_URI = "hc_folder_uri"
         private const val KEY_HC_ENABLED_PATTERNS = "hc_enabled_patterns"
         private const val KEY_HC_ENABLED_COLORS = "hc_enabled_colors"
+        private const val KEY_SLEEP_ALARM_ENABLED = "sleep_alarm_enabled"
+        private const val KEY_SLEEP_ALARM_MINUTES = "sleep_alarm_minutes"
+        private const val KEY_SLEEP_ALARM_RINGTONE = "sleep_alarm_ringtone"
+        private const val KEY_FEED_ALARM_ENABLED = "feed_alarm_enabled"
+        private const val KEY_FEED_ALARM_MINUTES = "feed_alarm_minutes"
+        private const val KEY_FEED_ALARM_RINGTONE = "feed_alarm_ringtone"
     }
 
     var fileUri: Uri?
@@ -218,6 +224,30 @@ class PreferencesRepository(context: Context) {
     var hcEnabledColors: String
         get() = prefs.getString(KEY_HC_ENABLED_COLORS, "") ?: ""
         set(value) = prefs.edit().putString(KEY_HC_ENABLED_COLORS, value).apply()
+
+    var sleepAlarmEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SLEEP_ALARM_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SLEEP_ALARM_ENABLED, value).apply()
+
+    var sleepAlarmMinutes: Int
+        get() = prefs.getInt(KEY_SLEEP_ALARM_MINUTES, 180)
+        set(value) = prefs.edit().putInt(KEY_SLEEP_ALARM_MINUTES, value).apply()
+
+    var sleepAlarmRingtone: String?
+        get() = prefs.getString(KEY_SLEEP_ALARM_RINGTONE, null)
+        set(value) = prefs.edit().putString(KEY_SLEEP_ALARM_RINGTONE, value).apply()
+
+    var feedAlarmEnabled: Boolean
+        get() = prefs.getBoolean(KEY_FEED_ALARM_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_FEED_ALARM_ENABLED, value).apply()
+
+    var feedAlarmMinutes: Int
+        get() = prefs.getInt(KEY_FEED_ALARM_MINUTES, 180)
+        set(value) = prefs.edit().putInt(KEY_FEED_ALARM_MINUTES, value).apply()
+
+    var feedAlarmRingtone: String?
+        get() = prefs.getString(KEY_FEED_ALARM_RINGTONE, null)
+        set(value) = prefs.edit().putString(KEY_FEED_ALARM_RINGTONE, value).apply()
 
     fun clearDropbox() {
         prefs.edit()

@@ -26,6 +26,7 @@ import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.service.NoiseServiceState
 import com.akocis.babysleeptracker.service.WhiteNoiseService
 import com.akocis.babysleeptracker.ui.component.NoiseSettings
+import com.akocis.babysleeptracker.util.AlarmScheduler
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -138,11 +139,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
                 pendingWrite = true
+                cancelFeedAlarm()
                 startTimer()
                 viewModelScope.launch {
                     try {
                         fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
                         pendingWrite = false
+                        scheduleSleepAlarmIfEnabled()
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
                         showUndo("Sleep started at ${now.startTime}")
@@ -154,6 +157,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
             is TrackingState.Sleeping -> {
                 val endTime = LocalTime.now().withSecond(0).withNano(0)
+                cancelSleepAlarm()
                 viewModelScope.launch {
                     try {
                         val ongoingLine = "SLEEP ${state.startDate.format(DateTimeUtil.DATE_FORMAT)} ${state.startTime.format(DateTimeUtil.TIME_FORMAT)} -"
@@ -174,6 +178,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
             is TrackingState.Feeding -> {
                 // Auto-stop feeding, then start sleep
+                cancelFeedAlarm()
                 viewModelScope.launch {
                     try {
                         finishFeeding(uri, state)
@@ -181,6 +186,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         _trackingState.value = now
                         prefsRepository.saveTrackingState(now)
                         startTimer()
+                        scheduleSleepAlarmIfEnabled()
                         fileRepository.appendSleepEntry(uri, SleepEntry(now.startDate, now.startTime, null))
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
@@ -201,6 +207,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
                 pendingWrite = true
+                cancelFeedAlarm()
                 startTimer()
                 viewModelScope.launch {
                     try {
@@ -217,6 +224,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
             is TrackingState.Sleeping -> {
                 // Auto-stop sleep, then start feeding
+                cancelSleepAlarm()
                 viewModelScope.launch {
                     try {
                         val endTime = LocalTime.now().withSecond(0).withNano(0)
@@ -273,6 +281,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = TrackingState.Idle
                 prefsRepository.saveTrackingState(TrackingState.Idle)
                 startAwakeTimer()
+                scheduleFeedAlarmIfEnabled()
                 refreshTodayStats()
                 SyncHelper.notifyDataChanged()
                 val endTime = LocalTime.now().withSecond(0).withNano(0)
@@ -315,6 +324,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 fileRepository.appendBottleFeedEntry(uri, entry)
+                scheduleFeedAlarmIfEnabled()
                 refreshTodayStats()
                 SyncHelper.notifyDataChanged()
                 showUndo("${type.label} ${amount}ml at $now")
@@ -694,6 +704,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Schedule alarms based on current state
+        when (_trackingState.value) {
+            is TrackingState.Sleeping -> scheduleSleepAlarmIfEnabled()
+            is TrackingState.Idle -> {
+                // Schedule feed alarm from last feed end time
+                val lastFeedEndDateTime = if (lastBreastEndEpoch >= lastBottleEpoch && lastBreastFeed != null) {
+                    endDateTime(lastBreastFeed.date, lastBreastFeed.startTime, lastBreastFeed.endTime!!)
+                } else if (lastBottle != null) {
+                    lastBottle.date.atTime(lastBottle.time)
+                } else null
+                if (lastFeedEndDateTime != null) {
+                    scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
+                }
+            }
+            is TrackingState.Feeding -> {} // No alarms while feeding
+        }
+
         if (data.babyName != null) {
             _babyName.value = data.babyName
             prefsRepository.babyName = data.babyName
@@ -751,6 +778,48 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 delay(10_000)
             }
         }
+    }
+
+    private fun scheduleSleepAlarmIfEnabled() {
+        if (!prefsRepository.sleepAlarmEnabled) return
+        val state = _trackingState.value as? TrackingState.Sleeping ?: return
+        val ctx = getApplication<Application>()
+        val startDateTime = state.startDate.atTime(state.startTime)
+        val triggerMillis = startDateTime
+            .plusMinutes(prefsRepository.sleepAlarmMinutes.toLong())
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        if (triggerMillis > System.currentTimeMillis()) {
+            AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
+        }
+    }
+
+    private fun cancelSleepAlarm() {
+        AlarmScheduler.cancelSleepAlarm(getApplication())
+    }
+
+    private fun scheduleFeedAlarmIfEnabled() {
+        if (!prefsRepository.feedAlarmEnabled) return
+        val ctx = getApplication<Application>()
+        // Schedule from now (feed just ended or app just started idle)
+        val triggerMillis = System.currentTimeMillis() + prefsRepository.feedAlarmMinutes.toLong() * 60_000
+        AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+    }
+
+    private fun scheduleFeedAlarmFromLastFeed(lastFeedDateTime: LocalDateTime) {
+        if (!prefsRepository.feedAlarmEnabled) return
+        val ctx = getApplication<Application>()
+        val triggerMillis = lastFeedDateTime
+            .plusMinutes(prefsRepository.feedAlarmMinutes.toLong())
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        if (triggerMillis > System.currentTimeMillis()) {
+            AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+        }
+    }
+
+    private fun cancelFeedAlarm() {
+        AlarmScheduler.cancelFeedAlarm(getApplication())
     }
 
     fun getLastNoiseType(): String = prefsRepository.lastNoiseType

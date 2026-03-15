@@ -2,9 +2,13 @@ package com.akocis.babysleeptracker.ui.screen
 
 import android.app.Activity
 import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,8 +32,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -92,6 +98,14 @@ fun SettingsScreen(
     var showDayStartPicker by remember { mutableStateOf(false) }
     var showDayEndPicker by remember { mutableStateOf(false) }
 
+    // Alarm settings
+    var sleepAlarmEnabled by remember { mutableStateOf(prefsRepository.sleepAlarmEnabled) }
+    var sleepAlarmMinutes by remember { mutableStateOf(prefsRepository.sleepAlarmMinutes) }
+    var sleepAlarmRingtoneUri by remember { mutableStateOf(prefsRepository.sleepAlarmRingtone) }
+    var feedAlarmEnabled by remember { mutableStateOf(prefsRepository.feedAlarmEnabled) }
+    var feedAlarmMinutes by remember { mutableStateOf(prefsRepository.feedAlarmMinutes) }
+    var feedAlarmRingtoneUri by remember { mutableStateOf(prefsRepository.feedAlarmRingtone) }
+
     val openFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -120,6 +134,72 @@ fun SettingsScreen(
                     snackbarHostState.showSnackbar("Imported $count entries")
                 }
             }
+        }
+    }
+
+    fun getRingtoneUri(data: Intent?): Uri? {
+        return if (android.os.Build.VERSION.SDK_INT >= 33) {
+            data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        }
+    }
+
+    val sleepRingtoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = getRingtoneUri(result.data)
+            sleepAlarmRingtoneUri = uri?.toString()
+            prefsRepository.sleepAlarmRingtone = uri?.toString()
+        }
+    }
+
+    val feedRingtoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = getRingtoneUri(result.data)
+            feedAlarmRingtoneUri = uri?.toString()
+            prefsRepository.feedAlarmRingtone = uri?.toString()
+        }
+    }
+
+    fun ringtonePickerIntent(currentUri: String?, title: String): Intent {
+        return Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, title)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            if (currentUri != null) {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(currentUri))
+            } else {
+                putExtra(
+                    RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                )
+            }
+        }
+    }
+
+    fun getRingtoneTitle(uriStr: String?): String {
+        if (uriStr == null) return "Default alarm"
+        return try {
+            val ringtone = RingtoneManager.getRingtone(context, Uri.parse(uriStr))
+            ringtone?.getTitle(context) ?: "Default alarm"
+        } catch (_: Exception) {
+            "Default alarm"
+        }
+    }
+
+    fun formatAlarmDuration(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}h ${m}m"
+            h > 0 -> "${h}h"
+            else -> "${m}m"
         }
     }
 
@@ -471,6 +551,117 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Night starts at ${String.format("%02d:00", dayEndHour)}")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Alarms
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Alarms",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    // Sleep alarm
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text("Sleep alarm")
+                        Switch(
+                            checked = sleepAlarmEnabled,
+                            onCheckedChange = {
+                                sleepAlarmEnabled = it
+                                prefsRepository.sleepAlarmEnabled = it
+                            }
+                        )
+                    }
+                    if (sleepAlarmEnabled) {
+                        Text(
+                            text = "Alert when baby sleeps longer than ${formatAlarmDuration(sleepAlarmMinutes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Slider(
+                            value = sleepAlarmMinutes.toFloat(),
+                            onValueChange = {
+                                sleepAlarmMinutes = it.toInt()
+                            },
+                            onValueChangeFinished = {
+                                prefsRepository.sleepAlarmMinutes = sleepAlarmMinutes
+                            },
+                            valueRange = 30f..480f,
+                            steps = (480 - 30) / 15 - 1,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                sleepRingtoneLauncher.launch(
+                                    ringtonePickerIntent(sleepAlarmRingtoneUri, "Sleep Alarm Sound")
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Sound: ${getRingtoneTitle(sleepAlarmRingtoneUri)}")
+                        }
+                    }
+
+                    // Feed alarm
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text("Feeding alarm")
+                        Switch(
+                            checked = feedAlarmEnabled,
+                            onCheckedChange = {
+                                feedAlarmEnabled = it
+                                prefsRepository.feedAlarmEnabled = it
+                            }
+                        )
+                    }
+                    if (feedAlarmEnabled) {
+                        Text(
+                            text = "Alert when baby hasn't been fed for ${formatAlarmDuration(feedAlarmMinutes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Slider(
+                            value = feedAlarmMinutes.toFloat(),
+                            onValueChange = {
+                                feedAlarmMinutes = it.toInt()
+                            },
+                            onValueChangeFinished = {
+                                prefsRepository.feedAlarmMinutes = feedAlarmMinutes
+                            },
+                            valueRange = 30f..480f,
+                            steps = (480 - 30) / 15 - 1,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                feedRingtoneLauncher.launch(
+                                    ringtonePickerIntent(feedAlarmRingtoneUri, "Feeding Alarm Sound")
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Sound: ${getRingtoneTitle(feedAlarmRingtoneUri)}")
+                        }
                     }
                 }
             }
