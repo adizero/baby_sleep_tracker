@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -407,6 +408,9 @@ private fun HighContrastViewer(
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Handle system back button — must go through onExit to close the HC entry
+    BackHandler(onBack = onExit)
 
     // Keep screen on
     val activity = context as? Activity

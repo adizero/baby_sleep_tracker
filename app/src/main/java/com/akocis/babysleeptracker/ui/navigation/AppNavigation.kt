@@ -193,7 +193,9 @@ fun AppNavigation(
             )
         }
         composable(Routes.HIGH_CONTRAST) {
-            val homeViewModel: HomeViewModel = viewModel()
+            val homeViewModel: HomeViewModel = viewModel(
+                viewModelStoreOwner = navController.getBackStackEntry(Routes.HOME)
+            )
             HighContrastScreen(
                 prefsRepository = prefsRepository,
                 onStartHcEntry = { colorsAbbrev -> homeViewModel.startHcEntry(colorsAbbrev) },
