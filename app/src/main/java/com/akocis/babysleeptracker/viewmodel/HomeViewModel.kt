@@ -20,6 +20,7 @@ import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.model.WhiteNoiseEntry
+import com.akocis.babysleeptracker.repository.EntryParser
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
@@ -96,6 +97,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         loadBabyInfo()
         loadBottlePreset()
         syncAndRefresh(showIndicator = false)
+        closeStaleOngoingEntries()
         observeNoiseState()
         observeSyncCompleted()
     }
@@ -873,6 +875,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val uri = prefsRepository.fileUri ?: return@collect
                 refreshTodayStatsInternal(uri)
             }
+        }
+    }
+
+    private fun closeStaleOngoingEntries() {
+        val uri = prefsRepository.fileUri ?: return
+        viewModelScope.launch {
+            try {
+                val data = fileRepository.readAll(uri)
+                var changed = false
+
+                // Close any ongoing HC entries (HC viewer is never active on fresh app start)
+                data.highContrastEntries.filter { it.isOngoing }.forEach { entry ->
+                    val ongoingLine = EntryParser.stripId(EntryParser.formatHighContrastEntry(entry))
+                    val completed = entry.copy(endTime = entry.startTime)
+                    val completedLine = EntryParser.stripId(EntryParser.formatHighContrastEntry(completed))
+                    fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                    changed = true
+                }
+
+                // Close ongoing NOISE entries if the service is not currently playing
+                val noiseIsPlaying = WhiteNoiseService.serviceState.value is NoiseServiceState.Playing
+                val ongoingNoise = data.whiteNoiseEntries.filter { it.isOngoing }
+                if (noiseIsPlaying && ongoingNoise.isNotEmpty()) {
+                    // Service survived restart — restore pendingNoiseEntry so it can be completed later
+                    pendingNoiseEntry = ongoingNoise.last()
+                } else {
+                    ongoingNoise.forEach { entry ->
+                        val ongoingLine = EntryParser.stripId(EntryParser.formatWhiteNoiseEntry(entry))
+                        val completed = entry.copy(endTime = entry.startTime)
+                        val completedLine = EntryParser.stripId(EntryParser.formatWhiteNoiseEntry(completed))
+                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                        changed = true
+                    }
+                }
+
+                if (changed) {
+                    SyncHelper.notifyDataChanged()
+                }
+            } catch (_: Exception) {}
         }
     }
 
