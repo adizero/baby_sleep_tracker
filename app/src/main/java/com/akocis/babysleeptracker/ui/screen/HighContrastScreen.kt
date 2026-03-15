@@ -78,9 +78,9 @@ import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.ui.component.ColorScheme
 import com.akocis.babysleeptracker.ui.component.HighContrastImageGenerator
 import com.akocis.babysleeptracker.ui.component.PatternType
-import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -421,14 +421,16 @@ private fun HighContrastViewer(
         }
     }
 
-    // Log HC entry on start, update on exit
+    // Log HC entry: append ongoing on start, update to completed on exit
     val startDate = remember { LocalDate.now() }
     val startTime = remember { LocalTime.now().withSecond(0).withNano(0) }
+    val entryId = remember { EntryParser.generateId() }
     DisposableEffect(Unit) {
         val uri = prefsRepository.fileUri
+        var appendJob: Job? = null
         if (uri != null) {
-            val entry = HighContrastEntry(startDate, startTime, null, colorsAbbrev)
-            CoroutineScope(Dispatchers.IO).launch {
+            val entry = HighContrastEntry(startDate, startTime, null, colorsAbbrev, entryId)
+            appendJob = CoroutineScope(Dispatchers.IO).launch {
                 try {
                     fileRepository.appendHighContrastEntry(uri, entry)
                     SyncHelper.notifyDataChanged()
@@ -437,12 +439,13 @@ private fun HighContrastViewer(
         }
         onDispose {
             if (uri != null) {
-                val endTime = LocalTime.now().withSecond(0).withNano(0)
-                val ongoingLine = "HC ${startDate.format(DateTimeUtil.DATE_FORMAT)} ${startTime.format(DateTimeUtil.TIME_FORMAT)} - $colorsAbbrev"
-                val completedLine = "HC ${startDate.format(DateTimeUtil.DATE_FORMAT)} ${startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)} $colorsAbbrev"
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                        appendJob?.join()
+                        val endTime = LocalTime.now().withSecond(0).withNano(0)
+                        val completed = HighContrastEntry(startDate, startTime, endTime, colorsAbbrev)
+                        val completedLine = EntryParser.formatHighContrastEntry(completed)
+                        fileRepository.replaceById(uri, entryId, completedLine)
                         SyncHelper.notifyDataChanged()
                     } catch (_: Exception) {}
                 }

@@ -847,9 +847,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         ctx.startForegroundService(intent)
 
-        // Append ongoing entry
+        // Append ongoing entry with pre-generated ID for reliable update later
         val now = LocalTime.now().withSecond(0).withNano(0)
-        val entry = WhiteNoiseEntry(settings.noiseType, LocalDate.now(), now)
+        val entryId = EntryParser.generateId()
+        val entry = WhiteNoiseEntry(settings.noiseType, LocalDate.now(), now, null, entryId)
         pendingNoiseEntry = entry
         viewModelScope.launch {
             try {
@@ -887,10 +888,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Close any ongoing HC entries (HC viewer is never active on fresh app start)
                 data.highContrastEntries.filter { it.isOngoing }.forEach { entry ->
-                    val ongoingLine = EntryParser.stripId(EntryParser.formatHighContrastEntry(entry))
                     val completed = entry.copy(endTime = entry.startTime)
-                    val completedLine = EntryParser.stripId(EntryParser.formatHighContrastEntry(completed))
-                    fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                    val completedLine = EntryParser.formatHighContrastEntry(completed)
+                    if (entry.id != null) {
+                        fileRepository.replaceById(uri, entry.id, completedLine)
+                    } else {
+                        val ongoingLine = EntryParser.stripId(EntryParser.formatHighContrastEntry(entry))
+                        fileRepository.updateEntry(uri, ongoingLine, EntryParser.stripId(completedLine))
+                    }
                     changed = true
                 }
 
@@ -902,10 +907,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     pendingNoiseEntry = ongoingNoise.last()
                 } else {
                     ongoingNoise.forEach { entry ->
-                        val ongoingLine = EntryParser.stripId(EntryParser.formatWhiteNoiseEntry(entry))
                         val completed = entry.copy(endTime = entry.startTime)
-                        val completedLine = EntryParser.stripId(EntryParser.formatWhiteNoiseEntry(completed))
-                        fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                        val completedLine = EntryParser.formatWhiteNoiseEntry(completed)
+                        if (entry.id != null) {
+                            fileRepository.replaceById(uri, entry.id, completedLine)
+                        } else {
+                            val ongoingLine = EntryParser.stripId(EntryParser.formatWhiteNoiseEntry(entry))
+                            fileRepository.updateEntry(uri, ongoingLine, EntryParser.stripId(completedLine))
+                        }
                         changed = true
                     }
                 }
@@ -933,14 +942,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun completeNoiseEntry() {
         val uri = prefsRepository.fileUri ?: return
         val entry = pendingNoiseEntry ?: return
+        val entryId = entry.id ?: return
         val endTime = LocalTime.now().withSecond(0).withNano(0)
-        val typeName = entry.noiseType.name.lowercase()
-        val ongoingLine = "NOISE ${entry.date.format(DateTimeUtil.DATE_FORMAT)} ${entry.startTime.format(DateTimeUtil.TIME_FORMAT)} - $typeName"
-        val completedLine = "NOISE ${entry.date.format(DateTimeUtil.DATE_FORMAT)} ${entry.startTime.format(DateTimeUtil.TIME_FORMAT)} - ${endTime.format(DateTimeUtil.TIME_FORMAT)} $typeName"
+        val completedEntry = entry.copy(endTime = endTime)
+        val completedLine = EntryParser.formatWhiteNoiseEntry(completedEntry)
         pendingNoiseEntry = null
         viewModelScope.launch {
             try {
-                fileRepository.updateEntry(uri, ongoingLine, completedLine)
+                fileRepository.replaceById(uri, entryId, completedLine)
                 SyncHelper.notifyDataChanged()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to update noise entry: ${e.message}"
