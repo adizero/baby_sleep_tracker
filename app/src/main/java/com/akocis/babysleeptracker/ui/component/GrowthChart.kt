@@ -170,7 +170,7 @@ fun GrowthChart(
                             val leftPad = 16f * dp
                             val rightPad = if (isFullscreen) 16f * dp else 8f * dp
                             val topPad = 4f * dp
-                            val bottomPad = if (isFullscreen) 24f * dp else 14f * dp
+                            val bottomPad = if (isFullscreen) 32f * dp else 14f * dp
                             val chartW = size.width - leftPad - rightPad
                             val chartH = size.height - topPad - bottomPad
 
@@ -244,7 +244,7 @@ fun GrowthChart(
             val leftPad = 16f * dp
             val rightPad = if (isFullscreen) 16f * dp else 8f * dp
             val topPad = 4f * dp
-            val bottomPad = if (isFullscreen) 24f * dp else 14f * dp
+            val bottomPad = if (isFullscreen) 32f * dp else 14f * dp
             val chartW = size.width - leftPad - rightPad
             val chartH = size.height - topPad - bottomPad
 
@@ -300,12 +300,8 @@ fun GrowthChart(
                     else -> { xStepMonths = 6.0; useWeeks = false }
                 }
 
-                // X-axis labels at fixed position below chart, not affected by zoom
-                val axisLabelPaint = android.graphics.Paint().apply {
-                    color = labelColor.hashCode()
-                    textSize = 10f * dp
-                }
-                val xLabelY = size.height - bottomPad + 14f * dp
+                // X-axis labels at fixed position below chart, scaled with zoom
+                val xLabelY = size.height - bottomPad + 14f * dp * textScale
                 var m = 0.0
                 while (m <= visibleMonths) {
                     val x = xFor(m)
@@ -319,8 +315,8 @@ fun GrowthChart(
                         }
                         drawContext.canvas.nativeCanvas.drawText(
                             label,
-                            x - 4f * dp, xLabelY,
-                            axisLabelPaint
+                            x - 4f * dp * textScale, xLabelY,
+                            textPaint
                         )
                     }
                     m += xStepMonths
