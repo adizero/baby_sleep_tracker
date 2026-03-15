@@ -139,7 +139,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _trackingState.value = now
                 prefsRepository.saveTrackingState(now)
                 pendingWrite = true
-                cancelFeedAlarm()
                 startTimer()
                 viewModelScope.launch {
                     try {
@@ -178,7 +177,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
             is TrackingState.Feeding -> {
                 // Auto-stop feeding, then start sleep
-                cancelFeedAlarm()
                 viewModelScope.launch {
                     try {
                         finishFeeding(uri, state)
