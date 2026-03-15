@@ -58,7 +58,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,7 +79,6 @@ import com.akocis.babysleeptracker.ui.component.ColorScheme
 import com.akocis.babysleeptracker.ui.component.HighContrastImageGenerator
 import com.akocis.babysleeptracker.ui.component.PatternType
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -123,11 +121,40 @@ fun HighContrastScreen(
     }
 
     var showViewer by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     var hcEntryId by remember { mutableStateOf<String?>(null) }
     var hcStartDate by remember { mutableStateOf<LocalDate?>(null) }
     var hcStartTime by remember { mutableStateOf<LocalTime?>(null) }
     var hcColorsAbbrev by remember { mutableStateOf("") }
+
+    // Handle HC entry lifecycle via LaunchedEffect — runs as a proper suspend coroutine
+    LaunchedEffect(showViewer) {
+        val uri = prefsRepository.fileUri ?: return@LaunchedEffect
+        if (showViewer && hcEntryId == null) {
+            // Viewer just opened — append ongoing entry
+            val date = LocalDate.now()
+            val time = LocalTime.now().withSecond(0).withNano(0)
+            val id = EntryParser.generateId()
+            val colors = enabledColors.joinToString(",") { cs ->
+                cs.name.split("_").joinToString("") { it.first().toString() }
+            }
+            hcEntryId = id
+            hcStartDate = date
+            hcStartTime = time
+            hcColorsAbbrev = colors
+            val entry = HighContrastEntry(date, time, null, colors, id)
+            fileRepository.appendHighContrastEntry(uri, entry)
+            SyncHelper.notifyDataChanged()
+        } else if (!showViewer && hcEntryId != null) {
+            // Viewer just closed — update ongoing entry to completed
+            val id = hcEntryId!!
+            val endTime = LocalTime.now().withSecond(0).withNano(0)
+            val completed = HighContrastEntry(hcStartDate!!, hcStartTime!!, endTime, hcColorsAbbrev)
+            val completedLine = EntryParser.formatHighContrastEntry(completed)
+            hcEntryId = null
+            fileRepository.replaceById(uri, id, completedLine)
+            SyncHelper.notifyDataChanged()
+        }
+    }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -154,42 +181,6 @@ fun HighContrastScreen(
         prefsRepository.hcEnabledColors = enabledColors.joinToString(",") { it.name }
     }
 
-    fun startHcEntry() {
-        val uri = prefsRepository.fileUri ?: return
-        val date = LocalDate.now()
-        val time = LocalTime.now().withSecond(0).withNano(0)
-        val id = EntryParser.generateId()
-        val colors = enabledColors.joinToString(",") { cs ->
-            cs.name.split("_").joinToString("") { it.first().toString() }
-        }
-        hcEntryId = id
-        hcStartDate = date
-        hcStartTime = time
-        hcColorsAbbrev = colors
-        val entry = HighContrastEntry(date, time, null, colors, id)
-        scope.launch {
-            try {
-                fileRepository.appendHighContrastEntry(uri, entry)
-                SyncHelper.notifyDataChanged()
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun stopHcEntry() {
-        val uri = prefsRepository.fileUri ?: return
-        val id = hcEntryId ?: return
-        val endTime = LocalTime.now().withSecond(0).withNano(0)
-        val completed = HighContrastEntry(hcStartDate!!, hcStartTime!!, endTime, hcColorsAbbrev)
-        val completedLine = EntryParser.formatHighContrastEntry(completed)
-        hcEntryId = null
-        scope.launch {
-            try {
-                fileRepository.replaceById(uri, id, completedLine)
-                SyncHelper.notifyDataChanged()
-            } catch (_: Exception) {}
-        }
-    }
-
     if (showViewer) {
         HighContrastViewer(
             useGenerated = useGenerated,
@@ -200,10 +191,7 @@ fun HighContrastScreen(
             enabledPatterns = enabledPatterns,
             enabledColors = enabledColors,
             folderUri = folderUri,
-            onExit = {
-                stopHcEntry()
-                showViewer = false
-            }
+            onExit = { showViewer = false }
         )
         return
     }
@@ -415,7 +403,6 @@ fun HighContrastScreen(
             OutlinedButton(
                 onClick = {
                     savePrefs()
-                    startHcEntry()
                     showViewer = true
                 },
                 modifier = Modifier
