@@ -58,7 +58,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
-    val useMetric: Boolean get() = prefsRepository.useMetric
+    val useKg: Boolean get() = prefsRepository.useKg
+    val useCm: Boolean get() = prefsRepository.useCm
     val bottleUseOz: Boolean get() = prefsRepository.bottleUseOz
 
     init {

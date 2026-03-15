@@ -50,6 +50,8 @@ class PreferencesRepository(context: Context) {
         private const val KEY_FEED_ALARM_MINUTES = "feed_alarm_minutes"
         private const val KEY_FEED_ALARM_RINGTONE = "feed_alarm_ringtone"
         private const val KEY_BOTTLE_USE_OZ = "bottle_use_oz"
+        private const val KEY_USE_KG = "use_kg"
+        private const val KEY_USE_CM = "use_cm"
     }
 
     var fileUri: Uri?
@@ -250,7 +252,18 @@ class PreferencesRepository(context: Context) {
         get() = prefs.getString(KEY_FEED_ALARM_RINGTONE, null)
         set(value) = prefs.edit().putString(KEY_FEED_ALARM_RINGTONE, value).apply()
 
-    // Bottle unit preference: null = not set yet (use !useMetric as default)
+    var useKg: Boolean
+        get() {
+            return if (prefs.contains(KEY_USE_KG)) prefs.getBoolean(KEY_USE_KG, true) else useMetric
+        }
+        set(value) = prefs.edit().putBoolean(KEY_USE_KG, value).apply()
+
+    var useCm: Boolean
+        get() {
+            return if (prefs.contains(KEY_USE_CM)) prefs.getBoolean(KEY_USE_CM, true) else useMetric
+        }
+        set(value) = prefs.edit().putBoolean(KEY_USE_CM, value).apply()
+
     var bottleUseOz: Boolean
         get() {
             return if (prefs.contains(KEY_BOTTLE_USE_OZ)) {

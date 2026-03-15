@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -131,6 +133,7 @@ fun ManualEntryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -192,25 +195,27 @@ fun ManualEntryScreen(
                         ) { Text(label) }
                     }
                 }
+                val mlAmounts = (5..300 step 5).toList()
+                val ozAmounts = (5..100 step 5).toList()
                 if (bottleUseOz) {
-                    val ozAmounts = (5..100 step 5).toList()
-                    val currentOzX10 = ((bottleAmountMl / 29.5735) * 10).toInt().let { v ->
-                        ozAmounts.minBy { kotlin.math.abs(it - v) }
-                    }
+                    val currentOzX10 = ozAmounts.minBy { kotlin.math.abs(it - ((bottleAmountMl / 29.5735) * 10).toInt()) }
                     WheelPicker(
                         items = ozAmounts,
                         initialValue = currentOzX10,
                         onValueChanged = { viewModel.setBottleAmountMl(((it / 10.0) * 29.5735).toInt()) },
                         modifier = Modifier.fillMaxWidth(),
                         label = "oz",
-                        formatItem = { "%.1f".format(it / 10.0) }
+                        formatItem = { "%.1f".format(it / 10.0) },
+                        visibleItemCount = 3
                     )
                 } else {
+                    val snappedMl = mlAmounts.minBy { kotlin.math.abs(it - bottleAmountMl) }
                     WheelPicker(
-                        items = (5..300 step 5).toList(),
-                        initialValue = bottleAmountMl,
+                        items = mlAmounts,
+                        initialValue = snappedMl,
                         onValueChanged = { viewModel.setBottleAmountMl(it) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        visibleItemCount = 3
                     )
                 }
             }

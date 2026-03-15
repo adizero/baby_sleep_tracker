@@ -572,7 +572,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Latest measurement with percentiles
-        val useMetric = prefsRepository.useMetric
+        val useKg = prefsRepository.useKg
+        val useCm = prefsRepository.useCm
         val birthDate = prefsRepository.babyBirthDate
         val babySex = prefsRepository.babySex?.let { BabySex.fromString(it) }
         val latestMeasurement = data.measurementEntries.maxByOrNull { it.date.toEpochDay() }
@@ -607,7 +608,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val lastWeightText = latestMeasurement?.weightKg?.let { w ->
-            val valText = if (useMetric) "${"%.3f".format(w)} kg" else "${"%.1f".format(w * 2.20462)} lbs"
+            val valText = if (useKg) "${"%.3f".format(w)} kg" else "${"%.1f".format(w * 2.20462)} lbs"
             if (birthDate != null && babySex != null) {
                 val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
                 val pct = calcPercentile(w, WhoGrowthData.getWeight(babySex), monthAge)
@@ -615,7 +616,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else valText
         }
         val lastHeightText = latestMeasurement?.heightCm?.let { h ->
-            val valText = if (useMetric) "${"%.1f".format(h)} cm" else "${"%.1f".format(h / 2.54)} in"
+            val valText = if (useCm) "${"%.1f".format(h)} cm" else "${"%.1f".format(h / 2.54)} in"
             if (birthDate != null && babySex != null) {
                 val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
                 val pct = calcPercentile(h, WhoGrowthData.getLength(babySex), monthAge)
@@ -623,7 +624,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else valText
         }
         val lastHeadText = latestMeasurement?.headCm?.let { c ->
-            val valText = if (useMetric) "${"%.1f".format(c)} cm" else "${"%.1f".format(c / 2.54)} in"
+            val valText = if (useCm) "${"%.1f".format(c)} cm" else "${"%.1f".format(c / 2.54)} in"
             if (birthDate != null && babySex != null) {
                 val monthAge = java.time.temporal.ChronoUnit.DAYS.between(birthDate, latestMeasurement.date) / 30.4375
                 val pct = calcPercentile(c, WhoGrowthData.getHead(babySex), monthAge)

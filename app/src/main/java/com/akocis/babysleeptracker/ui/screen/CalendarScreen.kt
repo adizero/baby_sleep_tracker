@@ -71,7 +71,8 @@ fun CalendarScreen(
     val calendarData by viewModel.calendarData.collectAsStateWithLifecycle()
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val useMetric = viewModel.useMetric
+    val useKg = viewModel.useKg
+    val useCm = viewModel.useCm
     val bottleUseOz = viewModel.bottleUseOz
 
     Scaffold(
@@ -194,7 +195,7 @@ fun CalendarScreen(
 
             // Selected day details
             selectedDay?.let { dayData ->
-                DayDetailCard(dayData, useMetric, bottleUseOz)
+                DayDetailCard(dayData, useKg, useCm, bottleUseOz)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -303,7 +304,7 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean, bottleUseOz: Boolean = false) {
+private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boolean, bottleUseOz: Boolean = false) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -417,13 +418,13 @@ private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean, bottleUs
                 dayData.measurementEntries.forEach { entry ->
                     val parts = mutableListOf<String>()
                     entry.weightKg?.let {
-                        parts.add(if (useMetric) "${"%.3f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
+                        parts.add(if (useKg) "${"%.3f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
                     }
                     entry.heightCm?.let {
-                        parts.add(if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                        parts.add(if (useCm) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
                     }
                     entry.headCm?.let {
-                        parts.add("hc " + if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                        parts.add("hc " + if (useCm) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
                     }
                     val timeText = entry.time?.toString()?.let { "$it - " } ?: ""
                     Text(

@@ -73,7 +73,8 @@ fun GrowthScreen(
     val babyBirthDate by viewModel.babyBirthDate.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val useMetric = viewModel.useMetric
+    val useKg = viewModel.useKg
+    val useCm = viewModel.useCm
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -186,14 +187,14 @@ fun GrowthScreen(
                 }
             }
 
-            val weightConvert: (Double) -> Double = if (useMetric) { v -> v } else { v -> v * 2.20462 }
-            val lengthConvert: (Double) -> Double = if (useMetric) { v -> v } else { v -> v / 2.54 }
-            val weightUnit = if (useMetric) "kg" else "lbs"
-            val lengthUnit = if (useMetric) "cm" else "in"
+            val weightConvert: (Double) -> Double = if (useKg) { v -> v } else { v -> v * 2.20462 }
+            val lengthConvert: (Double) -> Double = if (useCm) { v -> v } else { v -> v / 2.54 }
+            val weightUnit = if (useKg) "kg" else "lbs"
+            val lengthUnit = if (useCm) "cm" else "in"
 
             // For percentile data, convert if imperial
-            fun convertPercentiles(data: List<WhoGrowthData.PercentileRow>, convert: (Double) -> Double): List<WhoGrowthData.PercentileRow> {
-                if (useMetric) return data
+            fun convertPercentiles(data: List<WhoGrowthData.PercentileRow>, convert: (Double) -> Double, isMetric: Boolean): List<WhoGrowthData.PercentileRow> {
+                if (isMetric) return data
                 return data.map { row ->
                     WhoGrowthData.PercentileRow(
                         row.monthAge,
@@ -204,9 +205,9 @@ fun GrowthScreen(
             }
 
             if (birthDate != null && sex != null) {
-                val weightPercentiles = convertPercentiles(WhoGrowthData.getWeight(sex), weightConvert)
-                val lengthPercentiles = convertPercentiles(WhoGrowthData.getLength(sex), lengthConvert)
-                val headPercentiles = convertPercentiles(WhoGrowthData.getHead(sex), lengthConvert)
+                val weightPercentiles = convertPercentiles(WhoGrowthData.getWeight(sex), weightConvert, useKg)
+                val lengthPercentiles = convertPercentiles(WhoGrowthData.getLength(sex), lengthConvert, useCm)
+                val headPercentiles = convertPercentiles(WhoGrowthData.getHead(sex), lengthConvert, useCm)
                 val weightPoints = toPoints({ it.weightKg }, weightConvert)
                 val lengthPoints = toPoints({ it.heightCm }, lengthConvert)
                 val headPoints = toPoints({ it.headCm }, lengthConvert)
@@ -316,17 +317,17 @@ fun GrowthScreen(
                             ) {
                                 Text(m.date.format(DateTimeFormatter.ofPattern("MM-dd")), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                                 Text(
-                                    m.weightKg?.let { formatValue(it, useMetric, isWeight = true) } ?: "-",
+                                    m.weightKg?.let { formatValue(it, useKg, isWeight = true) } ?: "-",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
-                                    m.heightCm?.let { formatValue(it, useMetric, isWeight = false) } ?: "-",
+                                    m.heightCm?.let { formatValue(it, useCm, isWeight = false) } ?: "-",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
-                                    m.headCm?.let { formatValue(it, useMetric, isWeight = false) } ?: "-",
+                                    m.headCm?.let { formatValue(it, useCm, isWeight = false) } ?: "-",
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(0.8f)
                                 )
@@ -352,8 +353,8 @@ fun GrowthScreen(
     }
 }
 
-private fun formatValue(metricValue: Double, useMetric: Boolean, isWeight: Boolean): String {
-    return if (useMetric) {
+private fun formatValue(metricValue: Double, isMetricUnit: Boolean, isWeight: Boolean): String {
+    return if (isMetricUnit) {
         if (isWeight) "${"%.3f".format(metricValue)} kg" else "${"%.1f".format(metricValue)} cm"
     } else {
         if (isWeight) "${"%.1f".format(metricValue * 2.20462)} lbs" else "${"%.1f".format(metricValue / 2.54)} in"

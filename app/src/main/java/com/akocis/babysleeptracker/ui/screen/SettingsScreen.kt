@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -77,7 +78,9 @@ fun SettingsScreen(
     var babyName by remember { mutableStateOf(prefsRepository.babyName ?: "") }
     var babyBirthDate by remember { mutableStateOf(prefsRepository.babyBirthDate) }
     var babySex by remember { mutableStateOf(prefsRepository.babySex?.let { BabySex.fromString(it) } ?: BabySex.BOY) }
-    var useMetric by remember { mutableStateOf(prefsRepository.useMetric) }
+    var useKg by remember { mutableStateOf(prefsRepository.useKg) }
+    var useCm by remember { mutableStateOf(prefsRepository.useCm) }
+    var bottleUseOz by remember { mutableStateOf(prefsRepository.bottleUseOz) }
 
     // Auto-save baby info to file whenever name, birth date, or sex change
     fun autoSaveBabyInfo() {
@@ -495,27 +498,56 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        val unitOptions = listOf(true to "Metric", false to "Imperial")
-                        unitOptions.forEachIndexed { index, (metric, label) ->
-                            SegmentedButton(
-                                selected = useMetric == metric,
-                                onClick = {
-                                    useMetric = metric
-                                    prefsRepository.useMetric = metric
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = unitOptions.size)
-                            ) {
-                                Text(label)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Weight")
+                        SingleChoiceSegmentedButtonRow {
+                            listOf(true to "kg", false to "lbs").forEachIndexed { index, (kg, label) ->
+                                SegmentedButton(
+                                    selected = useKg == kg,
+                                    onClick = { useKg = kg; prefsRepository.useKg = kg },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                                ) { Text(label) }
                             }
                         }
                     }
-                    Text(
-                        text = if (useMetric) "kg, cm" else "lbs, in",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Length")
+                        SingleChoiceSegmentedButtonRow {
+                            listOf(true to "cm", false to "in").forEachIndexed { index, (cm, label) ->
+                                SegmentedButton(
+                                    selected = useCm == cm,
+                                    onClick = { useCm = cm; prefsRepository.useCm = cm },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                                ) { Text(label) }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Volume")
+                        SingleChoiceSegmentedButtonRow {
+                            listOf(false to "ml", true to "oz").forEachIndexed { index, (oz, label) ->
+                                SegmentedButton(
+                                    selected = bottleUseOz == oz,
+                                    onClick = { bottleUseOz = oz; prefsRepository.bottleUseOz = oz },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                                ) { Text(label) }
+                            }
+                        }
+                    }
                 }
             }
 
