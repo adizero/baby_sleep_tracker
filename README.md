@@ -14,6 +14,7 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **High contrast viewer** — built-in high contrast images for newborn visual stimulation with multiple patterns, color schemes (including three-color), and auto-advancement; viewing sessions tracked in history
 - **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan (pinch or double-tap-and-drag one-handed zoom), and percentile display; latest measurements shown on home screen
 - **Sleep & feeding alarms** — configurable alerts when baby sleeps too long or hasn't been fed, with custom ringtone selection
+- **Development milestones** — age-appropriate milestones for motor, vision, sleep, feeding, teeth, social, language, and cognitive development with fun facts; auto-scrolls to current age
 - **Calendar** — monthly overview with color-coded activity dots and daily detail view
 - **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
 - **Home dashboard** — today's stats, time since last sleep/feed/diaper/bath/measurement, and latest growth measurements with percentiles
