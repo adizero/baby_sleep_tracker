@@ -162,81 +162,138 @@ fun GrowthChart(
         Box {
         Canvas(
             modifier = chartModifier
-                .pointerInput(measurements, scale, offsetX, offsetY) {
-                    detectTapGestures(
-                        onTap = { offset ->
-                            if (measurements.isEmpty()) return@detectTapGestures
-                            val dp = density
-                            val leftPad = 16f * dp
-                            val rightPad = if (isFullscreen) 16f * dp else 8f * dp
-                            val topPad = 4f * dp
-                            val bottomPad = if (isFullscreen) 32f * dp else 14f * dp
-                            val chartW = size.width - leftPad - rightPad
-                            val chartH = size.height - topPad - bottomPad
+                .pointerInput(measurements, scale, offsetX, offsetY, isFullscreen, onDoubleClick) {
+                    val doubleTapTimeoutMs = viewConfiguration.doubleTapTimeoutMillis
+                    val touchSlop = viewConfiguration.touchSlop
+                    var lastTapTimeMs = 0L
+                    var lastTapPosition = Offset.Zero
 
-                            selectedPoint = measurements.minByOrNull { point ->
-                                val px = (leftPad + (point.monthAge / visibleMonths).toFloat() * chartW) * scale + offsetX
-                                val py = (topPad + (1 - (point.value - baseMinY) / (baseMaxY - baseMinY)).toFloat() * chartH) * scale + offsetY
-                                val dx = offset.x - px
-                                val dy = offset.y - py
-                                dx * dx + dy * dy
-                            }?.let { point ->
-                                val px = (leftPad + (point.monthAge / visibleMonths).toFloat() * chartW) * scale + offsetX
-                                val py = (topPad + (1 - (point.value - baseMinY) / (baseMaxY - baseMinY)).toFloat() * chartH) * scale + offsetY
-                                val dx = offset.x - px
-                                val dy = offset.y - py
-                                if (dx * dx + dy * dy < 2500 * scale * scale) point else null
-                            }
-                        },
-                        onDoubleTap = {
-                            if (scale > 1.01f) {
-                                scale = 1f
-                                offsetX = 0f
-                                offsetY = 0f
-                            } else {
-                                onDoubleClick?.invoke()
-                            }
+                    fun selectPoint(tapOffset: Offset) {
+                        if (measurements.isEmpty()) return
+                        val dp = density
+                        val leftPad = 16f * dp
+                        val rightPad = if (isFullscreen) 16f * dp else 8f * dp
+                        val topPad = 4f * dp
+                        val bottomPad = if (isFullscreen) 32f * dp else 14f * dp
+                        val chartW = size.width - leftPad - rightPad
+                        val chartH = size.height - topPad - bottomPad
+                        selectedPoint = measurements.minByOrNull { point ->
+                            val px = (leftPad + (point.monthAge / visibleMonths).toFloat() * chartW) * scale + offsetX
+                            val py = (topPad + (1 - (point.value - baseMinY) / (baseMaxY - baseMinY)).toFloat() * chartH) * scale + offsetY
+                            val dx = tapOffset.x - px
+                            val dy = tapOffset.y - py
+                            dx * dx + dy * dy
+                        }?.let { point ->
+                            val px = (leftPad + (point.monthAge / visibleMonths).toFloat() * chartW) * scale + offsetX
+                            val py = (topPad + (1 - (point.value - baseMinY) / (baseMaxY - baseMinY)).toFloat() * chartH) * scale + offsetY
+                            val dx = tapOffset.x - px
+                            val dy = tapOffset.y - py
+                            if (dx * dx + dy * dy < 2500 * scale * scale) point else null
                         }
-                    )
-                }
-                .pointerInput(Unit) {
+                    }
+
                     awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        var isZoomed = scale > 1.01f
-                        var hadMultiTouch = false
+                        val firstDown = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        val downPos = firstDown.position
+                        val isDoubleTap = (downTime - lastTapTimeMs) < doubleTapTimeoutMs &&
+                            (downPos - lastTapPosition).getDistance() < touchSlop * 3
 
-                        do {
-                            val event = awaitPointerEvent()
-                            val pointers = event.changes
+                        if (isDoubleTap) {
+                            // Double tap detected — wait to see if it becomes a drag
+                            var dragDistance = 0f
+                            var isDragging = false
+                            val scaleAtStart = scale
+                            val anchorX = downPos.x
+                            val anchorY = downPos.y
 
-                            if (pointers.size >= 2) {
-                                hadMultiTouch = true
-                                val zoom = event.calculateZoom()
-                                val pan = event.calculatePan()
-                                val centroid = event.calculateCentroid()
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    val dy = change.position.y - downPos.y
+                                    dragDistance += kotlin.math.abs(change.position.y - change.previousPosition.y)
+                                    if (dragDistance > touchSlop) {
+                                        isDragging = true
+                                        // Drag down = zoom in, drag up = zoom out
+                                        val zoomFactor = 1f + dy / (size.height * 0.5f)
+                                        val newScale = (scaleAtStart * zoomFactor).coerceIn(1f, 5f)
+                                        offsetX = anchorX - (anchorX - offsetX) * (newScale / scale)
+                                        offsetY = anchorY - (anchorY - offsetY) * (newScale / scale)
+                                        scale = newScale
+                                        val maxOffX = size.width * (scale - 1)
+                                        val maxOffY = size.height * (scale - 1)
+                                        offsetX = offsetX.coerceIn(-maxOffX, 0f)
+                                        offsetY = offsetY.coerceIn(-maxOffY, 0f)
+                                        change.consume()
+                                    }
+                                }
+                            } while (event.changes.any { it.pressed })
 
-                                val newScale = (scale * zoom).coerceIn(1f, 5f)
-                                offsetX = centroid.x - (centroid.x - offsetX) * (newScale / scale) + pan.x
-                                offsetY = centroid.y - (centroid.y - offsetY) * (newScale / scale) + pan.y
-                                scale = newScale
-                                val maxOffX = (size.width * (scale - 1))
-                                val maxOffY = (size.height * (scale - 1))
-                                offsetX = offsetX.coerceIn(-maxOffX, 0f)
-                                offsetY = offsetY.coerceIn(-maxOffY, 0f)
-
-                                pointers.forEach { it.consume() }
-                                isZoomed = scale > 1.01f
-                            } else if (pointers.size == 1 && (isZoomed || hadMultiTouch)) {
-                                // Single finger pan when zoomed or continuing a pinch gesture
-                                val change = pointers[0]
-                                if (change.positionChanged()) {
-                                    val pan = change.position - change.previousPosition
-                                    offsetX = (offsetX + pan.x).coerceIn(-(size.width * (scale - 1)), 0f)
-                                    offsetY = (offsetY + pan.y).coerceIn(-(size.height * (scale - 1)), 0f)
-                                    change.consume()
+                            if (!isDragging) {
+                                // Pure double tap — reset zoom or open fullscreen
+                                if (scale > 1.01f) {
+                                    scale = 1f
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                } else {
+                                    onDoubleClick?.invoke()
                                 }
                             }
-                        } while (pointers.any { it.pressed })
+                            lastTapTimeMs = 0L
+                        } else {
+                            // First tap or regular gesture
+                            var isZoomed = scale > 1.01f
+                            var hadMultiTouch = false
+                            var totalDrag = 0f
+
+                            do {
+                                val event = awaitPointerEvent()
+                                val pointers = event.changes
+
+                                if (pointers.size >= 2) {
+                                    hadMultiTouch = true
+                                    val zoom = event.calculateZoom()
+                                    val pan = event.calculatePan()
+                                    val centroid = event.calculateCentroid()
+
+                                    val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                    offsetX = centroid.x - (centroid.x - offsetX) * (newScale / scale) + pan.x
+                                    offsetY = centroid.y - (centroid.y - offsetY) * (newScale / scale) + pan.y
+                                    scale = newScale
+                                    val maxOffX = size.width * (scale - 1)
+                                    val maxOffY = size.height * (scale - 1)
+                                    offsetX = offsetX.coerceIn(-maxOffX, 0f)
+                                    offsetY = offsetY.coerceIn(-maxOffY, 0f)
+
+                                    pointers.forEach { it.consume() }
+                                    isZoomed = scale > 1.01f
+                                } else if (pointers.size == 1 && (isZoomed || hadMultiTouch)) {
+                                    val change = pointers[0]
+                                    if (change.positionChanged()) {
+                                        val pan = change.position - change.previousPosition
+                                        totalDrag += pan.getDistance()
+                                        offsetX = (offsetX + pan.x).coerceIn(-(size.width * (scale - 1)), 0f)
+                                        offsetY = (offsetY + pan.y).coerceIn(-(size.height * (scale - 1)), 0f)
+                                        change.consume()
+                                    }
+                                } else if (pointers.size == 1) {
+                                    val change = pointers[0]
+                                    if (change.positionChanged()) {
+                                        totalDrag += (change.position - change.previousPosition).getDistance()
+                                    }
+                                }
+                            } while (pointers.any { it.pressed })
+
+                            if (!hadMultiTouch && totalDrag < touchSlop) {
+                                // It was a single tap
+                                selectPoint(downPos)
+                                lastTapTimeMs = downTime
+                                lastTapPosition = downPos
+                            } else {
+                                lastTapTimeMs = 0L
+                            }
+                        }
                     }
                 }
         ) {
