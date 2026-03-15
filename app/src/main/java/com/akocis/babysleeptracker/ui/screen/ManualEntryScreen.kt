@@ -85,7 +85,8 @@ fun ManualEntryScreen(
     val measureWeightText by viewModel.measureWeightText.collectAsStateWithLifecycle()
     val measureHeightText by viewModel.measureHeightText.collectAsStateWithLifecycle()
     val measureHeadText by viewModel.measureHeadText.collectAsStateWithLifecycle()
-    val measureIsMetric by viewModel.measureIsMetric.collectAsStateWithLifecycle()
+    val measureUseKg by viewModel.measureUseKg.collectAsStateWithLifecycle()
+    val measureUseCm by viewModel.measureUseCm.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -323,30 +324,50 @@ fun ManualEntryScreen(
 
             // Measurement fields (only for measure entries)
             if (entryKind == EntryKind.MEASURE) {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val unitOptions = listOf(true to "Metric", false to "Imperial")
-                    unitOptions.forEachIndexed { index, (metric, label) ->
-                        SegmentedButton(
-                            selected = measureIsMetric == metric,
-                            onClick = { viewModel.setMeasureIsMetric(metric) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = unitOptions.size)
-                        ) {
-                            Text(label)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Weight:", style = MaterialTheme.typography.bodyLarge)
+                    SingleChoiceSegmentedButtonRow {
+                        listOf(true to "kg", false to "lbs").forEachIndexed { index, (kg, label) ->
+                            SegmentedButton(
+                                selected = measureUseKg == kg,
+                                onClick = { viewModel.setMeasureUseKg(kg) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                            ) { Text(label) }
                         }
                     }
                 }
                 OutlinedTextField(
                     value = measureWeightText,
                     onValueChange = { viewModel.setMeasureWeightText(it) },
-                    label = { Text(if (measureIsMetric) "Weight (kg)" else "Weight (lbs)") },
+                    label = { Text(if (measureUseKg) "Weight (kg)" else "Weight (lbs)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Length:", style = MaterialTheme.typography.bodyLarge)
+                    SingleChoiceSegmentedButtonRow {
+                        listOf(true to "cm", false to "in").forEachIndexed { index, (cm, label) ->
+                            SegmentedButton(
+                                selected = measureUseCm == cm,
+                                onClick = { viewModel.setMeasureUseCm(cm) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                            ) { Text(label) }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = measureHeightText,
                     onValueChange = { viewModel.setMeasureHeightText(it) },
-                    label = { Text(if (measureIsMetric) "Length (cm)" else "Length (in)") },
+                    label = { Text(if (measureUseCm) "Length (cm)" else "Length (in)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -354,7 +375,7 @@ fun ManualEntryScreen(
                 OutlinedTextField(
                     value = measureHeadText,
                     onValueChange = { viewModel.setMeasureHeadText(it) },
-                    label = { Text(if (measureIsMetric) "Head circ. (cm)" else "Head circ. (in)") },
+                    label = { Text(if (measureUseCm) "Head circ. (cm)" else "Head circ. (in)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true

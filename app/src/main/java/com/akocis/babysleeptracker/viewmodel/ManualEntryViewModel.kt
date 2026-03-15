@@ -82,8 +82,11 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     private val _measureHeadText = MutableStateFlow("")
     val measureHeadText: StateFlow<String> = _measureHeadText
 
-    private val _measureIsMetric = MutableStateFlow(prefsRepository.useMetric)
-    val measureIsMetric: StateFlow<Boolean> = _measureIsMetric
+    private val _measureUseKg = MutableStateFlow(prefsRepository.useKg)
+    val measureUseKg: StateFlow<Boolean> = _measureUseKg
+
+    private val _measureUseCm = MutableStateFlow(prefsRepository.useCm)
+    val measureUseCm: StateFlow<Boolean> = _measureUseCm
 
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved
@@ -110,13 +113,43 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setBottleAmountMl(ml: Int) { _bottleAmountMl.value = ml }
     fun setBottleUseOz(useOz: Boolean) {
         _bottleUseOz.value = useOz
-        prefsRepository.bottleUseOz = useOz
     }
     fun setNoiseType(type: NoiseType) { _noiseType.value = type }
     fun setMeasureWeightText(text: String) { _measureWeightText.value = text }
     fun setMeasureHeightText(text: String) { _measureHeightText.value = text }
     fun setMeasureHeadText(text: String) { _measureHeadText.value = text }
-    fun setMeasureIsMetric(metric: Boolean) { _measureIsMetric.value = metric }
+    fun setMeasureUseKg(useKg: Boolean) {
+        val oldUseKg = _measureUseKg.value
+        if (oldUseKg == useKg) return
+        _measureUseKg.value = useKg
+        _measureWeightText.value.toDoubleOrNull()?.let { v ->
+            _measureWeightText.value = if (useKg) {
+                "%.3f".format(v / 2.20462) // lbs -> kg
+            } else {
+                "%.1f".format(v * 2.20462) // kg -> lbs
+            }
+        }
+    }
+
+    fun setMeasureUseCm(useCm: Boolean) {
+        val oldUseCm = _measureUseCm.value
+        if (oldUseCm == useCm) return
+        _measureUseCm.value = useCm
+        _measureHeightText.value.toDoubleOrNull()?.let { v ->
+            _measureHeightText.value = if (useCm) {
+                "%.1f".format(v * 2.54) // in -> cm
+            } else {
+                "%.1f".format(v / 2.54) // cm -> in
+            }
+        }
+        _measureHeadText.value.toDoubleOrNull()?.let { v ->
+            _measureHeadText.value = if (useCm) {
+                "%.1f".format(v * 2.54) // in -> cm
+            } else {
+                "%.1f".format(v / 2.54) // cm -> in
+            }
+        }
+    }
 
     fun dismissError() {
         _errorMessage.value = null
@@ -181,16 +214,18 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 _entryKind.value = EntryKind.MEASURE
                 _date.value = entry.date
                 _startTime.value = entry.time ?: LocalTime.now()
-                val useMetric = prefsRepository.useMetric
-                _measureIsMetric.value = useMetric
+                val useKg = prefsRepository.useKg
+                val useCm = prefsRepository.useCm
+                _measureUseKg.value = useKg
+                _measureUseCm.value = useCm
                 _measureWeightText.value = entry.weightKg?.let {
-                    if (useMetric) "%.3f".format(it) else "%.1f".format(it * 2.20462)
+                    if (useKg) "%.3f".format(it) else "%.1f".format(it * 2.20462)
                 } ?: ""
                 _measureHeightText.value = entry.heightCm?.let {
-                    if (useMetric) "%.1f".format(it) else "%.1f".format(it / 2.54)
+                    if (useCm) "%.1f".format(it) else "%.1f".format(it / 2.54)
                 } ?: ""
                 _measureHeadText.value = entry.headCm?.let {
-                    if (useMetric) "%.1f".format(it) else "%.1f".format(it / 2.54)
+                    if (useCm) "%.1f".format(it) else "%.1f".format(it / 2.54)
                 } ?: ""
             }
         }
@@ -262,13 +297,14 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                         )
                     }
                     EntryKind.MEASURE -> {
-                        val isMetric = _measureIsMetric.value
+                        val useKg = _measureUseKg.value
+                        val useCm = _measureUseCm.value
                         val w = _measureWeightText.value.toDoubleOrNull()
                         val h = _measureHeightText.value.toDoubleOrNull()
                         val c = _measureHeadText.value.toDoubleOrNull()
-                        val weightKg = w?.let { if (isMetric) it else it / 2.20462 }
-                        val heightCm = h?.let { if (isMetric) it else it * 2.54 }
-                        val headCm = c?.let { if (isMetric) it else it * 2.54 }
+                        val weightKg = w?.let { if (useKg) it else it / 2.20462 }
+                        val heightCm = h?.let { if (useCm) it else it * 2.54 }
+                        val headCm = c?.let { if (useCm) it else it * 2.54 }
                         EntryParser.formatMeasurementEntry(
                             MeasurementEntry(_date.value, weightKg, heightCm, headCm, time = _startTime.value)
                         )
@@ -322,13 +358,14 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             )
                         }
                         EntryKind.MEASURE -> {
-                            val isMetric = _measureIsMetric.value
+                            val useKg = _measureUseKg.value
+                            val useCm = _measureUseCm.value
                             val w = _measureWeightText.value.toDoubleOrNull()
                             val h = _measureHeightText.value.toDoubleOrNull()
                             val c = _measureHeadText.value.toDoubleOrNull()
-                            val weightKg = w?.let { if (isMetric) it else it / 2.20462 }
-                            val heightCm = h?.let { if (isMetric) it else it * 2.54 }
-                            val headCm = c?.let { if (isMetric) it else it * 2.54 }
+                            val weightKg = w?.let { if (useKg) it else it / 2.20462 }
+                            val heightCm = h?.let { if (useCm) it else it * 2.54 }
+                            val headCm = c?.let { if (useCm) it else it * 2.54 }
                             fileRepository.appendMeasurementEntry(
                                 uri,
                                 MeasurementEntry(_date.value, weightKg, heightCm, headCm, time = _startTime.value)
