@@ -78,6 +78,7 @@ fun ManualEntryScreen(
     val feedSide by viewModel.feedSide.collectAsStateWithLifecycle()
     val bottleType by viewModel.bottleType.collectAsStateWithLifecycle()
     val bottleAmountMl by viewModel.bottleAmountMl.collectAsStateWithLifecycle()
+    val bottleUseOz by viewModel.bottleUseOz.collectAsStateWithLifecycle()
     val noiseType by viewModel.noiseType.collectAsStateWithLifecycle()
     val measureWeightText by viewModel.measureWeightText.collectAsStateWithLifecycle()
     val measureHeightText by viewModel.measureHeightText.collectAsStateWithLifecycle()
@@ -182,12 +183,36 @@ fun ManualEntryScreen(
                     }
                 }
                 Text("Amount:", style = MaterialTheme.typography.titleLarge)
-                WheelPicker(
-                    items = (5..300 step 5).toList(),
-                    initialValue = bottleAmountMl,
-                    onValueChanged = { viewModel.setBottleAmountMl(it) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(false to "ml", true to "oz").forEachIndexed { index, (oz, label) ->
+                        SegmentedButton(
+                            selected = bottleUseOz == oz,
+                            onClick = { viewModel.setBottleUseOz(oz) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                        ) { Text(label) }
+                    }
+                }
+                if (bottleUseOz) {
+                    val ozAmounts = (5..100 step 5).toList()
+                    val currentOzX10 = ((bottleAmountMl / 29.5735) * 10).toInt().let { v ->
+                        ozAmounts.minBy { kotlin.math.abs(it - v) }
+                    }
+                    WheelPicker(
+                        items = ozAmounts,
+                        initialValue = currentOzX10,
+                        onValueChanged = { viewModel.setBottleAmountMl(((it / 10.0) * 29.5735).toInt()) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "oz",
+                        formatItem = { "%.1f".format(it / 10.0) }
+                    )
+                } else {
+                    WheelPicker(
+                        items = (5..300 step 5).toList(),
+                        initialValue = bottleAmountMl,
+                        onValueChanged = { viewModel.setBottleAmountMl(it) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             // Noise type (for noise entries)

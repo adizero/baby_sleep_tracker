@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -64,7 +65,8 @@ fun GrowthScreen(
     viewModel: GrowthViewModel,
     onBack: () -> Unit,
     onAddMeasurement: () -> Unit = {},
-    onEditMeasurement: (String) -> Unit = {}
+    onEditMeasurement: (String) -> Unit = {},
+    onNavigateToMilestones: () -> Unit = {}
 ) {
     val measurements by viewModel.measurements.collectAsStateWithLifecycle()
     val babySex by viewModel.babySex.collectAsStateWithLifecycle()
@@ -126,6 +128,15 @@ fun GrowthScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToMilestones) {
+                        Icon(
+                            Icons.Default.EmojiEvents,
+                            "Milestones",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }

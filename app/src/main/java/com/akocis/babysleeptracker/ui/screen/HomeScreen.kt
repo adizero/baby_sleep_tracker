@@ -83,6 +83,10 @@ import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 
+internal fun formatVolume(ml: Int, useOz: Boolean): String {
+    return if (useOz) "${"%.1f".format(ml / 29.5735)}oz" else "${ml}ml"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -105,6 +109,7 @@ fun HomeScreen(
     val babyAge by viewModel.babyAge.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val bottlePresetMl by viewModel.bottlePresetMl.collectAsStateWithLifecycle()
+    val bottleUseOz by viewModel.bottleUseOz.collectAsStateWithLifecycle()
     val noiseState by viewModel.noiseState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
@@ -228,8 +233,9 @@ fun HomeScreen(
         BottleAmountPickerDialog(
             title = "${type.label} Amount",
             initialAmount = bottlePresetMl,
-            onConfirm = { ml ->
-                viewModel.logBottleFeed(type, ml)
+            useOz = bottleUseOz,
+            onConfirm = { ml, useOz ->
+                viewModel.logBottleFeed(type, ml, useOz)
                 pendingBottleType = null
             },
             onDismiss = { pendingBottleType = null }
@@ -866,7 +872,7 @@ fun HomeScreen(
                             ) {
                                 Text("Bottle")
                                 Text(
-                                    "${stats.totalBottleMl}ml (${stats.totalBottleFeeds})",
+                                    "${formatVolume(stats.totalBottleMl, bottleUseOz)} (${stats.totalBottleFeeds})",
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -879,7 +885,7 @@ fun HomeScreen(
                                 ) {
                                     Text("Donor", style = MaterialTheme.typography.bodySmall)
                                     Text(
-                                        "${stats.donorMl}ml (${stats.donorCount})",
+                                        "${formatVolume(stats.donorMl, bottleUseOz)} (${stats.donorCount})",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -893,7 +899,7 @@ fun HomeScreen(
                                 ) {
                                     Text("Formula", style = MaterialTheme.typography.bodySmall)
                                     Text(
-                                        "${stats.formulaMl}ml (${stats.formulaCount})",
+                                        "${formatVolume(stats.formulaMl, bottleUseOz)} (${stats.formulaCount})",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -907,7 +913,7 @@ fun HomeScreen(
                                 ) {
                                     Text("Pumped", style = MaterialTheme.typography.bodySmall)
                                     Text(
-                                        "${stats.pumpedMl}ml (${stats.pumpedCount})",
+                                        "${formatVolume(stats.pumpedMl, bottleUseOz)} (${stats.pumpedCount})",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }

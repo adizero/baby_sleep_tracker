@@ -63,6 +63,10 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     val dayStartHour: Int get() = prefsRepository.dayStartHour
     val dayEndHour: Int get() = prefsRepository.dayEndHour
 
+    private fun formatBottleAmount(ml: Int): String {
+        return if (prefsRepository.bottleUseOz) "${"%.1f".format(ml / 29.5735)}oz" else "${ml}ml"
+    }
+
     companion object {
         private val TIME_FMT = DateTimeFormatter.ofPattern("HH:mm")
     }
@@ -176,7 +180,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 items.add(
                     HistoryItem(
                         id = nextId++,
-                        displayText = "${entry.type.label}  ${entry.time.format(TIME_FMT)}  ${entry.amountMl}ml",
+                        displayText = "${entry.type.label}  ${entry.time.format(TIME_FMT)}  ${formatBottleAmount(entry.amountMl)}",
                         rawLine = line,
                         sortKey = sortKey,
                         date = entry.date,

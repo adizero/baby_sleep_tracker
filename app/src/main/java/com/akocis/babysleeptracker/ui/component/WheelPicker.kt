@@ -39,7 +39,8 @@ fun WheelPicker(
     modifier: Modifier = Modifier,
     visibleItemCount: Int = 5,
     itemHeight: Dp = 48.dp,
-    label: String = "ml"
+    label: String = "ml",
+    formatItem: ((Int) -> String)? = null
 ) {
     val halfVisible = visibleItemCount / 2
     val initialIndex = items.indexOf(initialValue).coerceAtLeast(0)
@@ -132,7 +133,7 @@ fun WheelPicker(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = items[index].toString(),
+                            text = formatItem?.invoke(items[index]) ?: items[index].toString(),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = if (distance == 0) FontWeight.Bold else FontWeight.Normal,
                             color = if (distance == 0) MaterialTheme.colorScheme.primary

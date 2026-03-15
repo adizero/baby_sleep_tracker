@@ -61,6 +61,7 @@ fun StatsScreen(
     val hourlyStats by viewModel.hourlyStats.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
+    val useOz = prefsRepository.bottleUseOz
     val dayStartHour = prefsRepository.dayStartHour
     val dayEndHour = prefsRepository.dayEndHour
     val currentHour = LocalTime.now().hour
@@ -151,13 +152,16 @@ fun StatsScreen(
                     Text("Feed sessions: ${String.format("%.1f", summaryStats.avgFeedSessionsPerDay)}$suffix")
                     if (summaryStats.avgDonorMlPerDay > 0f || summaryStats.avgFormulaMlPerDay > 0f || summaryStats.avgPumpedMlPerDay > 0f) {
                         if (summaryStats.avgDonorMlPerDay > 0f) {
-                            Text("Donor: ${String.format("%.0f", summaryStats.avgDonorMlPerDay)}ml (${String.format("%.1f", summaryStats.avgDonorCountPerDay)} feeds)$suffix")
+                            val v = if (useOz) "${"%.1f".format(summaryStats.avgDonorMlPerDay / 29.5735)}oz" else "${String.format("%.0f", summaryStats.avgDonorMlPerDay)}ml"
+                            Text("Donor: $v (${String.format("%.1f", summaryStats.avgDonorCountPerDay)} feeds)$suffix")
                         }
                         if (summaryStats.avgPumpedMlPerDay > 0f) {
-                            Text("Pumped: ${String.format("%.0f", summaryStats.avgPumpedMlPerDay)}ml (${String.format("%.1f", summaryStats.avgPumpedCountPerDay)} feeds)$suffix")
+                            val v = if (useOz) "${"%.1f".format(summaryStats.avgPumpedMlPerDay / 29.5735)}oz" else "${String.format("%.0f", summaryStats.avgPumpedMlPerDay)}ml"
+                            Text("Pumped: $v (${String.format("%.1f", summaryStats.avgPumpedCountPerDay)} feeds)$suffix")
                         }
                         if (summaryStats.avgFormulaMlPerDay > 0f) {
-                            Text("Formula: ${String.format("%.0f", summaryStats.avgFormulaMlPerDay)}ml (${String.format("%.1f", summaryStats.avgFormulaCountPerDay)} feeds)$suffix")
+                            val v = if (useOz) "${"%.1f".format(summaryStats.avgFormulaMlPerDay / 29.5735)}oz" else "${String.format("%.0f", summaryStats.avgFormulaMlPerDay)}ml"
+                            Text("Formula: $v (${String.format("%.1f", summaryStats.avgFormulaCountPerDay)} feeds)$suffix")
                         }
                     }
                     Text("Diapers: ${String.format("%.1f", summaryStats.avgDiapersPerDay)}$suffix")
@@ -303,7 +307,7 @@ fun StatsScreen(
                                 }
                             }
                             if (stats.totalBottleFeeds > 0) {
-                                Text("Bottle: ${stats.totalBottleMl}ml (${stats.totalBottleFeeds} feeds)")
+                                Text("Bottle: ${formatVolume(stats.totalBottleMl, useOz)} (${stats.totalBottleFeeds} feeds)")
                             }
                             if (stats.totalDiapers > 0) {
                                 Text("Diapers: ${stats.peeCount} pee, ${stats.pooCount} poo, ${stats.peepooCount} both")

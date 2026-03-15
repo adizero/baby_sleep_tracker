@@ -189,7 +189,8 @@ fun AppNavigation(
                 onAddMeasurement = { navController.navigate(Routes.MANUAL_ENTRY_MEASURE) },
                 onEditMeasurement = { rawLine ->
                     navController.navigate(Routes.editEntry(rawLine))
-                }
+                },
+                onNavigateToMilestones = { navController.navigate(Routes.MILESTONES) }
             )
         }
         composable(Routes.HIGH_CONTRAST) {

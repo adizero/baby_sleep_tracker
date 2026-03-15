@@ -75,6 +75,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _bottlePresetMl = MutableStateFlow(42)
     val bottlePresetMl: StateFlow<Int> = _bottlePresetMl
+    private val _bottleUseOz = MutableStateFlow(false)
+    val bottleUseOz: StateFlow<Boolean> = _bottleUseOz
 
     val noiseState: StateFlow<NoiseServiceState> = WhiteNoiseService.serviceState
 
@@ -318,27 +320,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun logBottleFeed(type: BottleType, amount: Int) {
+    fun logBottleFeed(type: BottleType, amount: Int, useOz: Boolean = false) {
         val uri = prefsRepository.fileUri ?: return
         val now = LocalTime.now().withSecond(0).withNano(0)
-        setBottlePreset(amount)
+        setBottlePreset(amount, useOz)
         val entry = BottleFeedEntry(type, LocalDate.now(), now, amount)
+        val displayAmount = if (useOz) "${"%.1f".format(amount / 29.5735)}oz" else "${amount}ml"
         viewModelScope.launch {
             try {
                 fileRepository.appendBottleFeedEntry(uri, entry)
                 scheduleFeedAlarmIfEnabled()
                 refreshTodayStats()
                 SyncHelper.notifyDataChanged()
-                showUndo("${type.label} ${amount}ml at $now")
+                showUndo("${type.label} $displayAmount at $now")
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save bottle feed: ${e.message}"
             }
         }
     }
 
-    fun setBottlePreset(ml: Int) {
+    fun setBottlePreset(ml: Int, useOz: Boolean) {
         _bottlePresetMl.value = ml
         prefsRepository.bottlePresetMl = ml
+        _bottleUseOz.value = useOz
+        prefsRepository.bottleUseOz = useOz
     }
 
     private fun loadBottlePreset() {
@@ -346,6 +351,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (saved > 0) {
             _bottlePresetMl.value = saved
         }
+        _bottleUseOz.value = prefsRepository.bottleUseOz
     }
 
     fun logActivity(type: ActivityType, note: String? = null) {

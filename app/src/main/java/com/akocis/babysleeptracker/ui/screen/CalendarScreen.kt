@@ -72,6 +72,7 @@ fun CalendarScreen(
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val useMetric = viewModel.useMetric
+    val bottleUseOz = viewModel.bottleUseOz
 
     Scaffold(
         topBar = {
@@ -193,7 +194,7 @@ fun CalendarScreen(
 
             // Selected day details
             selectedDay?.let { dayData ->
-                DayDetailCard(dayData, useMetric)
+                DayDetailCard(dayData, useMetric, bottleUseOz)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -302,7 +303,7 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean) {
+private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean, bottleUseOz: Boolean = false) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -360,13 +361,13 @@ private fun DayDetailCard(dayData: CalendarDayData, useMetric: Boolean) {
 
             if (dayData.bottleFeedEntries.isNotEmpty()) {
                 Text(
-                    text = "Bottle (${dayData.totalBottleMl}ml)",
+                    text = "Bottle (${formatVolume(dayData.totalBottleMl, bottleUseOz)})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 dayData.bottleFeedEntries.forEach { entry ->
                     Text(
-                        text = "  ${entry.time} - ${entry.type.label} ${entry.amountMl}ml",
+                        text = "  ${entry.time} - ${entry.type.label} ${formatVolume(entry.amountMl, bottleUseOz)}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

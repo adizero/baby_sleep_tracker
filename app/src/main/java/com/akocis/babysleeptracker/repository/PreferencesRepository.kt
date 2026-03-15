@@ -49,6 +49,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_FEED_ALARM_ENABLED = "feed_alarm_enabled"
         private const val KEY_FEED_ALARM_MINUTES = "feed_alarm_minutes"
         private const val KEY_FEED_ALARM_RINGTONE = "feed_alarm_ringtone"
+        private const val KEY_BOTTLE_USE_OZ = "bottle_use_oz"
     }
 
     var fileUri: Uri?
@@ -248,6 +249,17 @@ class PreferencesRepository(context: Context) {
     var feedAlarmRingtone: String?
         get() = prefs.getString(KEY_FEED_ALARM_RINGTONE, null)
         set(value) = prefs.edit().putString(KEY_FEED_ALARM_RINGTONE, value).apply()
+
+    // Bottle unit preference: null = not set yet (use !useMetric as default)
+    var bottleUseOz: Boolean
+        get() {
+            return if (prefs.contains(KEY_BOTTLE_USE_OZ)) {
+                prefs.getBoolean(KEY_BOTTLE_USE_OZ, false)
+            } else {
+                !useMetric
+            }
+        }
+        set(value) = prefs.edit().putBoolean(KEY_BOTTLE_USE_OZ, value).apply()
 
     fun clearDropbox() {
         prefs.edit()

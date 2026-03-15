@@ -70,6 +70,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     )
     val bottleAmountMl: StateFlow<Int> = _bottleAmountMl
 
+    private val _bottleUseOz = MutableStateFlow(prefsRepository.bottleUseOz)
+    val bottleUseOz: StateFlow<Boolean> = _bottleUseOz
+
     private val _measureWeightText = MutableStateFlow("")
     val measureWeightText: StateFlow<String> = _measureWeightText
 
@@ -105,6 +108,10 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setFeedSide(side: FeedSide) { _feedSide.value = side }
     fun setBottleType(type: BottleType) { _bottleType.value = type }
     fun setBottleAmountMl(ml: Int) { _bottleAmountMl.value = ml }
+    fun setBottleUseOz(useOz: Boolean) {
+        _bottleUseOz.value = useOz
+        prefsRepository.bottleUseOz = useOz
+    }
     fun setNoiseType(type: NoiseType) { _noiseType.value = type }
     fun setMeasureWeightText(text: String) { _measureWeightText.value = text }
     fun setMeasureHeightText(text: String) { _measureHeightText.value = text }
