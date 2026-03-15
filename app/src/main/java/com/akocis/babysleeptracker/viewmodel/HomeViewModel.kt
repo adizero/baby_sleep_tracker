@@ -343,7 +343,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _bottlePresetMl.value = ml
         prefsRepository.bottlePresetMl = ml
         _bottleUseOz.value = useOz
-        prefsRepository.bottleUseOz = useOz
     }
 
     private fun loadBottlePreset() {
