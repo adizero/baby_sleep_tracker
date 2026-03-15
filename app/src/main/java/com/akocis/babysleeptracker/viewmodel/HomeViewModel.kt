@@ -706,7 +706,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     prefsRepository.saveTrackingState(TrackingState.Idle)
                     startAwakeTimer()
                 }
-                _trackingState.value is TrackingState.Idle && timerJob == null && lastSleepEndDate != null -> {
+                _trackingState.value is TrackingState.Idle && lastSleepEndDate != null -> {
                     startAwakeTimer()
                 }
             }
