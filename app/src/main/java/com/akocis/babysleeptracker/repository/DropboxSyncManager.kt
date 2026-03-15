@@ -41,7 +41,7 @@ class DropboxSyncManager {
             """^(?:#[0-9a-f]{8}\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(\w+)$"""
         )
         private val ONGOING_HC_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(.+))?$"""
+            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(?!\d{2}:\d{2})(.+))?$"""
         )
         private val COMPLETED_HC_REGEX = Regex(
             """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""

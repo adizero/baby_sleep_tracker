@@ -76,7 +76,7 @@ object EntryParser {
         """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""
     )
     private val HC_ONGOING_REGEX = Regex(
-        """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(.+))?$"""
+        """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(?!\d{2}:\d{2})(.+))?$"""
     )
 
     val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
