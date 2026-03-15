@@ -61,6 +61,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
+import com.akocis.babysleeptracker.viewmodel.HistoryFilter
 import com.akocis.babysleeptracker.viewmodel.HistoryItem
 import com.akocis.babysleeptracker.viewmodel.HistoryViewModel
 import kotlinx.coroutines.launch
@@ -80,6 +85,7 @@ private val DATE_HEADER_FMT = DateTimeFormatter.ofPattern("EEE, MMM d")
 @Composable
 fun HistoryScreen(
     viewModel: HistoryViewModel,
+    initialDate: String? = null,
     onBack: () -> Unit,
     onEditEntry: (HistoryItem) -> Unit = {}
 ) {
@@ -88,12 +94,14 @@ fun HistoryScreen(
     val showDuration by viewModel.showDuration.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val activeFilter by viewModel.activeFilter.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val dayStartHour = viewModel.dayStartHour
     val dayEndHour = viewModel.dayEndHour
     var showDatePicker by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    var initialScrollDone by remember { mutableStateOf(false) }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
@@ -118,6 +126,30 @@ fun HistoryScreen(
             result.add(HistoryListItem.Entry(item))
         }
         result
+    }
+
+    // Scroll to initial date from calendar navigation
+    LaunchedEffect(listItems, initialDate) {
+        if (initialDate != null && listItems.isNotEmpty() && !initialScrollDone) {
+            val targetDate = try { LocalDate.parse(initialDate) } catch (_: Exception) { null }
+            if (targetDate != null) {
+                var index = listItems.indexOfFirst {
+                    it is HistoryListItem.DateHeader && it.date == targetDate
+                }
+                if (index < 0) {
+                    val headers = listItems.mapIndexedNotNull { i, item ->
+                        if (item is HistoryListItem.DateHeader) i to item.date else null
+                    }
+                    if (headers.isNotEmpty()) {
+                        index = headers.minBy { kotlin.math.abs(it.second.toEpochDay() - targetDate.toEpochDay()) }.first
+                    }
+                }
+                if (index >= 0) {
+                    listState.scrollToItem(index)
+                }
+            }
+            initialScrollDone = true
+        }
     }
 
     Scaffold(
@@ -164,6 +196,24 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Filter chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                HistoryFilter.entries.forEach { filter ->
+                    FilterChip(
+                        selected = activeFilter == filter,
+                        onClick = { viewModel.setFilter(filter) },
+                        label = { Text(filter.label) }
+                    )
+                }
+            }
+
         // Date picker dialog
         if (showDatePicker) {
             val datePickerState = rememberDatePickerState(
@@ -339,7 +389,8 @@ fun HistoryScreen(
                 }
             }
         }
-        }
+        } // Column
+        } // PullToRefreshBox
     }
 }
 

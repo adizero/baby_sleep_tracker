@@ -37,7 +37,8 @@ object Routes {
     const val MANUAL_ENTRY = "manual_entry"
     const val EDIT_ENTRY = "edit_entry/{rawLine}"
     const val STATS = "stats"
-    const val HISTORY = "history"
+    const val HISTORY = "history?date={date}"
+    const val HISTORY_BASE = "history"
     const val SETTINGS = "settings"
     const val CALENDAR = "calendar"
     const val SYNC = "sync"
@@ -49,6 +50,10 @@ object Routes {
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
         return "edit_entry/$encoded"
+    }
+
+    fun historyWithDate(date: java.time.LocalDate): String {
+        return "history?date=$date"
     }
 }
 
@@ -81,7 +86,7 @@ fun AppNavigation(
                 viewModel = viewModel,
                 onNavigateToManualEntry = { navController.navigate(Routes.MANUAL_ENTRY) },
                 onNavigateToStats = { navController.navigate(Routes.STATS) },
-                onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
+                onNavigateToHistory = { navController.navigate(Routes.HISTORY_BASE) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) },
                 onNavigateToGrowth = { navController.navigate(Routes.GROWTH) },
@@ -130,8 +135,16 @@ fun AppNavigation(
                 onBack = safePopBack
             )
         }
-        composable(Routes.HISTORY) { backStackEntry ->
+        composable(
+            route = Routes.HISTORY,
+            arguments = listOf(navArgument("date") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
             val viewModel: HistoryViewModel = viewModel()
+            val initialDate = backStackEntry.arguments?.getString("date")
             DisposableEffect(backStackEntry.lifecycle) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
@@ -143,6 +156,7 @@ fun AppNavigation(
             }
             HistoryScreen(
                 viewModel = viewModel,
+                initialDate = initialDate,
                 onBack = safePopBack,
                 onEditEntry = { item ->
                     navController.navigate(Routes.editEntry(item.rawLine))
@@ -169,7 +183,10 @@ fun AppNavigation(
             val viewModel: CalendarViewModel = viewModel()
             CalendarScreen(
                 viewModel = viewModel,
-                onBack = safePopBack
+                onBack = safePopBack,
+                onNavigateToHistory = { date ->
+                    navController.navigate(Routes.historyWithDate(date))
+                }
             )
         }
         composable(Routes.GROWTH) { backStackEntry ->

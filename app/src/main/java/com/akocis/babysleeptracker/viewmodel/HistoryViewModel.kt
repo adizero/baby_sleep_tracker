@@ -22,6 +22,18 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+enum class HistoryFilter(val label: String) {
+    ALL("All"),
+    SLEEP("Sleep"),
+    FEED("Feed"),
+    BOTTLE("Bottle"),
+    DIAPER("Diaper"),
+    ACTIVITY("Activity"),
+    NOISE("Noise"),
+    MEASURE("Growth"),
+    HC("HC")
+}
+
 data class HistoryItem(
     val id: Int,
     val displayText: String,
@@ -30,6 +42,7 @@ data class HistoryItem(
     val sortKey: Long,
     val date: LocalDate,
     val hour: Int,
+    val filter: HistoryFilter = HistoryFilter.ALL,
     val sleepEntry: SleepEntry? = null,
     val diaperEntry: DiaperEntry? = null,
     val activityEntry: ActivityEntry? = null,
@@ -45,8 +58,13 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val fileRepository = FileRepository(application)
     private val prefsRepository = PreferencesRepository(application)
 
-    private val _entries = MutableStateFlow<List<HistoryItem>>(emptyList())
-    val entries: StateFlow<List<HistoryItem>> = _entries
+    private val _allEntries = MutableStateFlow<List<HistoryItem>>(emptyList())
+
+    private val _activeFilter = MutableStateFlow(HistoryFilter.ALL)
+    val activeFilter: StateFlow<HistoryFilter> = _activeFilter
+
+    val entries: StateFlow<List<HistoryItem>> get() = _filteredEntries
+    private val _filteredEntries = MutableStateFlow<List<HistoryItem>>(emptyList())
 
     private val _showDuration = MutableStateFlow(false)
     val showDuration: StateFlow<Boolean> = _showDuration
@@ -77,6 +95,20 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissError() {
         _errorMessage.value = null
+    }
+
+    fun setFilter(filter: HistoryFilter) {
+        _activeFilter.value = filter
+        applyFilter()
+    }
+
+    private fun applyFilter() {
+        val filter = _activeFilter.value
+        _filteredEntries.value = if (filter == HistoryFilter.ALL) {
+            _allEntries.value
+        } else {
+            _allEntries.value.filter { it.filter == filter }
+        }
     }
 
     fun toggleShowDuration() {
@@ -113,6 +145,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.startTime.hour,
+                        filter = HistoryFilter.SLEEP,
                         sleepEntry = entry
                     )
                 )
@@ -130,6 +163,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.time.hour,
+                        filter = HistoryFilter.DIAPER,
                         diaperEntry = entry
                     )
                 )
@@ -148,6 +182,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.time.hour,
+                        filter = HistoryFilter.ACTIVITY,
                         activityEntry = entry
                     )
                 )
@@ -168,6 +203,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.startTime.hour,
+                        filter = HistoryFilter.FEED,
                         feedEntry = entry
                     )
                 )
@@ -185,6 +221,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.time.hour,
+                        filter = HistoryFilter.BOTTLE,
                         bottleFeedEntry = entry
                     )
                 )
@@ -205,6 +242,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.startTime.hour,
+                        filter = HistoryFilter.NOISE,
                         whiteNoiseEntry = entry
                     )
                 )
@@ -226,6 +264,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.startTime.hour,
+                        filter = HistoryFilter.HC,
                         highContrastEntry = entry
                     )
                 )
@@ -255,12 +294,14 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                         sortKey = sortKey,
                         date = entry.date,
                         hour = entry.time?.hour ?: 12,
+                        filter = HistoryFilter.MEASURE,
                         measurementEntry = entry
                     )
                 )
             }
 
-            _entries.value = items.sortedByDescending { it.sortKey }
+            _allEntries.value = items.sortedByDescending { it.sortKey }
+            applyFilter()
             _isLoading.value = false
             onComplete?.invoke()
             if (sync) {

@@ -2,7 +2,7 @@ package com.akocis.babysleeptracker.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +54,7 @@ import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.MeasureColor
 import com.akocis.babysleeptracker.ui.theme.StrollerColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import androidx.compose.foundation.ExperimentalFoundationApi
 import com.akocis.babysleeptracker.viewmodel.CalendarDayData
 import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
 import java.time.DayOfWeek
@@ -61,11 +62,12 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CalendarScreen(
     viewModel: CalendarViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToHistory: (LocalDate) -> Unit = {}
 ) {
     val currentMonth by viewModel.currentMonth.collectAsStateWithLifecycle()
     val calendarData by viewModel.calendarData.collectAsStateWithLifecycle()
@@ -182,6 +184,7 @@ fun CalendarScreen(
                                 isSelected = isSelected,
                                 isToday = isToday,
                                 onClick = { viewModel.selectDay(date) },
+                                onDoubleClick = { onNavigateToHistory(date) },
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -204,6 +207,7 @@ fun CalendarScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CalendarDayCell(
     dayNum: Int,
@@ -211,6 +215,7 @@ private fun CalendarDayCell(
     isSelected: Boolean,
     isToday: Boolean,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hasData = dayData?.hasData == true
@@ -232,7 +237,10 @@ private fun CalendarDayCell(
             .clip(RoundedCornerShape(4.dp))
             .background(bgColor)
             .then(borderMod)
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onDoubleClick = onDoubleClick
+            ),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
