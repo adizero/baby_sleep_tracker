@@ -9,17 +9,18 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Diaper logging** — Pee, Poo, or Both buttons
 - **Activity logging** — Stroll, Bath, and free-text Note events
 - **Manual entry** — add or edit past events with date/time pickers and validation, prefilled with current time
-- **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes
+- **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes; ml/oz support
 - **White noise** — built-in sound generator (white, pink, brown, gray, blue, violet, rain, storm) with volume, duration, and fade controls; tracked in history
 - **High contrast viewer** — built-in high contrast images for newborn visual stimulation with multiple patterns, color schemes (including three-color), and auto-advancement; viewing sessions tracked in history
-- **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan (pinch or double-tap-and-drag one-handed zoom), and percentile display; latest measurements shown on home screen
+- **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan (pinch or double-tap-and-drag one-handed zoom), and percentile display; latest measurements shown on home screen; individual unit toggles (kg/lbs, cm/in) with auto-conversion
 - **Sleep & feeding alarms** — configurable alerts when baby sleeps too long or hasn't been fed, with custom ringtone selection
 - **Development milestones** — age-appropriate milestones for motor, vision, sleep, feeding, teeth, social, language, and cognitive development with fun facts; auto-scrolls to current age
-- **Calendar** — monthly overview with color-coded activity dots and daily detail view
+- **Calendar** — monthly overview with color-coded activity dots and daily detail view; double-tap a day to jump to history
 - **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
 - **Home dashboard** — today's stats, time since last sleep/feed/diaper/bath/measurement, and latest growth measurements with percentiles
+- **Configurable units** — individual toggles for weight (kg/lbs), length (cm/in), and volume (ml/oz); unit choices in entry forms are local and don't affect global settings
 - **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
-- **History** — scrollable list of all entries with date jump, editable and deletable with undo
+- **History** — scrollable list of all entries with date jump, entry type filter, editable and deletable with undo
 - **Dropbox sync** — automatic cloud backup and merge across devices with immediate sync on changes
 - **Import/Export** — plain text file format, easy to read and share
 - **Theme** — light, dark, or auto (switches based on configurable day/night hours)
