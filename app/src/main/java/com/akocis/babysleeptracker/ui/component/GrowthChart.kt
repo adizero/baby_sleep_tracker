@@ -300,7 +300,11 @@ fun GrowthChart(
                     else -> { xStepMonths = 6.0; useWeeks = false }
                 }
 
-                // X-axis labels at fixed position below chart, not affected by zoom offset
+                // X-axis labels at fixed position below chart, not affected by zoom
+                val axisLabelPaint = android.graphics.Paint().apply {
+                    color = labelColor.hashCode()
+                    textSize = 10f * dp
+                }
                 val xLabelY = size.height - bottomPad + 14f * dp
                 var m = 0.0
                 while (m <= visibleMonths) {
@@ -315,8 +319,8 @@ fun GrowthChart(
                         }
                         drawContext.canvas.nativeCanvas.drawText(
                             label,
-                            x - 4f * dp * textScale, xLabelY,
-                            textPaint
+                            x - 4f * dp, xLabelY,
+                            axisLabelPaint
                         )
                     }
                     m += xStepMonths
