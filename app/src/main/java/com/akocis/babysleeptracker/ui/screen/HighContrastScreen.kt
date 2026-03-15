@@ -58,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,9 +79,6 @@ import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.ui.component.ColorScheme
 import com.akocis.babysleeptracker.ui.component.HighContrastImageGenerator
 import com.akocis.babysleeptracker.ui.component.PatternType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -125,6 +123,11 @@ fun HighContrastScreen(
     }
 
     var showViewer by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var hcEntryId by remember { mutableStateOf<String?>(null) }
+    var hcStartDate by remember { mutableStateOf<LocalDate?>(null) }
+    var hcStartTime by remember { mutableStateOf<LocalTime?>(null) }
+    var hcColorsAbbrev by remember { mutableStateOf("") }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -151,10 +154,44 @@ fun HighContrastScreen(
         prefsRepository.hcEnabledColors = enabledColors.joinToString(",") { it.name }
     }
 
+    fun startHcEntry() {
+        val uri = prefsRepository.fileUri ?: return
+        val date = LocalDate.now()
+        val time = LocalTime.now().withSecond(0).withNano(0)
+        val id = EntryParser.generateId()
+        val colors = enabledColors.joinToString(",") { cs ->
+            cs.name.split("_").joinToString("") { it.first().toString() }
+        }
+        hcEntryId = id
+        hcStartDate = date
+        hcStartTime = time
+        hcColorsAbbrev = colors
+        val entry = HighContrastEntry(date, time, null, colors, id)
+        scope.launch {
+            try {
+                fileRepository.appendHighContrastEntry(uri, entry)
+                SyncHelper.notifyDataChanged()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun stopHcEntry() {
+        val uri = prefsRepository.fileUri ?: return
+        val id = hcEntryId ?: return
+        val endTime = LocalTime.now().withSecond(0).withNano(0)
+        val completed = HighContrastEntry(hcStartDate!!, hcStartTime!!, endTime, hcColorsAbbrev)
+        val completedLine = EntryParser.formatHighContrastEntry(completed)
+        hcEntryId = null
+        scope.launch {
+            try {
+                fileRepository.replaceById(uri, id, completedLine)
+                SyncHelper.notifyDataChanged()
+            } catch (_: Exception) {}
+        }
+    }
+
     if (showViewer) {
         HighContrastViewer(
-            prefsRepository = prefsRepository,
-            fileRepository = fileRepository,
             useGenerated = useGenerated,
             slideshow = slideshow,
             slideshowDelay = slideshowDelay,
@@ -163,7 +200,10 @@ fun HighContrastScreen(
             enabledPatterns = enabledPatterns,
             enabledColors = enabledColors,
             folderUri = folderUri,
-            onExit = { showViewer = false }
+            onExit = {
+                stopHcEntry()
+                showViewer = false
+            }
         )
         return
     }
@@ -375,6 +415,7 @@ fun HighContrastScreen(
             OutlinedButton(
                 onClick = {
                     savePrefs()
+                    startHcEntry()
                     showViewer = true
                 },
                 modifier = Modifier
@@ -400,8 +441,6 @@ fun HighContrastScreen(
 
 @Composable
 private fun HighContrastViewer(
-    prefsRepository: PreferencesRepository,
-    fileRepository: FileRepository,
     useGenerated: Boolean,
     slideshow: Boolean,
     slideshowDelay: Int,
@@ -413,45 +452,6 @@ private fun HighContrastViewer(
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
-
-    // Build color abbreviation string
-    val colorsAbbrev = remember(enabledColors) {
-        enabledColors.joinToString(",") { cs ->
-            cs.name.split("_").joinToString("") { it.first().toString() }
-        }
-    }
-
-    // Log HC entry: append ongoing on start, update to completed on exit
-    val startDate = remember { LocalDate.now() }
-    val startTime = remember { LocalTime.now().withSecond(0).withNano(0) }
-    val entryId = remember { EntryParser.generateId() }
-    DisposableEffect(Unit) {
-        val uri = prefsRepository.fileUri
-        var appendJob: Job? = null
-        if (uri != null) {
-            val entry = HighContrastEntry(startDate, startTime, null, colorsAbbrev, entryId)
-            appendJob = CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    fileRepository.appendHighContrastEntry(uri, entry)
-                    SyncHelper.notifyDataChanged()
-                } catch (_: Exception) {}
-            }
-        }
-        onDispose {
-            if (uri != null) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        appendJob?.join()
-                        val endTime = LocalTime.now().withSecond(0).withNano(0)
-                        val completed = HighContrastEntry(startDate, startTime, endTime, colorsAbbrev)
-                        val completedLine = EntryParser.formatHighContrastEntry(completed)
-                        fileRepository.replaceById(uri, entryId, completedLine)
-                        SyncHelper.notifyDataChanged()
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-    }
 
     // Keep screen on
     val activity = context as? Activity
