@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -92,7 +93,8 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToGrowth: () -> Unit = {},
-    onNavigateToHighContrast: () -> Unit = {}
+    onNavigateToHighContrast: () -> Unit = {},
+    onNavigateToMilestones: () -> Unit = {}
 ) {
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
     val elapsedTime by viewModel.elapsedTime.collectAsStateWithLifecycle()
@@ -238,7 +240,12 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable(
+                            enabled = babyAge != null,
+                            onClick = onNavigateToMilestones
+                        )
+                    ) {
                         val title = if (babyName != null) "$babyName" else "Baby Sleep Tracker"
                         Text(title)
                         if (babyAge != null) {

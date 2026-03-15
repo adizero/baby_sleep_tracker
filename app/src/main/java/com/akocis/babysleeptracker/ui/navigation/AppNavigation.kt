@@ -22,6 +22,7 @@ import com.akocis.babysleeptracker.ui.screen.SettingsScreen
 import com.akocis.babysleeptracker.ui.screen.StatsScreen
 import com.akocis.babysleeptracker.ui.screen.GrowthScreen
 import com.akocis.babysleeptracker.ui.screen.HighContrastScreen
+import com.akocis.babysleeptracker.ui.screen.MilestonesScreen
 import com.akocis.babysleeptracker.ui.screen.SyncScreen
 import com.akocis.babysleeptracker.viewmodel.CalendarViewModel
 import com.akocis.babysleeptracker.viewmodel.GrowthViewModel
@@ -43,6 +44,7 @@ object Routes {
     const val GROWTH = "growth"
     const val MANUAL_ENTRY_MEASURE = "manual_entry_measure"
     const val HIGH_CONTRAST = "high_contrast"
+    const val MILESTONES = "milestones"
 
     fun editEntry(rawLine: String): String {
         val encoded = Uri.encode(rawLine)
@@ -83,7 +85,8 @@ fun AppNavigation(
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) },
                 onNavigateToGrowth = { navController.navigate(Routes.GROWTH) },
-                onNavigateToHighContrast = { navController.navigate(Routes.HIGH_CONTRAST) }
+                onNavigateToHighContrast = { navController.navigate(Routes.HIGH_CONTRAST) },
+                onNavigateToMilestones = { navController.navigate(Routes.MILESTONES) }
             )
         }
         composable(Routes.MANUAL_ENTRY) {
@@ -193,6 +196,13 @@ fun AppNavigation(
             HighContrastScreen(
                 prefsRepository = prefsRepository,
                 fileRepository = fileRepository,
+                onBack = safePopBack
+            )
+        }
+        composable(Routes.MILESTONES) {
+            MilestonesScreen(
+                birthDate = prefsRepository.babyBirthDate,
+                babyName = prefsRepository.babyName,
                 onBack = safePopBack
             )
         }
