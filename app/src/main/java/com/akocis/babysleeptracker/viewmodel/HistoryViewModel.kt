@@ -270,7 +270,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            val useMetric = prefsRepository.useMetric
+            val useKg = prefsRepository.useKg
+            val useCm = prefsRepository.useCm
             data.measurementEntries.forEach { entry ->
                 val line = EntryParser.formatMeasurementEntry(entry)
                 val timeSeconds = entry.time?.toSecondOfDay()?.toLong() ?: 43200L
@@ -278,13 +279,13 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val timeText = entry.time?.format(TIME_FMT)?.let { "$it  " } ?: ""
                 val parts = mutableListOf<String>()
                 entry.weightKg?.let {
-                    parts.add(if (useMetric) "${"%.3f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
+                    parts.add(if (useKg) "${"%.3f".format(it)} kg" else "${"%.1f".format(it * 2.20462)} lbs")
                 }
                 entry.heightCm?.let {
-                    parts.add(if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                    parts.add(if (useCm) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
                 }
                 entry.headCm?.let {
-                    parts.add("hc " + if (useMetric) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
+                    parts.add("hc " + if (useCm) "${"%.1f".format(it)} cm" else "${"%.1f".format(it / 2.54)} in")
                 }
                 items.add(
                     HistoryItem(
