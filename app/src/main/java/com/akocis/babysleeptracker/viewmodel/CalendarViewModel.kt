@@ -72,6 +72,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     init {
         loadMonth()
         loadWeather()
+        selectDay(LocalDate.now())
     }
 
     fun syncAndRefresh() {
