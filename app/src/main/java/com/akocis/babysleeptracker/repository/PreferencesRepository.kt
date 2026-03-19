@@ -52,6 +52,9 @@ class PreferencesRepository(context: Context) {
         private const val KEY_BOTTLE_USE_OZ = "bottle_use_oz"
         private const val KEY_USE_KG = "use_kg"
         private const val KEY_USE_CM = "use_cm"
+        private const val KEY_LOCATION_LAT = "location_lat"
+        private const val KEY_LOCATION_LON = "location_lon"
+        private const val KEY_LOCATION_NAME = "location_name"
     }
 
     var fileUri: Uri?
@@ -273,6 +276,22 @@ class PreferencesRepository(context: Context) {
             }
         }
         set(value) = prefs.edit().putBoolean(KEY_BOTTLE_USE_OZ, value).apply()
+
+    var locationLat: Double?
+        get() = if (prefs.contains(KEY_LOCATION_LAT)) prefs.getFloat(KEY_LOCATION_LAT, 0f).toDouble() else null
+        set(value) = if (value != null) prefs.edit().putFloat(KEY_LOCATION_LAT, value.toFloat()).apply()
+                     else prefs.edit().remove(KEY_LOCATION_LAT).apply()
+
+    var locationLon: Double?
+        get() = if (prefs.contains(KEY_LOCATION_LON)) prefs.getFloat(KEY_LOCATION_LON, 0f).toDouble() else null
+        set(value) = if (value != null) prefs.edit().putFloat(KEY_LOCATION_LON, value.toFloat()).apply()
+                     else prefs.edit().remove(KEY_LOCATION_LON).apply()
+
+    var locationName: String?
+        get() = prefs.getString(KEY_LOCATION_NAME, null)
+        set(value) = prefs.edit().putString(KEY_LOCATION_NAME, value).apply()
+
+    val hasLocation: Boolean get() = locationLat != null && locationLon != null
 
     fun clearDropbox() {
         prefs.edit()

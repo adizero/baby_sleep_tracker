@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,9 +53,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.OpenableColumns
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import com.akocis.babysleeptracker.model.BabySex
 import com.akocis.babysleeptracker.repository.FileRepository
+import com.akocis.babysleeptracker.repository.GeoLocation
 import com.akocis.babysleeptracker.repository.PreferencesRepository
+import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.launch
@@ -81,6 +87,13 @@ fun SettingsScreen(
     var useKg by remember { mutableStateOf(prefsRepository.useKg) }
     var useCm by remember { mutableStateOf(prefsRepository.useCm) }
     var bottleUseOz by remember { mutableStateOf(prefsRepository.bottleUseOz) }
+
+    // Location / weather
+    var locationName by remember { mutableStateOf(prefsRepository.locationName ?: "") }
+    var locationSearch by remember { mutableStateOf("") }
+    var locationResults by remember { mutableStateOf<List<GeoLocation>>(emptyList()) }
+    var isSearchingLocation by remember { mutableStateOf(false) }
+    val weatherRepository = remember { WeatherRepository(context) }
 
     // Auto-save baby info to file whenever name, birth date, or sex change
     fun autoSaveBabyInfo() {
@@ -546,6 +559,97 @@ fun SettingsScreen(
                                     shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
                                 ) { Text(label) }
                             }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Location (Weather)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Location",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = "For weather data in calendar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
+                    if (locationName.isNotBlank()) {
+                        Text(
+                            text = locationName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    OutlinedTextField(
+                        value = locationSearch,
+                        onValueChange = { query ->
+                            locationSearch = query
+                            if (query.length >= 2) {
+                                isSearchingLocation = true
+                                scope.launch {
+                                    locationResults = weatherRepository.searchLocations(query)
+                                    isSearchingLocation = false
+                                }
+                            } else {
+                                locationResults = emptyList()
+                            }
+                        },
+                        label = { Text("Search city") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        trailingIcon = {
+                            if (isSearchingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    )
+                    if (locationResults.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        locationResults.forEach { loc ->
+                            Text(
+                                text = loc.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        prefsRepository.locationLat = loc.latitude
+                                        prefsRepository.locationLon = loc.longitude
+                                        prefsRepository.locationName = loc.displayName
+                                        locationName = loc.displayName
+                                        locationSearch = ""
+                                        locationResults = emptyList()
+                                    }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp)
+                            )
+                            HorizontalDivider()
+                        }
+                    }
+                    if (locationName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                prefsRepository.locationLat = null
+                                prefsRepository.locationLon = null
+                                prefsRepository.locationName = null
+                                locationName = ""
+                            }
+                        ) {
+                            Text("Clear Location")
                         }
                     }
                 }

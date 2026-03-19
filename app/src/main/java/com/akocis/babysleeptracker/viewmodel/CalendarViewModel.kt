@@ -10,9 +10,11 @@ import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.SleepEntry
+import com.akocis.babysleeptracker.repository.DayWeather
 import com.akocis.babysleeptracker.repository.FileRepository
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
+import com.akocis.babysleeptracker.repository.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,12 +47,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     private val fileRepository = FileRepository(application)
     private val prefsRepository = PreferencesRepository(application)
+    private val weatherRepository = WeatherRepository(application)
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     val currentMonth: StateFlow<YearMonth> = _currentMonth
 
     private val _calendarData = MutableStateFlow<Map<LocalDate, CalendarDayData>>(emptyMap())
     val calendarData: StateFlow<Map<LocalDate, CalendarDayData>> = _calendarData
+
+    private val _weatherData = MutableStateFlow<Map<LocalDate, DayWeather>>(emptyMap())
+    val weatherData: StateFlow<Map<LocalDate, DayWeather>> = _weatherData
 
     private val _selectedDay = MutableStateFlow<CalendarDayData?>(null)
     val selectedDay: StateFlow<CalendarDayData?> = _selectedDay
@@ -64,6 +70,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     init {
         loadMonth()
+        loadWeather()
     }
 
     fun syncAndRefresh() {
@@ -71,6 +78,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             SyncHelper.pullLatest()
             loadMonthInternal()
+            loadWeatherInternal()
             _isRefreshing.value = false
         }
     }
@@ -78,6 +86,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun setMonth(yearMonth: YearMonth) {
         _currentMonth.value = yearMonth
         loadMonth()
+        loadWeather()
     }
 
     fun previousMonth() {
@@ -128,5 +137,27 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 _selectedDay.value = dataMap[selected.date]
             }
         }
+    }
+
+    private fun loadWeather() {
+        viewModelScope.launch { loadWeatherInternal() }
+    }
+
+    private suspend fun loadWeatherInternal() {
+        val lat = prefsRepository.locationLat ?: return
+        val lon = prefsRepository.locationLon ?: return
+        val month = _currentMonth.value
+        // Fetch from birth date (if set) or start of month, capped to start of month for display
+        val birthDate = prefsRepository.babyBirthDate
+        val startDate = if (birthDate != null && birthDate < month.atDay(1)) {
+            month.atDay(1) // Only fetch what we need for this month view
+        } else {
+            month.atDay(1)
+        }
+        val endDate = month.atEndOfMonth()
+        try {
+            val weather = weatherRepository.getWeather(lat, lon, startDate, endDate)
+            _weatherData.value = weather
+        } catch (_: Exception) { }
     }
 }

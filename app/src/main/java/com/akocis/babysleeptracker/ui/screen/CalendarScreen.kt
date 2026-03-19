@@ -53,6 +53,8 @@ import com.akocis.babysleeptracker.ui.theme.PooColor
 import com.akocis.babysleeptracker.ui.theme.SleepButtonColor
 import com.akocis.babysleeptracker.ui.theme.MeasureColor
 import com.akocis.babysleeptracker.ui.theme.StrollerColor
+import com.akocis.babysleeptracker.repository.DayWeather
+import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.akocis.babysleeptracker.viewmodel.CalendarDayData
@@ -72,6 +74,7 @@ fun CalendarScreen(
     val currentMonth by viewModel.currentMonth.collectAsStateWithLifecycle()
     val calendarData by viewModel.calendarData.collectAsStateWithLifecycle()
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
+    val weatherData by viewModel.weatherData.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val useKg = viewModel.useKg
     val useCm = viewModel.useCm
@@ -181,6 +184,7 @@ fun CalendarScreen(
                             CalendarDayCell(
                                 dayNum = dayNum,
                                 dayData = dayData,
+                                weather = weatherData[date],
                                 isSelected = isSelected,
                                 isToday = isToday,
                                 onClick = { viewModel.selectDay(date) },
@@ -198,7 +202,7 @@ fun CalendarScreen(
 
             // Selected day details
             selectedDay?.let { dayData ->
-                DayDetailCard(dayData, useKg, useCm, bottleUseOz)
+                DayDetailCard(dayData, useKg, useCm, bottleUseOz, weatherData[dayData.date])
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -212,6 +216,7 @@ fun CalendarScreen(
 private fun CalendarDayCell(
     dayNum: Int,
     dayData: CalendarDayData?,
+    weather: DayWeather? = null,
     isSelected: Boolean,
     isToday: Boolean,
     onClick: () -> Unit,
@@ -252,6 +257,15 @@ private fun CalendarDayCell(
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
             )
+            if (weather != null) {
+                Text(
+                    text = "${WeatherRepository.weatherIcon(weather.weatherCode)}${"%.0f".format(weather.maxTemp)}°",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 8.sp,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
             if (hasData) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(1.dp),
@@ -312,7 +326,7 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boolean, bottleUseOz: Boolean = false) {
+private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boolean, bottleUseOz: Boolean = false, weather: DayWeather? = null) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -322,11 +336,30 @@ private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boole
         )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = dayData.date.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = dayData.date.toString(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (weather != null) {
+                    Text(
+                        text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.maxTemp)}°C",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+            if (weather != null) {
+                Text(
+                    text = WeatherRepository.weatherDescription(weather.weatherCode),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             if (!dayData.hasData) {
