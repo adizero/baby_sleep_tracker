@@ -81,7 +81,9 @@ import com.akocis.babysleeptracker.ui.theme.StrollerColor
 import com.akocis.babysleeptracker.ui.theme.HighContrastColor
 import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
+import java.time.LocalTime
 
 internal fun formatVolume(ml: Int, useOz: Boolean): String {
     return if (useOz) "${"%.1f".format(ml / 29.5735)}oz" else "${ml}ml"
@@ -112,6 +114,8 @@ fun HomeScreen(
     val bottleUseOz by viewModel.bottleUseOz.collectAsStateWithLifecycle()
     val noiseState by viewModel.noiseState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val todayWeather by viewModel.todayWeather.collectAsStateWithLifecycle()
+    val hourlyForecast by viewModel.hourlyForecast.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -519,6 +523,84 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Weather card
+            todayWeather?.let { weather ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Weather",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.maxTemp)}\u00B0",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                        Text(
+                            text = WeatherRepository.weatherDescription(weather.weatherCode),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                        )
+                        if (hourlyForecast.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val currentHour = LocalTime.now().hour
+                            // Show remaining hours of the day (from current hour, every 3 hours)
+                            val relevantHours = hourlyForecast.filter { it.hour >= currentHour }
+                            val displayHours = if (relevantHours.size > 6) {
+                                relevantHours.filterIndexed { i, _ -> i % 2 == 0 || i == relevantHours.lastIndex }
+                            } else {
+                                relevantHours
+                            }
+                            if (displayHours.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    for (h in displayHours) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "${h.hour}:00",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
+                                            )
+                                            Text(
+                                                text = WeatherRepository.weatherIcon(h.weatherCode),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                text = "${"%.0f".format(h.temp)}\u00B0",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             todayStats?.let { stats ->
                 // --- Last card (shown first) ---

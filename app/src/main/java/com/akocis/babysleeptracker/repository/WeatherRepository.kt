@@ -16,6 +16,12 @@ data class DayWeather(
     val weatherCode: Int
 )
 
+data class HourlyWeather(
+    val hour: Int,
+    val temp: Double,
+    val weatherCode: Int
+)
+
 data class GeoLocation(
     val name: String,
     val latitude: Double,
@@ -61,45 +67,82 @@ class WeatherRepository(private val context: Context) {
         }
     }
 
-    suspend fun getWeather(
+    /**
+     * Get historical weather data (cached, fetches missing ranges).
+     * Returns immediately with cached data, then fetches missing ranges.
+     */
+    suspend fun getHistorical(
         lat: Double,
         lon: Double,
         startDate: LocalDate,
         endDate: LocalDate
     ): Map<LocalDate, DayWeather> = withContext(Dispatchers.IO) {
-        val result = mutableMapOf<LocalDate, DayWeather>()
         val today = LocalDate.now()
-
-        // Split into historical (before yesterday) and forecast (yesterday onward)
         val historicalEnd = today.minusDays(2).coerceAtMost(endDate)
-        val forecastStart = today.minusDays(2).coerceAtLeast(startDate)
+        if (startDate > historicalEnd) return@withContext emptyMap()
 
-        // Load cached historical data
-        if (startDate <= historicalEnd) {
-            result.putAll(loadCachedRange(lat, lon, startDate, historicalEnd))
-        }
+        val result = mutableMapOf<LocalDate, DayWeather>()
+        result.putAll(loadCachedRange(lat, lon, startDate, historicalEnd))
 
-        // Find missing historical dates
-        if (startDate <= historicalEnd) {
-            val missingRanges = findMissingRanges(result, startDate, historicalEnd)
-            for ((rangeStart, rangeEnd) in missingRanges) {
-                val fetched = fetchHistorical(lat, lon, rangeStart, rangeEnd)
-                result.putAll(fetched)
-                cacheWeatherData(lat, lon, fetched)
-            }
-        }
-
-        // Fetch forecast (always fresh)
-        if (forecastStart <= endDate) {
-            val fetched = fetchForecast(lat, lon)
-            for ((date, weather) in fetched) {
-                if (date in startDate..endDate) {
-                    result[date] = weather
-                }
-            }
+        val missingRanges = findMissingRanges(result, startDate, historicalEnd)
+        for ((rangeStart, rangeEnd) in missingRanges) {
+            val fetched = fetchHistorical(lat, lon, rangeStart, rangeEnd)
+            result.putAll(fetched)
+            cacheWeatherData(lat, lon, fetched)
         }
 
         result
+    }
+
+    /**
+     * Get forecast weather data (cached for 1 hour).
+     */
+    suspend fun getForecast(
+        lat: Double,
+        lon: Double,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Map<LocalDate, DayWeather> = withContext(Dispatchers.IO) {
+        val today = LocalDate.now()
+        val forecastStart = today.minusDays(2).coerceAtLeast(startDate)
+        if (forecastStart > endDate) return@withContext emptyMap()
+
+        val fetched = loadOrFetchForecast(lat, lon)
+        fetched.filterKeys { it in startDate..endDate }
+    }
+
+    /**
+     * Get hourly forecast for today.
+     */
+    suspend fun getTodayHourly(
+        lat: Double,
+        lon: Double
+    ): List<HourlyWeather> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(
+                "https://api.open-meteo.com/v1/forecast" +
+                    "?latitude=$lat&longitude=$lon" +
+                    "&hourly=temperature_2m,weather_code" +
+                    "&forecast_days=1" +
+                    "&timezone=auto"
+            )
+            val json = fetchJson(url) ?: return@withContext emptyList()
+            val hourly = json.optJSONObject("hourly") ?: return@withContext emptyList()
+            val times = hourly.optJSONArray("time") ?: return@withContext emptyList()
+            val temps = hourly.optJSONArray("temperature_2m") ?: return@withContext emptyList()
+            val codes = hourly.optJSONArray("weather_code") ?: return@withContext emptyList()
+            val result = mutableListOf<HourlyWeather>()
+            for (i in 0 until times.length()) {
+                val timeStr = times.getString(i) // "2026-03-19T14:00"
+                val hour = timeStr.substringAfter("T").substringBefore(":").toIntOrNull() ?: continue
+                val temp = if (temps.isNull(i)) continue else temps.getDouble(i)
+                val code = if (codes.isNull(i)) continue else codes.getInt(i)
+                result.add(HourlyWeather(hour, temp, code))
+            }
+            result
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun findMissingRanges(
@@ -151,7 +194,56 @@ class WeatherRepository(private val context: Context) {
         return result
     }
 
-    private fun fetchForecast(lat: Double, lon: Double): Map<LocalDate, DayWeather> {
+    private fun forecastCacheFile(lat: Double, lon: Double): File {
+        val latStr = "%.2f".format(lat)
+        val lonStr = "%.2f".format(lon)
+        return File(cacheDir, "forecast_${latStr}_${lonStr}.json")
+    }
+
+    private fun loadOrFetchForecast(lat: Double, lon: Double): Map<LocalDate, DayWeather> {
+        val file = forecastCacheFile(lat, lon)
+        // Check if cached forecast is fresh (< 1 hour old)
+        if (file.exists()) {
+            try {
+                val json = JSONObject(file.readText())
+                val timestamp = json.optLong("timestamp", 0L)
+                if (System.currentTimeMillis() - timestamp < 3_600_000) {
+                    val data = json.optJSONObject("data")
+                    if (data != null) {
+                        val result = mutableMapOf<LocalDate, DayWeather>()
+                        for (key in data.keys()) {
+                            val obj = data.getJSONObject(key)
+                            val date = LocalDate.parse(key)
+                            result[date] = DayWeather(date, obj.getDouble("temp"), obj.getInt("code"))
+                        }
+                        return result
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        // Fetch fresh forecast
+        val fetched = fetchForecastFromApi(lat, lon)
+
+        // Cache it
+        try {
+            val wrapper = JSONObject()
+            wrapper.put("timestamp", System.currentTimeMillis())
+            val data = JSONObject()
+            for ((date, weather) in fetched) {
+                val obj = JSONObject()
+                obj.put("temp", weather.maxTemp)
+                obj.put("code", weather.weatherCode)
+                data.put(date.toString(), obj)
+            }
+            wrapper.put("data", data)
+            file.writeText(wrapper.toString())
+        } catch (_: Exception) { }
+
+        return fetched
+    }
+
+    private fun fetchForecastFromApi(lat: Double, lon: Double): Map<LocalDate, DayWeather> {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast" +
                 "?latitude=$lat&longitude=$lon" +

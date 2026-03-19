@@ -22,9 +22,12 @@ import com.akocis.babysleeptracker.model.SleepEntry
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.model.WhiteNoiseEntry
 import com.akocis.babysleeptracker.repository.EntryParser
+import com.akocis.babysleeptracker.repository.DayWeather
 import com.akocis.babysleeptracker.repository.FileRepository
+import com.akocis.babysleeptracker.repository.HourlyWeather
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
+import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.service.NoiseServiceState
 import com.akocis.babysleeptracker.service.WhiteNoiseService
 import com.akocis.babysleeptracker.ui.component.NoiseSettings
@@ -45,6 +48,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val fileRepository = FileRepository(application)
     private val prefsRepository = PreferencesRepository(application)
+    private val weatherRepository = WeatherRepository(application)
 
     private val _trackingState = MutableStateFlow<TrackingState>(TrackingState.Idle)
     val trackingState: StateFlow<TrackingState> = _trackingState
@@ -80,6 +84,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     val noiseState: StateFlow<NoiseServiceState> = WhiteNoiseService.serviceState
 
+    private val _todayWeather = MutableStateFlow<DayWeather?>(null)
+    val todayWeather: StateFlow<DayWeather?> = _todayWeather
+
+    private val _hourlyForecast = MutableStateFlow<List<HourlyWeather>>(emptyList())
+    val hourlyForecast: StateFlow<List<HourlyWeather>> = _hourlyForecast
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
     private var noiseObserverJob: Job? = null
@@ -100,6 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         loadBabyInfo()
         loadBottlePreset()
+        loadWeather()
         syncAndRefresh(showIndicator = false)
         closeStaleOngoingEntries()
         observeNoiseState()
@@ -115,6 +126,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val birthDate = prefsRepository.babyBirthDate
         if (birthDate != null) {
             _babyAge.value = formatAge(birthDate)
+        }
+    }
+
+    private fun loadWeather() {
+        val lat = prefsRepository.locationLat ?: return
+        val lon = prefsRepository.locationLon ?: return
+        val today = LocalDate.now()
+        viewModelScope.launch {
+            try {
+                val forecast = weatherRepository.getForecast(lat, lon, today, today)
+                _todayWeather.value = forecast[today]
+                val hourly = weatherRepository.getTodayHourly(lat, lon)
+                _hourlyForecast.value = hourly
+            } catch (_: Exception) { }
         }
     }
 

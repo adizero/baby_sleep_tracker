@@ -147,17 +147,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val lat = prefsRepository.locationLat ?: return
         val lon = prefsRepository.locationLon ?: return
         val month = _currentMonth.value
-        // Fetch from birth date (if set) or start of month, capped to start of month for display
-        val birthDate = prefsRepository.babyBirthDate
-        val startDate = if (birthDate != null && birthDate < month.atDay(1)) {
-            month.atDay(1) // Only fetch what we need for this month view
-        } else {
-            month.atDay(1)
-        }
+        val startDate = month.atDay(1)
         val endDate = month.atEndOfMonth()
         try {
-            val weather = weatherRepository.getWeather(lat, lon, startDate, endDate)
-            _weatherData.value = weather
+            // Load historical first (cached, shows immediately)
+            val historical = weatherRepository.getHistorical(lat, lon, startDate, endDate)
+            if (historical.isNotEmpty()) {
+                _weatherData.value = historical
+            }
+            // Then load forecast (may use 1-hour cache)
+            val forecast = weatherRepository.getForecast(lat, lon, startDate, endDate)
+            if (forecast.isNotEmpty()) {
+                _weatherData.value = _weatherData.value + forecast
+            }
         } catch (_: Exception) { }
     }
 }
