@@ -87,6 +87,7 @@ fun SettingsScreen(
     var useKg by remember { mutableStateOf(prefsRepository.useKg) }
     var useCm by remember { mutableStateOf(prefsRepository.useCm) }
     var bottleUseOz by remember { mutableStateOf(prefsRepository.bottleUseOz) }
+    var useCelsius by remember { mutableStateOf(prefsRepository.useCelsius) }
 
     var telemetryEnabled by remember { mutableStateOf(prefsRepository.telemetryEnabled) }
 
@@ -558,6 +559,23 @@ fun SettingsScreen(
                                 SegmentedButton(
                                     selected = bottleUseOz == oz,
                                     onClick = { bottleUseOz = oz; prefsRepository.bottleUseOz = oz },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                                ) { Text(label) }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Temperature")
+                        SingleChoiceSegmentedButtonRow {
+                            listOf(true to "\u00B0C", false to "\u00B0F").forEachIndexed { index, (celsius, label) ->
+                                SegmentedButton(
+                                    selected = useCelsius == celsius,
+                                    onClick = { useCelsius = celsius; prefsRepository.useCelsius = celsius },
                                     shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
                                 ) { Text(label) }
                             }

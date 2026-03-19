@@ -343,8 +343,8 @@ class WeatherRepository(private val context: Context) {
                         val date = LocalDate.parse(key)
                         if (date in start..end) {
                             val obj = json.getJSONObject(key)
-                            val minTemp = obj.optDouble("minTemp", obj.getDouble("temp"))
-                            result[date] = DayWeather(date, obj.getDouble("temp"), minTemp, obj.getInt("code"))
+                            if (!obj.has("minTemp")) continue // re-fetch old entries missing minTemp
+                            result[date] = DayWeather(date, obj.getDouble("temp"), obj.getDouble("minTemp"), obj.getInt("code"))
                         }
                     }
                 } catch (_: Exception) { }
@@ -355,6 +355,16 @@ class WeatherRepository(private val context: Context) {
     }
 
     companion object {
+        fun formatTemp(celsius: Double, useCelsius: Boolean): String {
+            return if (useCelsius) {
+                "${"%.0f".format(celsius)}\u00B0"
+            } else {
+                "${"%.0f".format(celsius * 9.0 / 5.0 + 32.0)}\u00B0"
+            }
+        }
+
+        fun tempUnit(useCelsius: Boolean): String = if (useCelsius) "\u00B0C" else "\u00B0F"
+
         fun weatherIcon(code: Int): String = when (code) {
             0 -> "\u2600"           // Clear sky - sun
             1 -> "\u26C5"           // Mainly clear - sun behind cloud

@@ -96,6 +96,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _hourlyForecast = MutableStateFlow<List<HourlyWeather>>(emptyList())
     val hourlyForecast: StateFlow<List<HourlyWeather>> = _hourlyForecast
 
+    private val _useCelsius = MutableStateFlow(true)
+    val useCelsius: StateFlow<Boolean> = _useCelsius
+
     private val _telemetryEnabled = MutableStateFlow(false)
     val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled
 
@@ -123,6 +126,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         loadBabyInfo()
         loadBottlePreset()
+        _useCelsius.value = prefsRepository.useCelsius
         loadWeather()
         startTelemetryIfEnabled()
         syncAndRefresh(showIndicator = false)
@@ -157,6 +161,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _hourlyForecast.value = hourly
             } catch (_: Exception) { }
         }
+    }
+
+    fun refreshSettingsState() {
+        // Refresh temp unit
+        _useCelsius.value = prefsRepository.useCelsius
+        // Refresh weather if location changed
+        val hasLocation = prefsRepository.hasLocation
+        val hadWeather = _todayWeather.value != null
+        if (hasLocation && !hadWeather) {
+            loadWeather()
+        } else if (!hasLocation && hadWeather) {
+            _todayWeather.value = null
+            _tomorrowWeather.value = null
+            _hourlyForecast.value = emptyList()
+        }
+        // Refresh telemetry
+        refreshTelemetryState()
+        // Refresh baby info
+        loadBabyInfo()
     }
 
     fun refreshTelemetryState() {

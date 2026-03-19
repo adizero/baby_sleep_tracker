@@ -120,6 +120,7 @@ fun HomeScreen(
     val todayWeather by viewModel.todayWeather.collectAsStateWithLifecycle()
     val tomorrowWeather by viewModel.tomorrowWeather.collectAsStateWithLifecycle()
     val hourlyForecast by viewModel.hourlyForecast.collectAsStateWithLifecycle()
+    val useCelsius by viewModel.useCelsius.collectAsStateWithLifecycle()
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsStateWithLifecycle()
     val telemetryData by viewModel.telemetryData.collectAsStateWithLifecycle()
 
@@ -148,9 +149,9 @@ fun HomeScreen(
         // Re-start telemetry after permission result (will pick up new permission state)
         viewModel.startTelemetryIfEnabled()
     }
-    // Refresh telemetry state when returning from settings
+    // Refresh settings state when returning from settings
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
-        viewModel.refreshTelemetryState()
+        viewModel.refreshSettingsState()
         // Request mic permission if telemetry just got enabled and we don't have it
         if (viewModel.telemetryEnabled.value) {
             val hasMic = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
@@ -582,7 +583,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.minTemp)}\u00B0 / ${"%.0f".format(weather.maxTemp)}\u00B0",
+                                text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${WeatherRepository.formatTemp(weather.minTemp, useCelsius)} / ${WeatherRepository.formatTemp(weather.maxTemp, useCelsius)}",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
@@ -608,7 +609,7 @@ fun HomeScreen(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                WeatherHourlyRow(allTodayHours.filter { it.hour % 3 == 0 })
+                                WeatherHourlyRow(allTodayHours.filter { it.hour % 3 == 0 }, useCelsius)
                             }
 
                             // Tomorrow's forecast
@@ -631,7 +632,7 @@ fun HomeScreen(
                                     )
                                     tomorrowWeather?.let { tw ->
                                         Text(
-                                            text = "${WeatherRepository.weatherIcon(tw.weatherCode)} ${"%.0f".format(tw.minTemp)}\u00B0 / ${"%.0f".format(tw.maxTemp)}\u00B0 ${WeatherRepository.weatherDescription(tw.weatherCode)}",
+                                            text = "${WeatherRepository.weatherIcon(tw.weatherCode)} ${WeatherRepository.formatTemp(tw.minTemp, useCelsius)} / ${WeatherRepository.formatTemp(tw.maxTemp, useCelsius)} ${WeatherRepository.weatherDescription(tw.weatherCode)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onTertiaryContainer
                                         )
@@ -639,7 +640,7 @@ fun HomeScreen(
                                 }
                                 if (tomorrowHours.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    WeatherHourlyRow(tomorrowHours.filter { it.hour % 3 == 0 })
+                                    WeatherHourlyRow(tomorrowHours.filter { it.hour % 3 == 0 }, useCelsius)
                                 }
                             }
                         } else if (remainingTodayHours.isNotEmpty()) {
@@ -657,7 +658,7 @@ fun HomeScreen(
                             val previewHours = remainingTodayHours.filterIndexed { i, _ ->
                                 i % step == 0 || i == remainingTodayHours.lastIndex
                             }
-                            WeatherHourlyRow(previewHours)
+                            WeatherHourlyRow(previewHours, useCelsius)
                         }
                     }
                 }
@@ -666,7 +667,7 @@ fun HomeScreen(
 
             // Telemetry card
             if (telemetryEnabled) {
-                TelemetryCard(telemetryData)
+                TelemetryCard(telemetryData, useCelsius)
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
@@ -1111,7 +1112,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TelemetryCard(data: TelemetryData) {
+private fun TelemetryCard(data: TelemetryData, useCelsius: Boolean) {
     val disabledAlpha = 0.35f
     Card(
         modifier = Modifier
@@ -1137,7 +1138,10 @@ private fun TelemetryCard(data: TelemetryData) {
             )
             TelemetryRow(
                 label = "Temperature",
-                value = data.temperatureC?.let { "${"%.1f".format(it)} \u00B0C" } ?: "-",
+                value = data.temperatureC?.let {
+                    if (useCelsius) "${"%.1f".format(it)} \u00B0C"
+                    else "${"%.1f".format(it * 9f / 5f + 32f)} \u00B0F"
+                } ?: "-",
                 available = data.temperatureAvailable,
                 disabledAlpha = disabledAlpha
             )
@@ -1184,7 +1188,7 @@ private fun TelemetryRow(
 }
 
 @Composable
-private fun WeatherHourlyRow(hours: List<HourlyWeather>) {
+private fun WeatherHourlyRow(hours: List<HourlyWeather>, useCelsius: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
@@ -1201,7 +1205,7 @@ private fun WeatherHourlyRow(hours: List<HourlyWeather>) {
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "${"%.0f".format(h.temp)}\u00B0",
+                    text = WeatherRepository.formatTemp(h.temp, useCelsius),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )

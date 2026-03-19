@@ -67,6 +67,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     val useKg: Boolean get() = prefsRepository.useKg
     val useCm: Boolean get() = prefsRepository.useCm
     val bottleUseOz: Boolean get() = prefsRepository.bottleUseOz
+    val useCelsius: Boolean get() = prefsRepository.useCelsius
 
     init {
         loadMonth()

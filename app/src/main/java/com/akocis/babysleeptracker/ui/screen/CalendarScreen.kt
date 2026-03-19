@@ -79,6 +79,7 @@ fun CalendarScreen(
     val useKg = viewModel.useKg
     val useCm = viewModel.useCm
     val bottleUseOz = viewModel.bottleUseOz
+    val useCelsius = viewModel.useCelsius
 
     Scaffold(
         topBar = {
@@ -187,6 +188,7 @@ fun CalendarScreen(
                                 weather = weatherData[date],
                                 isSelected = isSelected,
                                 isToday = isToday,
+                                useCelsius = useCelsius,
                                 onClick = { viewModel.selectDay(date) },
                                 onDoubleClick = { onNavigateToHistory(date) },
                                 modifier = Modifier.weight(1f)
@@ -202,7 +204,7 @@ fun CalendarScreen(
 
             // Selected day details
             selectedDay?.let { dayData ->
-                DayDetailCard(dayData, useKg, useCm, bottleUseOz, weatherData[dayData.date])
+                DayDetailCard(dayData, useKg, useCm, bottleUseOz, useCelsius, weatherData[dayData.date])
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -219,6 +221,7 @@ private fun CalendarDayCell(
     weather: DayWeather? = null,
     isSelected: Boolean,
     isToday: Boolean,
+    useCelsius: Boolean = true,
     onClick: () -> Unit,
     onDoubleClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -259,7 +262,7 @@ private fun CalendarDayCell(
             )
             if (weather != null) {
                 Text(
-                    text = "${WeatherRepository.weatherIcon(weather.weatherCode)}${"%.0f".format(weather.maxTemp)}°",
+                    text = "${WeatherRepository.weatherIcon(weather.weatherCode)}${WeatherRepository.formatTemp(weather.maxTemp, useCelsius)}",
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 8.sp,
                     maxLines = 1,
@@ -326,7 +329,7 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boolean, bottleUseOz: Boolean = false, weather: DayWeather? = null) {
+private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boolean, bottleUseOz: Boolean = false, useCelsius: Boolean = true, weather: DayWeather? = null) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -348,7 +351,7 @@ private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boole
                 )
                 if (weather != null) {
                     Text(
-                        text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.minTemp)}\u00B0 / ${"%.0f".format(weather.maxTemp)}\u00B0C",
+                        text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${WeatherRepository.formatTemp(weather.minTemp, useCelsius)} / ${WeatherRepository.formatTemp(weather.maxTemp, useCelsius)}",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
