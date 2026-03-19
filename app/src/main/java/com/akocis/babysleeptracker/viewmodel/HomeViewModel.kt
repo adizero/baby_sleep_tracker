@@ -99,6 +99,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _useCelsius = MutableStateFlow(true)
     val useCelsius: StateFlow<Boolean> = _useCelsius
 
+    private val _useHpa = MutableStateFlow(true)
+    val useHpa: StateFlow<Boolean> = _useHpa
+
     private val _telemetryEnabled = MutableStateFlow(false)
     val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled
 
@@ -127,6 +130,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         loadBabyInfo()
         loadBottlePreset()
         _useCelsius.value = prefsRepository.useCelsius
+        _useHpa.value = prefsRepository.useHpa
         loadWeather()
         startTelemetryIfEnabled()
         syncAndRefresh(showIndicator = false)
@@ -164,8 +168,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshSettingsState() {
-        // Refresh temp unit
+        // Refresh units
         _useCelsius.value = prefsRepository.useCelsius
+        _useHpa.value = prefsRepository.useHpa
         // Refresh weather if location changed
         val hasLocation = prefsRepository.hasLocation
         val hadWeather = _todayWeather.value != null

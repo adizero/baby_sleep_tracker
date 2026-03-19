@@ -57,6 +57,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_LOCATION_NAME = "location_name"
         private const val KEY_TELEMETRY_ENABLED = "telemetry_enabled"
         private const val KEY_USE_CELSIUS = "use_celsius"
+        private const val KEY_USE_HPA = "use_hpa"
     }
 
     var fileUri: Uri?
@@ -302,6 +303,10 @@ class PreferencesRepository(context: Context) {
     var useCelsius: Boolean
         get() = prefs.getBoolean(KEY_USE_CELSIUS, true)
         set(value) = prefs.edit().putBoolean(KEY_USE_CELSIUS, value).apply()
+
+    var useHpa: Boolean
+        get() = prefs.getBoolean(KEY_USE_HPA, true)
+        set(value) = prefs.edit().putBoolean(KEY_USE_HPA, value).apply()
 
     fun clearDropbox() {
         prefs.edit()

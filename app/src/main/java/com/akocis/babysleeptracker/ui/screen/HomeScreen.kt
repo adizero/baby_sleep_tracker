@@ -121,6 +121,7 @@ fun HomeScreen(
     val tomorrowWeather by viewModel.tomorrowWeather.collectAsStateWithLifecycle()
     val hourlyForecast by viewModel.hourlyForecast.collectAsStateWithLifecycle()
     val useCelsius by viewModel.useCelsius.collectAsStateWithLifecycle()
+    val useHpa by viewModel.useHpa.collectAsStateWithLifecycle()
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsStateWithLifecycle()
     val telemetryData by viewModel.telemetryData.collectAsStateWithLifecycle()
 
@@ -667,7 +668,7 @@ fun HomeScreen(
 
             // Telemetry card
             if (telemetryEnabled) {
-                TelemetryCard(telemetryData, useCelsius)
+                TelemetryCard(telemetryData, useCelsius, useHpa)
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
@@ -1112,7 +1113,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TelemetryCard(data: TelemetryData, useCelsius: Boolean) {
+private fun TelemetryCard(data: TelemetryData, useCelsius: Boolean, useHpa: Boolean) {
     val disabledAlpha = 0.35f
     Card(
         modifier = Modifier
@@ -1153,7 +1154,10 @@ private fun TelemetryCard(data: TelemetryData, useCelsius: Boolean) {
             )
             TelemetryRow(
                 label = "Pressure",
-                value = data.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "-",
+                value = data.pressureHpa?.let {
+                    if (useHpa) "${"%.0f".format(it)} hPa"
+                    else "${"%.2f".format(it * 0.02953)} inHg"
+                } ?: "-",
                 available = data.pressureAvailable,
                 disabledAlpha = disabledAlpha
             )
