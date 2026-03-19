@@ -348,7 +348,7 @@ private fun DayDetailCard(dayData: CalendarDayData, useKg: Boolean, useCm: Boole
                 )
                 if (weather != null) {
                     Text(
-                        text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.maxTemp)}°C",
+                        text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.minTemp)}\u00B0 / ${"%.0f".format(weather.maxTemp)}\u00B0C",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

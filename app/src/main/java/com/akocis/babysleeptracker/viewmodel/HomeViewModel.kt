@@ -159,6 +159,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshTelemetryState() {
+        val enabled = prefsRepository.telemetryEnabled
+        val wasEnabled = _telemetryEnabled.value
+        _telemetryEnabled.value = enabled
+        if (enabled && !wasEnabled) {
+            startTelemetry()
+        } else if (!enabled && wasEnabled) {
+            stopTelemetry()
+        }
+    }
+
     fun startTelemetryIfEnabled() {
         _telemetryEnabled.value = prefsRepository.telemetryEnabled
         if (prefsRepository.telemetryEnabled) {

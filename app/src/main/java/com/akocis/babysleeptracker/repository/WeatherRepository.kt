@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter
 data class DayWeather(
     val date: LocalDate,
     val maxTemp: Double,
+    val minTemp: Double,
     val weatherCode: Int
 )
 
@@ -185,7 +186,7 @@ class WeatherRepository(private val context: Context) {
                 "https://archive-api.open-meteo.com/v1/archive" +
                     "?latitude=$lat&longitude=$lon" +
                     "&start_date=$chunkStart&end_date=$chunkEnd" +
-                    "&daily=temperature_2m_max,weather_code" +
+                    "&daily=temperature_2m_max,temperature_2m_min,weather_code" +
                     "&timezone=auto"
             )
             val json = fetchJson(url)
@@ -217,7 +218,8 @@ class WeatherRepository(private val context: Context) {
                         for (key in data.keys()) {
                             val obj = data.getJSONObject(key)
                             val date = LocalDate.parse(key)
-                            result[date] = DayWeather(date, obj.getDouble("temp"), obj.getInt("code"))
+                            val minTemp = obj.optDouble("minTemp", obj.getDouble("temp"))
+                            result[date] = DayWeather(date, obj.getDouble("temp"), minTemp, obj.getInt("code"))
                         }
                         return result
                     }
@@ -236,6 +238,7 @@ class WeatherRepository(private val context: Context) {
             for ((date, weather) in fetched) {
                 val obj = JSONObject()
                 obj.put("temp", weather.maxTemp)
+                obj.put("minTemp", weather.minTemp)
                 obj.put("code", weather.weatherCode)
                 data.put(date.toString(), obj)
             }
@@ -250,7 +253,7 @@ class WeatherRepository(private val context: Context) {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast" +
                 "?latitude=$lat&longitude=$lon" +
-                "&daily=temperature_2m_max,weather_code" +
+                "&daily=temperature_2m_max,temperature_2m_min,weather_code" +
                 "&past_days=2&forecast_days=16" +
                 "&timezone=auto"
         )
@@ -261,14 +264,16 @@ class WeatherRepository(private val context: Context) {
     private fun parseDailyWeather(json: JSONObject): Map<LocalDate, DayWeather> {
         val daily = json.optJSONObject("daily") ?: return emptyMap()
         val dates = daily.optJSONArray("time") ?: return emptyMap()
-        val temps = daily.optJSONArray("temperature_2m_max") ?: return emptyMap()
+        val maxTemps = daily.optJSONArray("temperature_2m_max") ?: return emptyMap()
+        val minTemps = daily.optJSONArray("temperature_2m_min")
         val codes = daily.optJSONArray("weather_code") ?: return emptyMap()
         val result = mutableMapOf<LocalDate, DayWeather>()
         for (i in 0 until dates.length()) {
             val date = LocalDate.parse(dates.getString(i))
-            val temp = if (temps.isNull(i)) continue else temps.getDouble(i)
+            val maxTemp = if (maxTemps.isNull(i)) continue else maxTemps.getDouble(i)
+            val minTemp = if (minTemps == null || minTemps.isNull(i)) maxTemp else minTemps.getDouble(i)
             val code = if (codes.isNull(i)) continue else codes.getInt(i)
-            result[date] = DayWeather(date, temp, code)
+            result[date] = DayWeather(date, maxTemp, minTemp, code)
         }
         return result
     }
@@ -314,6 +319,7 @@ class WeatherRepository(private val context: Context) {
             for ((date, weather) in entries) {
                 val dayObj = JSONObject()
                 dayObj.put("temp", weather.maxTemp)
+                dayObj.put("minTemp", weather.minTemp)
                 dayObj.put("code", weather.weatherCode)
                 existing.put(date.toString(), dayObj)
             }
@@ -337,7 +343,8 @@ class WeatherRepository(private val context: Context) {
                         val date = LocalDate.parse(key)
                         if (date in start..end) {
                             val obj = json.getJSONObject(key)
-                            result[date] = DayWeather(date, obj.getDouble("temp"), obj.getInt("code"))
+                            val minTemp = obj.optDouble("minTemp", obj.getDouble("temp"))
+                            result[date] = DayWeather(date, obj.getDouble("temp"), minTemp, obj.getInt("code"))
                         }
                     }
                 } catch (_: Exception) { }

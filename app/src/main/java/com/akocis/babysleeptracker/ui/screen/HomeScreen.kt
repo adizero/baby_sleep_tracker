@@ -148,18 +148,18 @@ fun HomeScreen(
         // Re-start telemetry after permission result (will pick up new permission state)
         viewModel.startTelemetryIfEnabled()
     }
-    LaunchedEffect(telemetryEnabled) {
-        if (telemetryEnabled) {
+    // Refresh telemetry state when returning from settings
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        viewModel.refreshTelemetryState()
+        // Request mic permission if telemetry just got enabled and we don't have it
+        if (viewModel.telemetryEnabled.value) {
             val hasMic = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
             if (!hasMic) {
                 micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            } else {
-                viewModel.startTelemetryIfEnabled()
             }
-        } else {
-            viewModel.stopTelemetry()
         }
+        onPauseOrDispose { }
     }
 
     LaunchedEffect(errorMessage) {
@@ -557,7 +557,8 @@ fun HomeScreen(
                 val today = LocalDate.now()
                 val tomorrow = today.plusDays(1)
                 val currentHour = LocalTime.now().hour
-                val todayHours = hourlyForecast.filter { it.date == today && it.hour >= currentHour }
+                val allTodayHours = hourlyForecast.filter { it.date == today }
+                val remainingTodayHours = allTodayHours.filter { it.hour >= currentHour }
                 val tomorrowHours = hourlyForecast.filter { it.date == tomorrow }
                 Card(
                     modifier = Modifier
@@ -581,7 +582,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.maxTemp)}\u00B0",
+                                text = "${WeatherRepository.weatherIcon(weather.weatherCode)} ${"%.0f".format(weather.minTemp)}\u00B0 / ${"%.0f".format(weather.maxTemp)}\u00B0",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
@@ -593,8 +594,8 @@ fun HomeScreen(
                         )
 
                         if (weatherExpanded) {
-                            // Today's hourly forecast
-                            if (todayHours.isNotEmpty()) {
+                            // Today's hourly forecast - full day, 3h intervals
+                            if (allTodayHours.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
@@ -607,7 +608,7 @@ fun HomeScreen(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                WeatherHourlyRow(todayHours)
+                                WeatherHourlyRow(allTodayHours.filter { it.hour % 3 == 0 })
                             }
 
                             // Tomorrow's forecast
@@ -630,7 +631,7 @@ fun HomeScreen(
                                     )
                                     tomorrowWeather?.let { tw ->
                                         Text(
-                                            text = "${WeatherRepository.weatherIcon(tw.weatherCode)} ${"%.0f".format(tw.maxTemp)}\u00B0 ${WeatherRepository.weatherDescription(tw.weatherCode)}",
+                                            text = "${WeatherRepository.weatherIcon(tw.weatherCode)} ${"%.0f".format(tw.minTemp)}\u00B0 / ${"%.0f".format(tw.maxTemp)}\u00B0 ${WeatherRepository.weatherDescription(tw.weatherCode)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onTertiaryContainer
                                         )
@@ -638,20 +639,23 @@ fun HomeScreen(
                                 }
                                 if (tomorrowHours.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    WeatherHourlyRow(tomorrowHours)
+                                    WeatherHourlyRow(tomorrowHours.filter { it.hour % 3 == 0 })
                                 }
                             }
-                        } else if (todayHours.isNotEmpty()) {
-                            // Collapsed: show compact hourly preview
+                        } else if (remainingTodayHours.isNotEmpty()) {
+                            // Collapsed: show remaining hours at 3h intervals
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider(
                                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            val previewHours = if (todayHours.size > 6) {
-                                todayHours.filterIndexed { i, _ -> i % 2 == 0 || i == todayHours.lastIndex }
-                            } else {
-                                todayHours
+                            val step = when {
+                                remainingTodayHours.size <= 6 -> 1
+                                remainingTodayHours.size <= 12 -> 2
+                                else -> 3
+                            }
+                            val previewHours = remainingTodayHours.filterIndexed { i, _ ->
+                                i % step == 0 || i == remainingTodayHours.lastIndex
                             }
                             WeatherHourlyRow(previewHours)
                         }
@@ -1181,19 +1185,11 @@ private fun TelemetryRow(
 
 @Composable
 private fun WeatherHourlyRow(hours: List<HourlyWeather>) {
-    // Show every 3rd hour if too many, to keep it readable
-    val display = if (hours.size > 8) {
-        hours.filterIndexed { i, _ -> i % 3 == 0 || i == hours.lastIndex }
-    } else if (hours.size > 6) {
-        hours.filterIndexed { i, _ -> i % 2 == 0 || i == hours.lastIndex }
-    } else {
-        hours
-    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        for (h in display) {
+        for (h in hours) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "%d:00".format(h.hour),
