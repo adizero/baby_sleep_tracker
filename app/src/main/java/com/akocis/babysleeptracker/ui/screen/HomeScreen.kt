@@ -1148,7 +1148,7 @@ private fun TelemetryCard(data: TelemetryData, useCelsius: Boolean, useHpa: Bool
             )
             TelemetryRow(
                 label = "Humidity",
-                value = data.humidityPercent?.let { "${"%.0f".format(it)}%%" } ?: "-",
+                value = data.humidityPercent?.let { "${"%.0f".format(it)}%" } ?: "-",
                 available = data.humidityAvailable,
                 disabledAlpha = disabledAlpha
             )
