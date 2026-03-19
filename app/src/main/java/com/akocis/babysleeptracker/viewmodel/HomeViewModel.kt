@@ -87,6 +87,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _todayWeather = MutableStateFlow<DayWeather?>(null)
     val todayWeather: StateFlow<DayWeather?> = _todayWeather
 
+    private val _tomorrowWeather = MutableStateFlow<DayWeather?>(null)
+    val tomorrowWeather: StateFlow<DayWeather?> = _tomorrowWeather
+
     private val _hourlyForecast = MutableStateFlow<List<HourlyWeather>>(emptyList())
     val hourlyForecast: StateFlow<List<HourlyWeather>> = _hourlyForecast
 
@@ -133,11 +136,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val lat = prefsRepository.locationLat ?: return
         val lon = prefsRepository.locationLon ?: return
         val today = LocalDate.now()
+        val tomorrow = today.plusDays(1)
         viewModelScope.launch {
             try {
-                val forecast = weatherRepository.getForecast(lat, lon, today, today)
+                val forecast = weatherRepository.getForecast(lat, lon, today, tomorrow)
                 _todayWeather.value = forecast[today]
-                val hourly = weatherRepository.getTodayHourly(lat, lon)
+                _tomorrowWeather.value = forecast[tomorrow]
+                val hourly = weatherRepository.getHourlyForecast(lat, lon)
                 _hourlyForecast.value = hourly
             } catch (_: Exception) { }
         }

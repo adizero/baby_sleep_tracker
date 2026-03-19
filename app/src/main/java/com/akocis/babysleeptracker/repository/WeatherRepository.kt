@@ -17,6 +17,7 @@ data class DayWeather(
 )
 
 data class HourlyWeather(
+    val date: LocalDate,
     val hour: Int,
     val temp: Double,
     val weatherCode: Int
@@ -112,9 +113,9 @@ class WeatherRepository(private val context: Context) {
     }
 
     /**
-     * Get hourly forecast for today.
+     * Get hourly forecast for today and tomorrow.
      */
-    suspend fun getTodayHourly(
+    suspend fun getHourlyForecast(
         lat: Double,
         lon: Double
     ): List<HourlyWeather> = withContext(Dispatchers.IO) {
@@ -123,7 +124,7 @@ class WeatherRepository(private val context: Context) {
                 "https://api.open-meteo.com/v1/forecast" +
                     "?latitude=$lat&longitude=$lon" +
                     "&hourly=temperature_2m,weather_code" +
-                    "&forecast_days=1" +
+                    "&forecast_days=2" +
                     "&timezone=auto"
             )
             val json = fetchJson(url) ?: return@withContext emptyList()
@@ -134,10 +135,12 @@ class WeatherRepository(private val context: Context) {
             val result = mutableListOf<HourlyWeather>()
             for (i in 0 until times.length()) {
                 val timeStr = times.getString(i) // "2026-03-19T14:00"
+                val datePart = timeStr.substringBefore("T")
+                val date = LocalDate.parse(datePart)
                 val hour = timeStr.substringAfter("T").substringBefore(":").toIntOrNull() ?: continue
                 val temp = if (temps.isNull(i)) continue else temps.getDouble(i)
                 val code = if (codes.isNull(i)) continue else codes.getInt(i)
-                result.add(HourlyWeather(hour, temp, code))
+                result.add(HourlyWeather(date, hour, temp, code))
             }
             result
         } catch (_: Exception) {

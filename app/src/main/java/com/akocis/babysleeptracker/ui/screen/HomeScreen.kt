@@ -81,8 +81,10 @@ import com.akocis.babysleeptracker.ui.theme.StrollerColor
 import com.akocis.babysleeptracker.ui.theme.HighContrastColor
 import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import com.akocis.babysleeptracker.repository.HourlyWeather
 import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
+import java.time.LocalDate
 import java.time.LocalTime
 
 internal fun formatVolume(ml: Int, useOz: Boolean): String {
@@ -115,10 +117,12 @@ fun HomeScreen(
     val noiseState by viewModel.noiseState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val todayWeather by viewModel.todayWeather.collectAsStateWithLifecycle()
+    val tomorrowWeather by viewModel.tomorrowWeather.collectAsStateWithLifecycle()
     val hourlyForecast by viewModel.hourlyForecast.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var weatherExpanded by remember { mutableStateOf(false) }
     var showNoteDialog by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
     var pendingBottleType by remember { mutableStateOf<BottleType?>(null) }
@@ -526,10 +530,16 @@ fun HomeScreen(
 
             // Weather card
             todayWeather?.let { weather ->
+                val today = LocalDate.now()
+                val tomorrow = today.plusDays(1)
+                val currentHour = LocalTime.now().hour
+                val todayHours = hourlyForecast.filter { it.date == today && it.hour >= currentHour }
+                val tomorrowHours = hourlyForecast.filter { it.date == tomorrow }
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .clickable { weatherExpanded = !weatherExpanded },
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     )
@@ -557,45 +567,69 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                         )
-                        if (hourlyForecast.isNotEmpty()) {
+
+                        if (weatherExpanded) {
+                            // Today's hourly forecast
+                            if (todayHours.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Today",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                WeatherHourlyRow(todayHours)
+                            }
+
+                            // Tomorrow's forecast
+                            if (tomorrowHours.isNotEmpty() || tomorrowWeather != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Tomorrow",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    tomorrowWeather?.let { tw ->
+                                        Text(
+                                            text = "${WeatherRepository.weatherIcon(tw.weatherCode)} ${"%.0f".format(tw.maxTemp)}\u00B0 ${WeatherRepository.weatherDescription(tw.weatherCode)}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                }
+                                if (tomorrowHours.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    WeatherHourlyRow(tomorrowHours)
+                                }
+                            }
+                        } else if (todayHours.isNotEmpty()) {
+                            // Collapsed: show compact hourly preview
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider(
                                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            val currentHour = LocalTime.now().hour
-                            // Show remaining hours of the day (from current hour, every 3 hours)
-                            val relevantHours = hourlyForecast.filter { it.hour >= currentHour }
-                            val displayHours = if (relevantHours.size > 6) {
-                                relevantHours.filterIndexed { i, _ -> i % 2 == 0 || i == relevantHours.lastIndex }
+                            val previewHours = if (todayHours.size > 6) {
+                                todayHours.filterIndexed { i, _ -> i % 2 == 0 || i == todayHours.lastIndex }
                             } else {
-                                relevantHours
+                                todayHours
                             }
-                            if (displayHours.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    for (h in displayHours) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                text = "${h.hour}:00",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
-                                            )
-                                            Text(
-                                                text = WeatherRepository.weatherIcon(h.weatherCode),
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                            Text(
-                                                text = "${"%.0f".format(h.temp)}\u00B0",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            WeatherHourlyRow(previewHours)
                         }
                     }
                 }
@@ -1038,6 +1072,41 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+        }
+    }
+}
+
+@Composable
+private fun WeatherHourlyRow(hours: List<HourlyWeather>) {
+    // Show every 3rd hour if too many, to keep it readable
+    val display = if (hours.size > 8) {
+        hours.filterIndexed { i, _ -> i % 3 == 0 || i == hours.lastIndex }
+    } else if (hours.size > 6) {
+        hours.filterIndexed { i, _ -> i % 2 == 0 || i == hours.lastIndex }
+    } else {
+        hours
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        for (h in display) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "%d:00".format(h.hour),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = WeatherRepository.weatherIcon(h.weatherCode),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "${"%.0f".format(h.temp)}\u00B0",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
         }
     }
 }
