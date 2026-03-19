@@ -83,6 +83,7 @@ import com.akocis.babysleeptracker.ui.theme.WhiteNoiseColor
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import com.akocis.babysleeptracker.repository.HourlyWeather
 import com.akocis.babysleeptracker.repository.WeatherRepository
+import com.akocis.babysleeptracker.service.TelemetryData
 import com.akocis.babysleeptracker.viewmodel.HomeViewModel
 import java.time.LocalDate
 import java.time.LocalTime
@@ -119,6 +120,8 @@ fun HomeScreen(
     val todayWeather by viewModel.todayWeather.collectAsStateWithLifecycle()
     val tomorrowWeather by viewModel.tomorrowWeather.collectAsStateWithLifecycle()
     val hourlyForecast by viewModel.hourlyForecast.collectAsStateWithLifecycle()
+    val telemetryEnabled by viewModel.telemetryEnabled.collectAsStateWithLifecycle()
+    val telemetryData by viewModel.telemetryData.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -135,6 +138,27 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // Request microphone permission for telemetry and start it
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        // Re-start telemetry after permission result (will pick up new permission state)
+        viewModel.startTelemetryIfEnabled()
+    }
+    LaunchedEffect(telemetryEnabled) {
+        if (telemetryEnabled) {
+            val hasMic = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!hasMic) {
+                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            } else {
+                viewModel.startTelemetryIfEnabled()
+            }
+        } else {
+            viewModel.stopTelemetry()
         }
     }
 
@@ -636,6 +660,12 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
+            // Telemetry card
+            if (telemetryEnabled) {
+                TelemetryCard(telemetryData)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             todayStats?.let { stats ->
                 // --- Last card (shown first) ---
                 val hasLastData = stats.timeSinceLastSleep != null ||
@@ -1073,6 +1103,79 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
         }
+    }
+}
+
+@Composable
+private fun TelemetryCard(data: TelemetryData) {
+    val disabledAlpha = 0.35f
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Telemetry",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TelemetryRow(
+                label = "Noise",
+                value = data.noiseDb?.let { "${"%.0f".format(it)} dB" } ?: "-",
+                available = data.noiseAvailable,
+                disabledAlpha = disabledAlpha
+            )
+            TelemetryRow(
+                label = "Temperature",
+                value = data.temperatureC?.let { "${"%.1f".format(it)} \u00B0C" } ?: "-",
+                available = data.temperatureAvailable,
+                disabledAlpha = disabledAlpha
+            )
+            TelemetryRow(
+                label = "Humidity",
+                value = data.humidityPercent?.let { "${"%.0f".format(it)}%%" } ?: "-",
+                available = data.humidityAvailable,
+                disabledAlpha = disabledAlpha
+            )
+            TelemetryRow(
+                label = "Pressure",
+                value = data.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "-",
+                available = data.pressureAvailable,
+                disabledAlpha = disabledAlpha
+            )
+        }
+    }
+}
+
+@Composable
+private fun TelemetryRow(
+    label: String,
+    value: String,
+    available: Boolean,
+    disabledAlpha: Float
+) {
+    val alpha = if (available) 1f else disabledAlpha
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+        )
+        Text(
+            text = value,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+        )
     }
 }
 

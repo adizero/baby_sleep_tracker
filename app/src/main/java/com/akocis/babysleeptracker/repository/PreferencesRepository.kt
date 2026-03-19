@@ -55,6 +55,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_LOCATION_LAT = "location_lat"
         private const val KEY_LOCATION_LON = "location_lon"
         private const val KEY_LOCATION_NAME = "location_name"
+        private const val KEY_TELEMETRY_ENABLED = "telemetry_enabled"
     }
 
     var fileUri: Uri?
@@ -292,6 +293,10 @@ class PreferencesRepository(context: Context) {
         set(value) = prefs.edit().putString(KEY_LOCATION_NAME, value).apply()
 
     val hasLocation: Boolean get() = locationLat != null && locationLon != null
+
+    var telemetryEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TELEMETRY_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_TELEMETRY_ENABLED, value).apply()
 
     fun clearDropbox() {
         prefs.edit()

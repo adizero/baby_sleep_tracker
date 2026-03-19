@@ -28,6 +28,8 @@ import com.akocis.babysleeptracker.repository.HourlyWeather
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.repository.WeatherRepository
+import com.akocis.babysleeptracker.service.TelemetryData
+import com.akocis.babysleeptracker.service.TelemetryManager
 import com.akocis.babysleeptracker.service.NoiseServiceState
 import com.akocis.babysleeptracker.service.WhiteNoiseService
 import com.akocis.babysleeptracker.ui.component.NoiseSettings
@@ -49,6 +51,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val fileRepository = FileRepository(application)
     private val prefsRepository = PreferencesRepository(application)
     private val weatherRepository = WeatherRepository(application)
+    private val telemetryManager = TelemetryManager(application)
 
     private val _trackingState = MutableStateFlow<TrackingState>(TrackingState.Idle)
     val trackingState: StateFlow<TrackingState> = _trackingState
@@ -93,6 +96,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _hourlyForecast = MutableStateFlow<List<HourlyWeather>>(emptyList())
     val hourlyForecast: StateFlow<List<HourlyWeather>> = _hourlyForecast
 
+    private val _telemetryEnabled = MutableStateFlow(false)
+    val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled
+
+    val telemetryData: StateFlow<TelemetryData> = telemetryManager.data
+
+    private var telemetryJob: Job? = null
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
     private var noiseObserverJob: Job? = null
@@ -114,6 +124,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         loadBabyInfo()
         loadBottlePreset()
         loadWeather()
+        startTelemetryIfEnabled()
         syncAndRefresh(showIndicator = false)
         closeStaleOngoingEntries()
         observeNoiseState()
@@ -146,6 +157,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _hourlyForecast.value = hourly
             } catch (_: Exception) { }
         }
+    }
+
+    fun startTelemetryIfEnabled() {
+        _telemetryEnabled.value = prefsRepository.telemetryEnabled
+        if (prefsRepository.telemetryEnabled) {
+            startTelemetry()
+        }
+    }
+
+    private fun startTelemetry() {
+        telemetryJob?.cancel()
+        telemetryJob = viewModelScope.launch {
+            telemetryManager.start()
+        }
+    }
+
+    fun stopTelemetry() {
+        telemetryJob?.cancel()
+        telemetryJob = null
+        telemetryManager.stop()
     }
 
     private fun formatAge(birthDate: LocalDate): String {
@@ -1035,5 +1066,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         30f -> 3
         60f -> 4
         else -> 0
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        telemetryManager.stop()
     }
 }

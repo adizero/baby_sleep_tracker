@@ -88,6 +88,8 @@ fun SettingsScreen(
     var useCm by remember { mutableStateOf(prefsRepository.useCm) }
     var bottleUseOz by remember { mutableStateOf(prefsRepository.bottleUseOz) }
 
+    var telemetryEnabled by remember { mutableStateOf(prefsRepository.telemetryEnabled) }
+
     // Location / weather
     var locationName by remember { mutableStateOf(prefsRepository.locationName ?: "") }
     var locationSearch by remember { mutableStateOf("") }
@@ -651,6 +653,44 @@ fun SettingsScreen(
                         ) {
                             Text("Clear Location")
                         }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Telemetry
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Telemetry",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                text = "Show noise level, temperature, humidity and pressure from phone sensors on home screen. Requires microphone permission for noise level. Uses extra battery.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        Switch(
+                            checked = telemetryEnabled,
+                            onCheckedChange = {
+                                telemetryEnabled = it
+                                prefsRepository.telemetryEnabled = it
+                            }
+                        )
                     }
                 }
             }
