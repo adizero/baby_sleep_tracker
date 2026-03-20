@@ -15,10 +15,12 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan (pinch or double-tap-and-drag one-handed zoom), and percentile display; latest measurements shown on home screen; individual unit toggles (kg/lbs, cm/in) with auto-conversion
 - **Sleep & feeding alarms** — configurable alerts when baby sleeps too long or hasn't been fed, with custom ringtone selection
 - **Development milestones** — age-appropriate milestones for motor, vision, sleep, feeding, teeth, social, language, and cognitive development with fun facts; auto-scrolls to current age
-- **Calendar** — monthly overview with color-coded activity dots and daily detail view; double-tap a day to jump to history
+- **Weather** — location-based weather on calendar and home screen; current conditions, min/max temperature, hourly forecast for today and tomorrow; historical weather cached per-month; expandable weather card on home screen; powered by Open-Meteo API (no API key required)
+- **Telemetry** — optional live sensor card on home screen showing ambient noise level (dB), temperature, humidity, and barometric pressure from phone sensors; unavailable sensors shown grayed out; disabled by default to save battery
+- **Calendar** — monthly overview with color-coded activity dots, weather icons, and daily detail view; auto-selects current day; double-tap a day to jump to history
 - **Statistics** — sleep, feed, and diaper charts with trend lines (24h/72h/3/7/14/30 day ranges), hourly breakdown charts, day vs night sleep pie chart, scrollable charts for large ranges
-- **Home dashboard** — today's stats, time since last sleep/feed/diaper/bath/measurement, and latest growth measurements with percentiles
-- **Configurable units** — individual toggles for weight (kg/lbs), length (cm/in), and volume (ml/oz); unit choices in entry forms are local and don't affect global settings
+- **Home dashboard** — today's stats, time since last sleep/feed/diaper/bath/measurement, latest growth measurements with percentiles, weather card with hourly forecast, and optional telemetry card
+- **Configurable units** — individual toggles for weight (kg/lbs), length (cm/in), volume (ml/oz), temperature (°C/°F), and pressure (hPa/inHg); unit choices in entry forms are local and don't affect global settings
 - **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
 - **History** — scrollable list of all entries with date jump, entry type filter, editable and deletable with undo
 - **Dropbox sync** — automatic cloud backup and merge across devices with immediate sync on changes
