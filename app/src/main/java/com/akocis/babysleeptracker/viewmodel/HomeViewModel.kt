@@ -110,6 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var telemetryJob: Job? = null
 
     private var weatherLoadedDate: LocalDate? = null
+    private var weatherRefreshJob: Job? = null
 
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
@@ -167,6 +168,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val hourly = weatherRepository.getHourlyForecast(lat, lon)
                 _hourlyForecast.value = hourly
             } catch (_: Exception) { }
+        }
+        scheduleWeatherRefresh()
+    }
+
+    private fun scheduleWeatherRefresh() {
+        weatherRefreshJob?.cancel()
+        weatherRefreshJob = viewModelScope.launch {
+            while (true) {
+                delay(3_600_000L) // 1 hour
+                loadWeather()
+            }
         }
     }
 
