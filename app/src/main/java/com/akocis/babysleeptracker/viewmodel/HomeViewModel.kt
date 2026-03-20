@@ -109,6 +109,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var telemetryJob: Job? = null
 
+    private var weatherLoadedDate: LocalDate? = null
+
     private var timerJob: Job? = null
     private var undoDismissJob: Job? = null
     private var noiseObserverJob: Job? = null
@@ -156,6 +158,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val lon = prefsRepository.locationLon ?: return
         val today = LocalDate.now()
         val tomorrow = today.plusDays(1)
+        weatherLoadedDate = today
         viewModelScope.launch {
             try {
                 val forecast = weatherRepository.getForecast(lat, lon, today, tomorrow)
@@ -171,10 +174,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Refresh units
         _useCelsius.value = prefsRepository.useCelsius
         _useHpa.value = prefsRepository.useHpa
-        // Refresh weather if location changed
+        // Refresh weather if location changed or date changed
         val hasLocation = prefsRepository.hasLocation
         val hadWeather = _todayWeather.value != null
-        if (hasLocation && !hadWeather) {
+        val dateChanged = weatherLoadedDate != null && weatherLoadedDate != LocalDate.now()
+        if (hasLocation && (!hadWeather || dateChanged)) {
             loadWeather()
         } else if (!hasLocation && hadWeather) {
             _todayWeather.value = null
