@@ -79,7 +79,7 @@ object EntryParser {
         """^HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(?!\d{2}:\d{2})(.+))?$"""
     )
 
-    val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
+    val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})(?:\.(\d+))?\s+""")
     val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
 
     private val random = SecureRandom()
@@ -94,8 +94,17 @@ object EntryParser {
         return ID_PREFIX_REGEX.find(line.trim())?.groupValues?.get(1)
     }
 
+    fun extractModEpoch(line: String): Long {
+        val epoch = ID_PREFIX_REGEX.find(line.trim())?.groupValues?.get(2)
+        return epoch?.toLongOrNull() ?: 0L
+    }
+
     fun stripId(line: String): String {
         return line.trim().replace(ID_PREFIX_REGEX, "")
+    }
+
+    fun formatIdPrefix(id: String, modEpoch: Long = 0): String {
+        return if (modEpoch > 0) "#$id.$modEpoch" else "#$id"
     }
 
     fun formatDeletion(id: String): String = "DEL #$id"

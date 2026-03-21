@@ -23,32 +23,32 @@ class DropboxSyncManager {
             """(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})"""
         )
         private val ONGOING_SLEEP_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
         )
         private val COMPLETED_SLEEP_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?SLEEP\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
         private val ONGOING_FEED_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*$"""
         )
         private val COMPLETED_FEED_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?(FEEDL|FEEDR)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$"""
         )
         private val ONGOING_NOISE_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s+(\w+)$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s+(\w+)$"""
         )
         private val COMPLETED_NOISE_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(\w+)$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?NOISE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+(\w+)$"""
         )
         private val ONGOING_HC_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(?!\d{2}:\d{2})(.+))?$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-(?:\s+(?!\d{2}:\d{2})(.+))?$"""
         )
         private val COMPLETED_HC_REGEX = Regex(
-            """^(?:#[0-9a-f]{8}\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""
+            """^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?HC\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})(?:\s+(.+))?$"""
         )
-        private val BABY_REGEX = Regex("""^(?:#[0-9a-f]{8}\s+)?BABY\s+.+""")
+        private val BABY_REGEX = Regex("""^(?:#[0-9a-f]{8}(?:\.\d+)?\s+)?BABY\s+.+""")
         private val DEL_REGEX = Regex("""^DEL\s+#([0-9a-f]{8})\s*$""")
-        private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})\s+""")
+        private val ID_PREFIX_REGEX = Regex("""^#([0-9a-f]{8})(?:\.\d+)?\s+""")
     }
 
     private var codeVerifier: String? = null
@@ -262,7 +262,7 @@ class DropboxSyncManager {
             }
         }
 
-        // ID-based dedup: keep only one entry per ID, preferring local
+        // ID-based dedup: keep only one entry per ID, preferring the newer edit (higher mod epoch)
         val linesByID = mutableMapOf<String, MutableList<String>>()
         for (line in allLines) {
             val id = ID_PREFIX_REGEX.find(line)?.groupValues?.get(1) ?: continue
@@ -270,10 +270,8 @@ class DropboxSyncManager {
         }
         for ((_, lines) in linesByID) {
             if (lines.size <= 1) continue
-            // Multiple lines share the same ID — keep only one.
-            // Prefer the local version (user's latest edit).
-            val localVersion = lines.firstOrNull { it in localLines }
-            val toKeep = localVersion ?: lines.first()
+            // Multiple lines share the same ID — keep the one with the highest mod epoch.
+            val toKeep = lines.maxBy { EntryParser.extractModEpoch(it) }
             allLines.removeAll(lines.filter { it != toKeep }.toSet())
         }
 

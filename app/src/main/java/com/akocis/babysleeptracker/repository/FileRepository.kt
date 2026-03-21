@@ -130,7 +130,8 @@ class FileRepository(private val context: Context) {
 
                 // Insert the new line at the original position (or append)
                 val insertAt = if (firstIndex >= 0) firstIndex.coerceAtMost(lines.size) else lines.size
-                lines.add(insertAt, "#$entryId ${EntryParser.stripId(newLine)}")
+                val modEpoch = System.currentTimeMillis() / 1000
+                lines.add(insertAt, "${EntryParser.formatIdPrefix(entryId, modEpoch)} ${EntryParser.stripId(newLine)}")
 
                 writeContent(uri, lines.joinToString("\n"))
             }
@@ -150,7 +151,8 @@ class FileRepository(private val context: Context) {
                     val existingId = EntryParser.extractId(lines[index])
                     val strippedNew = EntryParser.stripId(newLine)
                     lines[index] = if (existingId != null) {
-                        "#$existingId $strippedNew"
+                        val modEpoch = System.currentTimeMillis() / 1000
+                        "${EntryParser.formatIdPrefix(existingId, modEpoch)} $strippedNew"
                     } else {
                         strippedNew
                     }
