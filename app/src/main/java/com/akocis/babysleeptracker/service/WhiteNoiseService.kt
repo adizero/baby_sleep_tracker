@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.akocis.babysleeptracker.R
@@ -51,6 +53,7 @@ class WhiteNoiseService : Service() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val noiseGenerator = NoiseGenerator()
+    private var mediaSession: MediaSession? = null
     private var autoStopJob: Job? = null
     private var fadeOutSeconds = 0f
 
@@ -73,6 +76,16 @@ class WhiteNoiseService : Service() {
         val fadeIn = intent?.getFloatExtra(EXTRA_FADE_IN, 0f) ?: 0f
         fadeOutSeconds = intent?.getFloatExtra(EXTRA_FADE_OUT, 0f) ?: 0f
         val durationMs = intent?.getLongExtra(EXTRA_DURATION_MS, 0L) ?: 0L
+
+        // MediaSession required for mediaPlayback foreground service type on Android 14+
+        mediaSession = MediaSession(this, "WhiteNoise").apply {
+            setPlaybackState(
+                PlaybackState.Builder()
+                    .setState(PlaybackState.STATE_PLAYING, 0, 1f)
+                    .build()
+            )
+            isActive = true
+        }
 
         startForeground(NOTIFICATION_ID, buildNotification(noiseType))
 
@@ -112,6 +125,9 @@ class WhiteNoiseService : Service() {
     override fun onDestroy() {
         autoStopJob?.cancel()
         noiseGenerator.stop()
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
         _serviceState.value = NoiseServiceState.Idle
         scope.cancel()
         super.onDestroy()

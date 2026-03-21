@@ -10,12 +10,15 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
+import com.akocis.babysleeptracker.MainActivity
 import com.akocis.babysleeptracker.R
 
 class BabyAlarmService : Service() {
@@ -32,6 +35,7 @@ class BabyAlarmService : Service() {
     }
 
     private var mediaPlayer: MediaPlayer? = null
+    private var mediaSession: MediaSession? = null
     private var vibrator: Vibrator? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -55,6 +59,16 @@ class BabyAlarmService : Service() {
             "Baby has been sleeping for the configured duration"
         else
             "Time to feed the baby"
+
+        // MediaSession required for mediaPlayback foreground service type on Android 14+
+        mediaSession = MediaSession(this, "BabyAlarm").apply {
+            setPlaybackState(
+                PlaybackState.Builder()
+                    .setState(PlaybackState.STATE_PLAYING, 0, 1f)
+                    .build()
+            )
+            isActive = true
+        }
 
         startForeground(NOTIFICATION_ID, buildNotification(title, text))
         playAlarm(ringtoneUriStr)
@@ -124,6 +138,9 @@ class BabyAlarmService : Service() {
             release()
         }
         mediaPlayer = null
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
         vibrator?.cancel()
         vibrator = null
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -136,6 +153,9 @@ class BabyAlarmService : Service() {
             release()
         }
         mediaPlayer = null
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
         vibrator?.cancel()
         vibrator = null
         super.onDestroy()
@@ -163,6 +183,14 @@ class BabyAlarmService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val fullScreenIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            this, 0, fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
@@ -170,6 +198,7 @@ class BabyAlarmService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(0, "Dismiss", dismissPendingIntent)
             .build()
     }
