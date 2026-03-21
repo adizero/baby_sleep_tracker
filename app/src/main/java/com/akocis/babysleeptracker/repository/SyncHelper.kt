@@ -36,6 +36,9 @@ object SyncHelper {
     }
 
     fun notifyDataChanged() {
+        // Immediately notify observers so alarms recalculate without waiting for sync
+        _syncCompleted.tryEmit(Unit)
+
         val s = scope ?: return
         val p = prefsRepo ?: return
         val f = fileRepo ?: return

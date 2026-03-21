@@ -136,6 +136,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _feedAlarmTime = MutableStateFlow<String?>(null)
     val feedAlarmTime: StateFlow<String?> = _feedAlarmTime
 
+    private var lastToastedSleepAlarmTime: String? = null
+    private var lastToastedFeedAlarmTime: String? = null
+
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
         _hasFile.value = prefsRepository.fileUri != null
@@ -945,6 +948,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun scheduleSleepAlarmIfEnabled() {
         if (!prefsRepository.sleepAlarmEnabled) {
             _sleepAlarmTime.value = null
+            lastToastedSleepAlarmTime = null
             return
         }
         val state = _trackingState.value as? TrackingState.Sleeping ?: return
@@ -960,11 +964,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
                 } catch (_: Exception) {}
+            }
+            val timeStr = formatTriggerTime(triggerMillis)
+            if (timeStr != lastToastedSleepAlarmTime) {
+                lastToastedSleepAlarmTime = timeStr
                 showAlarmToast("Sleep", triggerMillis)
             }
-            _sleepAlarmTime.value = formatTriggerTime(triggerMillis)
+            _sleepAlarmTime.value = timeStr
         } else {
             _sleepAlarmTime.value = null
+            lastToastedSleepAlarmTime = null
             if (lastComputedSleepTriggerMillis >= 0 && triggerMillis != lastComputedSleepTriggerMillis) {
                 fireAlarmNow(BabyAlarmService.ALARM_TYPE_SLEEP, prefsRepository.sleepAlarmRingtone)
             }
@@ -975,6 +984,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun cancelSleepAlarm() {
         lastScheduledSleepAlarmMillis = 0
+        lastToastedSleepAlarmTime = null
         _sleepAlarmTime.value = null
         try { AlarmScheduler.cancelSleepAlarm(getApplication()) } catch (_: Exception) {}
     }
@@ -982,6 +992,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun scheduleFeedAlarmIfEnabled() {
         if (!prefsRepository.feedAlarmEnabled) {
             _feedAlarmTime.value = null
+            lastToastedFeedAlarmTime = null
             return
         }
         val ctx = getApplication<Application>()
@@ -991,15 +1002,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
             } catch (_: Exception) {}
+        }
+        val timeStr = formatTriggerTime(triggerMillis)
+        if (timeStr != lastToastedFeedAlarmTime) {
+            lastToastedFeedAlarmTime = timeStr
             showAlarmToast("Feeding", triggerMillis)
         }
-        _feedAlarmTime.value = formatTriggerTime(triggerMillis)
+        _feedAlarmTime.value = timeStr
         lastComputedFeedTriggerMillis = triggerMillis
     }
 
     private fun scheduleFeedAlarmFromLastFeed(lastFeedDateTime: LocalDateTime) {
         if (!prefsRepository.feedAlarmEnabled) {
             _feedAlarmTime.value = null
+            lastToastedFeedAlarmTime = null
             return
         }
         val ctx = getApplication<Application>()
@@ -1013,11 +1029,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
                 } catch (_: Exception) {}
+            }
+            val timeStr = formatTriggerTime(triggerMillis)
+            if (timeStr != lastToastedFeedAlarmTime) {
+                lastToastedFeedAlarmTime = timeStr
                 showAlarmToast("Feeding", triggerMillis)
             }
-            _feedAlarmTime.value = formatTriggerTime(triggerMillis)
+            _feedAlarmTime.value = timeStr
         } else {
             _feedAlarmTime.value = null
+            lastToastedFeedAlarmTime = null
             if (lastComputedFeedTriggerMillis >= 0 && triggerMillis != lastComputedFeedTriggerMillis) {
                 fireAlarmNow(BabyAlarmService.ALARM_TYPE_FEED, prefsRepository.feedAlarmRingtone)
             }
@@ -1028,6 +1049,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun cancelFeedAlarm() {
         lastScheduledFeedAlarmMillis = 0
+        lastToastedFeedAlarmTime = null
         _feedAlarmTime.value = null
         try { AlarmScheduler.cancelFeedAlarm(getApplication()) } catch (_: Exception) {}
     }
