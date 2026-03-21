@@ -817,13 +817,13 @@ fun SettingsScreen(
                         Slider(
                             value = sleepAlarmMinutes.toFloat(),
                             onValueChange = {
-                                sleepAlarmMinutes = it.toInt()
+                                sleepAlarmMinutes = (Math.round(it / 15f) * 15).coerceIn(15, 480)
                             },
                             onValueChangeFinished = {
                                 prefsRepository.sleepAlarmMinutes = sleepAlarmMinutes
                             },
-                            valueRange = 30f..480f,
-                            steps = (480 - 30) / 15 - 1,
+                            valueRange = 15f..480f,
+                            steps = (480 - 15) / 15 - 1,
                             modifier = Modifier.fillMaxWidth()
                         )
                         OutlinedButton(
@@ -871,13 +871,13 @@ fun SettingsScreen(
                         Slider(
                             value = feedAlarmMinutes.toFloat(),
                             onValueChange = {
-                                feedAlarmMinutes = it.toInt()
+                                feedAlarmMinutes = (Math.round(it / 15f) * 15).coerceIn(15, 480)
                             },
                             onValueChangeFinished = {
                                 prefsRepository.feedAlarmMinutes = feedAlarmMinutes
                             },
-                            valueRange = 30f..480f,
-                            steps = (480 - 30) / 15 - 1,
+                            valueRange = 15f..480f,
+                            steps = (480 - 15) / 15 - 1,
                             modifier = Modifier.fillMaxWidth()
                         )
                         OutlinedButton(
