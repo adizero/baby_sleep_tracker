@@ -72,13 +72,16 @@ class FileRepository(private val context: Context) {
                 val babyLineIndex = lines.indexOfFirst {
                     EntryParser.stripId(it.trim()).startsWith("BABY ")
                 }
+                val modEpoch = System.currentTimeMillis() / 1000
                 if (babyLineIndex >= 0) {
                     val existingId = EntryParser.extractId(lines[babyLineIndex])
-                    val newLine = EntryParser.formatBabyInfo(name, birthDate, sex, existingId)
-                    lines[babyLineIndex] = newLine
+                    val formatted = EntryParser.formatBabyInfo(name, birthDate, sex, existingId)
+                    val id = EntryParser.extractId(formatted)!!
+                    lines[babyLineIndex] = "${EntryParser.formatIdPrefix(id, modEpoch)} ${EntryParser.stripId(formatted)}"
                 } else {
-                    val newLine = EntryParser.formatBabyInfo(name, birthDate, sex)
-                    lines.add(0, newLine)
+                    val formatted = EntryParser.formatBabyInfo(name, birthDate, sex)
+                    val id = EntryParser.extractId(formatted)!!
+                    lines.add(0, "${EntryParser.formatIdPrefix(id, modEpoch)} ${EntryParser.stripId(formatted)}")
                 }
                 writeContent(uri, lines.joinToString("\n"))
             }
@@ -89,7 +92,12 @@ class FileRepository(private val context: Context) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val content = readContent(uri)
-                val newLine = EntryParser.formatMeasurementEntry(entry)
+                val formatted = EntryParser.formatMeasurementEntry(entry)
+                val id = EntryParser.extractId(formatted)
+                val newLine = if (id != null && EntryParser.extractModEpoch(formatted) == 0L) {
+                    val modEpoch = System.currentTimeMillis() / 1000
+                    "${EntryParser.formatIdPrefix(id, modEpoch)} ${EntryParser.stripId(formatted)}"
+                } else formatted
                 writeContent(uri, if (content.endsWith("\n") || content.isEmpty()) "$content$newLine\n" else "$content\n$newLine\n")
             }
         }
@@ -270,13 +278,20 @@ class FileRepository(private val context: Context) {
     private suspend fun appendLine(uri: Uri, line: String) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
+                // Stamp mod epoch on new entries so sync conflict resolution always has a timestamp
+                val stamped = EntryParser.extractId(line)?.let { id ->
+                    if (EntryParser.extractModEpoch(line) == 0L) {
+                        val modEpoch = System.currentTimeMillis() / 1000
+                        "${EntryParser.formatIdPrefix(id, modEpoch)} ${EntryParser.stripId(line)}"
+                    } else line
+                } ?: line
                 val existing = readContent(uri)
                 val newContent = if (existing.isBlank()) {
-                    line
+                    stamped
                 } else if (existing.endsWith("\n")) {
-                    existing + line
+                    existing + stamped
                 } else {
-                    existing + "\n" + line
+                    existing + "\n" + stamped
                 }
                 writeContent(uri, newContent)
             }
