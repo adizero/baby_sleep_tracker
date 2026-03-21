@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import com.akocis.babysleeptracker.receiver.AlarmReceiver
 import com.akocis.babysleeptracker.service.BabyAlarmService
 
@@ -28,8 +29,19 @@ object AlarmScheduler {
         cancel(context, BabyAlarmService.ALARM_TYPE_FEED, FEED_ALARM_REQUEST_CODE)
     }
 
+    fun canScheduleExactAlarms(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return alarmManager.canScheduleExactAlarms()
+    }
+
     private fun schedule(context: Context, triggerAtMillis: Long, ringtoneUri: String?, alarmType: String, requestCode: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            return
+        }
+
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(BabyAlarmService.EXTRA_ALARM_TYPE, alarmType)
             ringtoneUri?.let { putExtra(BabyAlarmService.EXTRA_RINGTONE_URI, it) }

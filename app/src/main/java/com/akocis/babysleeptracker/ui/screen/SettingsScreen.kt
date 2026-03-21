@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.OpenableColumns
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -62,6 +63,7 @@ import com.akocis.babysleeptracker.repository.GeoLocation
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.WeatherRepository
 import com.akocis.babysleeptracker.ui.component.TimePickerDialog
+import com.akocis.babysleeptracker.util.AlarmScheduler
 import com.akocis.babysleeptracker.util.DateTimeUtil
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -793,6 +795,10 @@ fun SettingsScreen(
                         Switch(
                             checked = sleepAlarmEnabled,
                             onCheckedChange = {
+                                if (it && !AlarmScheduler.canScheduleExactAlarms(context)) {
+                                    context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                                    return@Switch
+                                }
                                 sleepAlarmEnabled = it
                                 prefsRepository.sleepAlarmEnabled = it
                             }
@@ -840,6 +846,10 @@ fun SettingsScreen(
                         Switch(
                             checked = feedAlarmEnabled,
                             onCheckedChange = {
+                                if (it && !AlarmScheduler.canScheduleExactAlarms(context)) {
+                                    context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                                    return@Switch
+                                }
                                 feedAlarmEnabled = it
                                 prefsRepository.feedAlarmEnabled = it
                             }

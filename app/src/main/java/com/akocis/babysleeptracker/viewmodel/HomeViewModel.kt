@@ -2,6 +2,8 @@ package com.akocis.babysleeptracker.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -125,6 +127,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingHcEntry: HighContrastEntry? = null
     private var lastScheduledSleepAlarmMillis: Long = 0
     private var lastScheduledFeedAlarmMillis: Long = 0
+    private var lastComputedSleepTriggerMillis: Long = -1
+    private var lastComputedFeedTriggerMillis: Long = -1
 
     private val _sleepAlarmTime = MutableStateFlow<String?>(null)
     val sleepAlarmTime: StateFlow<String?> = _sleepAlarmTime
@@ -953,21 +957,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (triggerMillis > System.currentTimeMillis()) {
             if (triggerMillis != lastScheduledSleepAlarmMillis) {
                 lastScheduledSleepAlarmMillis = triggerMillis
-                AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
+                try {
+                    AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
+                } catch (_: Exception) {}
                 showAlarmToast("Sleep", triggerMillis)
             }
             _sleepAlarmTime.value = formatTriggerTime(triggerMillis)
         } else {
-            lastScheduledSleepAlarmMillis = 0
             _sleepAlarmTime.value = null
-            fireAlarmNow(BabyAlarmService.ALARM_TYPE_SLEEP, prefsRepository.sleepAlarmRingtone)
+            if (lastComputedSleepTriggerMillis >= 0 && triggerMillis != lastComputedSleepTriggerMillis) {
+                fireAlarmNow(BabyAlarmService.ALARM_TYPE_SLEEP, prefsRepository.sleepAlarmRingtone)
+            }
+            lastScheduledSleepAlarmMillis = 0
         }
+        lastComputedSleepTriggerMillis = triggerMillis
     }
 
     private fun cancelSleepAlarm() {
         lastScheduledSleepAlarmMillis = 0
         _sleepAlarmTime.value = null
-        AlarmScheduler.cancelSleepAlarm(getApplication())
+        try { AlarmScheduler.cancelSleepAlarm(getApplication()) } catch (_: Exception) {}
     }
 
     private fun scheduleFeedAlarmIfEnabled() {
@@ -979,10 +988,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val triggerMillis = System.currentTimeMillis() + prefsRepository.feedAlarmMinutes.toLong() * 60_000
         if (triggerMillis != lastScheduledFeedAlarmMillis) {
             lastScheduledFeedAlarmMillis = triggerMillis
-            AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+            try {
+                AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+            } catch (_: Exception) {}
             showAlarmToast("Feeding", triggerMillis)
         }
         _feedAlarmTime.value = formatTriggerTime(triggerMillis)
+        lastComputedFeedTriggerMillis = triggerMillis
     }
 
     private fun scheduleFeedAlarmFromLastFeed(lastFeedDateTime: LocalDateTime) {
@@ -998,30 +1010,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (triggerMillis > System.currentTimeMillis()) {
             if (triggerMillis != lastScheduledFeedAlarmMillis) {
                 lastScheduledFeedAlarmMillis = triggerMillis
-                AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+                try {
+                    AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+                } catch (_: Exception) {}
                 showAlarmToast("Feeding", triggerMillis)
             }
             _feedAlarmTime.value = formatTriggerTime(triggerMillis)
         } else {
-            lastScheduledFeedAlarmMillis = 0
             _feedAlarmTime.value = null
-            fireAlarmNow(BabyAlarmService.ALARM_TYPE_FEED, prefsRepository.feedAlarmRingtone)
+            if (lastComputedFeedTriggerMillis >= 0 && triggerMillis != lastComputedFeedTriggerMillis) {
+                fireAlarmNow(BabyAlarmService.ALARM_TYPE_FEED, prefsRepository.feedAlarmRingtone)
+            }
+            lastScheduledFeedAlarmMillis = 0
         }
+        lastComputedFeedTriggerMillis = triggerMillis
     }
 
     private fun cancelFeedAlarm() {
         lastScheduledFeedAlarmMillis = 0
         _feedAlarmTime.value = null
-        AlarmScheduler.cancelFeedAlarm(getApplication())
+        try { AlarmScheduler.cancelFeedAlarm(getApplication()) } catch (_: Exception) {}
     }
 
     private fun fireAlarmNow(alarmType: String, ringtoneUri: String?) {
-        val ctx = getApplication<Application>()
-        val intent = Intent(ctx, BabyAlarmService::class.java).apply {
-            putExtra(BabyAlarmService.EXTRA_ALARM_TYPE, alarmType)
-            ringtoneUri?.let { putExtra(BabyAlarmService.EXTRA_RINGTONE_URI, it) }
-        }
-        ContextCompat.startForegroundService(ctx, intent)
+        try {
+            val ctx = getApplication<Application>()
+            val intent = Intent(ctx, BabyAlarmService::class.java).apply {
+                putExtra(BabyAlarmService.EXTRA_ALARM_TYPE, alarmType)
+                ringtoneUri?.let { putExtra(BabyAlarmService.EXTRA_RINGTONE_URI, it) }
+            }
+            ContextCompat.startForegroundService(ctx, intent)
+        } catch (_: Exception) {}
     }
 
     private fun formatTriggerTime(triggerMillis: Long): String {
@@ -1033,11 +1052,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun showAlarmToast(alarmType: String, triggerMillis: Long) {
-        Toast.makeText(
-            getApplication(),
-            "$alarmType alarm set for ${formatTriggerTime(triggerMillis)}",
-            Toast.LENGTH_SHORT
-        ).show()
+        val msg = "$alarmType alarm set for ${formatTriggerTime(triggerMillis)}"
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(getApplication(), msg, Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun getLastNoiseType(): String = prefsRepository.lastNoiseType
