@@ -380,6 +380,26 @@ fun HomeScreen(
                 elapsedTime = elapsedTime
             )
 
+            // Active alarms
+            if (sleepAlarmTime != null || feedAlarmTime != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val parts = mutableListOf<String>()
+                    sleepAlarmTime?.let { parts.add("\u23F0 Sleep $it") }
+                    feedAlarmTime?.let { parts.add("\uD83C\uDF7C Feed $it") }
+                    Text(
+                        text = parts.joinToString("    "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Sleep toggle button
@@ -553,27 +573,6 @@ fun HomeScreen(
                 containerColor = HighContrastColor,
                 onClick = onNavigateToHighContrast
             )
-
-            // Active alarms
-            if (sleepAlarmTime != null || feedAlarmTime != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val parts = mutableListOf<String>()
-                    sleepAlarmTime?.let { parts.add("\u23F0 Sleep $it") }
-                    feedAlarmTime?.let { parts.add("\uD83C\uDF7C Feed $it") }
-                    Text(
-                        text = parts.joinToString("    "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
