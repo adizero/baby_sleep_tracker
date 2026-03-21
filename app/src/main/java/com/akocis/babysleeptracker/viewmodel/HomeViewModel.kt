@@ -860,28 +860,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Schedule feed alarm from last feed end time (independent of tracking state)
+        val lastFeedEndDateTime = if (lastBreastEndEpoch >= lastBottleEpoch && lastBreastFeed != null) {
+            endDateTime(lastBreastFeed.date, lastBreastFeed.startTime, lastBreastFeed.endTime!!)
+        } else if (lastBottle != null) {
+            lastBottle.date.atTime(lastBottle.time)
+        } else null
+
         // Schedule alarms based on current state
         when (_trackingState.value) {
             is TrackingState.Sleeping -> {
                 scheduleSleepAlarmIfEnabled()
-                _feedAlarmTime.value = null
             }
             is TrackingState.Idle -> {
                 _sleepAlarmTime.value = null
-                // Schedule feed alarm from last feed end time
-                val lastFeedEndDateTime = if (lastBreastEndEpoch >= lastBottleEpoch && lastBreastFeed != null) {
-                    endDateTime(lastBreastFeed.date, lastBreastFeed.startTime, lastBreastFeed.endTime!!)
-                } else if (lastBottle != null) {
-                    lastBottle.date.atTime(lastBottle.time)
-                } else null
-                if (lastFeedEndDateTime != null) {
-                    scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
-                } else {
-                    _feedAlarmTime.value = null
-                }
             }
             is TrackingState.Feeding -> {
                 _sleepAlarmTime.value = null
+                _feedAlarmTime.value = null
+            }
+        }
+        // Feed alarm applies when idle or sleeping (not while actively feeding)
+        if (_trackingState.value !is TrackingState.Feeding) {
+            if (lastFeedEndDateTime != null) {
+                scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
+            } else {
                 _feedAlarmTime.value = null
             }
         }
