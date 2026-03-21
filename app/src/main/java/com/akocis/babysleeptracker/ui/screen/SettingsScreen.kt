@@ -796,6 +796,9 @@ fun SettingsScreen(
                             checked = sleepAlarmEnabled,
                             onCheckedChange = {
                                 if (it && !AlarmScheduler.canScheduleExactAlarms(context)) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Grant \"Alarms & reminders\" permission to enable alarms")
+                                    }
                                     context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
                                     return@Switch
                                 }
@@ -847,6 +850,9 @@ fun SettingsScreen(
                             checked = feedAlarmEnabled,
                             onCheckedChange = {
                                 if (it && !AlarmScheduler.canScheduleExactAlarms(context)) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Grant \"Alarms & reminders\" permission to enable alarms")
+                                    }
                                     context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
                                     return@Switch
                                 }
