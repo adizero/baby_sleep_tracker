@@ -2,6 +2,8 @@ package com.akocis.babysleeptracker.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Intent
@@ -28,6 +30,7 @@ import com.akocis.babysleeptracker.repository.HourlyWeather
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.repository.SyncHelper
 import com.akocis.babysleeptracker.repository.WeatherRepository
+import com.akocis.babysleeptracker.service.BabyAlarmService
 import com.akocis.babysleeptracker.service.TelemetryData
 import com.akocis.babysleeptracker.service.TelemetryManager
 import com.akocis.babysleeptracker.service.NoiseServiceState
@@ -120,6 +123,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastSleepEndTime: LocalTime? = null
     private var pendingNoiseEntry: WhiteNoiseEntry? = null
     private var pendingHcEntry: HighContrastEntry? = null
+    private var lastScheduledSleepAlarmMillis: Long = 0
+    private var lastScheduledFeedAlarmMillis: Long = 0
+
+    private val _sleepAlarmTime = MutableStateFlow<String?>(null)
+    val sleepAlarmTime: StateFlow<String?> = _sleepAlarmTime
+
+    private val _feedAlarmTime = MutableStateFlow<String?>(null)
+    val feedAlarmTime: StateFlow<String?> = _feedAlarmTime
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
@@ -201,6 +212,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshTelemetryState()
         // Refresh baby info
         loadBabyInfo()
+        // Cancel alarms if toggled off in settings; force recalculation if config changed
+        if (!prefsRepository.sleepAlarmEnabled && lastScheduledSleepAlarmMillis != 0L) {
+            cancelSleepAlarm()
+            _sleepAlarmTime.value = null
+        }
+        if (!prefsRepository.feedAlarmEnabled && lastScheduledFeedAlarmMillis != 0L) {
+            cancelFeedAlarm()
+            _feedAlarmTime.value = null
+        }
+        // Force recalculation on next refresh by resetting tracked times
+        lastScheduledSleepAlarmMillis = 0
+        lastScheduledFeedAlarmMillis = 0
+        // Recalculate stats and alarms (entries or settings may have changed)
+        refreshTodayStats()
     }
 
     fun refreshTelemetryState() {
@@ -830,8 +855,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         // Schedule alarms based on current state
         when (_trackingState.value) {
-            is TrackingState.Sleeping -> scheduleSleepAlarmIfEnabled()
+            is TrackingState.Sleeping -> {
+                scheduleSleepAlarmIfEnabled()
+                _feedAlarmTime.value = null
+            }
             is TrackingState.Idle -> {
+                _sleepAlarmTime.value = null
                 // Schedule feed alarm from last feed end time
                 val lastFeedEndDateTime = if (lastBreastEndEpoch >= lastBottleEpoch && lastBreastFeed != null) {
                     endDateTime(lastBreastFeed.date, lastBreastFeed.startTime, lastBreastFeed.endTime!!)
@@ -840,9 +869,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 } else null
                 if (lastFeedEndDateTime != null) {
                     scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
+                } else {
+                    _feedAlarmTime.value = null
                 }
             }
-            is TrackingState.Feeding -> {} // No alarms while feeding
+            is TrackingState.Feeding -> {
+                _sleepAlarmTime.value = null
+                _feedAlarmTime.value = null
+            }
         }
 
         if (data.babyName != null) {
@@ -905,7 +939,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun scheduleSleepAlarmIfEnabled() {
-        if (!prefsRepository.sleepAlarmEnabled) return
+        if (!prefsRepository.sleepAlarmEnabled) {
+            _sleepAlarmTime.value = null
+            return
+        }
         val state = _trackingState.value as? TrackingState.Sleeping ?: return
         val ctx = getApplication<Application>()
         val startDateTime = state.startDate.atTime(state.startTime)
@@ -914,36 +951,93 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .atZone(java.time.ZoneId.systemDefault())
             .toInstant().toEpochMilli()
         if (triggerMillis > System.currentTimeMillis()) {
-            AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
+            if (triggerMillis != lastScheduledSleepAlarmMillis) {
+                lastScheduledSleepAlarmMillis = triggerMillis
+                AlarmScheduler.scheduleSleepAlarm(ctx, triggerMillis, prefsRepository.sleepAlarmRingtone)
+                showAlarmToast("Sleep", triggerMillis)
+            }
+            _sleepAlarmTime.value = formatTriggerTime(triggerMillis)
+        } else {
+            lastScheduledSleepAlarmMillis = 0
+            _sleepAlarmTime.value = null
+            fireAlarmNow(BabyAlarmService.ALARM_TYPE_SLEEP, prefsRepository.sleepAlarmRingtone)
         }
     }
 
     private fun cancelSleepAlarm() {
+        lastScheduledSleepAlarmMillis = 0
+        _sleepAlarmTime.value = null
         AlarmScheduler.cancelSleepAlarm(getApplication())
     }
 
     private fun scheduleFeedAlarmIfEnabled() {
-        if (!prefsRepository.feedAlarmEnabled) return
+        if (!prefsRepository.feedAlarmEnabled) {
+            _feedAlarmTime.value = null
+            return
+        }
         val ctx = getApplication<Application>()
-        // Schedule from now (feed just ended or app just started idle)
         val triggerMillis = System.currentTimeMillis() + prefsRepository.feedAlarmMinutes.toLong() * 60_000
-        AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+        if (triggerMillis != lastScheduledFeedAlarmMillis) {
+            lastScheduledFeedAlarmMillis = triggerMillis
+            AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+            showAlarmToast("Feeding", triggerMillis)
+        }
+        _feedAlarmTime.value = formatTriggerTime(triggerMillis)
     }
 
     private fun scheduleFeedAlarmFromLastFeed(lastFeedDateTime: LocalDateTime) {
-        if (!prefsRepository.feedAlarmEnabled) return
+        if (!prefsRepository.feedAlarmEnabled) {
+            _feedAlarmTime.value = null
+            return
+        }
         val ctx = getApplication<Application>()
         val triggerMillis = lastFeedDateTime
             .plusMinutes(prefsRepository.feedAlarmMinutes.toLong())
             .atZone(java.time.ZoneId.systemDefault())
             .toInstant().toEpochMilli()
         if (triggerMillis > System.currentTimeMillis()) {
-            AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+            if (triggerMillis != lastScheduledFeedAlarmMillis) {
+                lastScheduledFeedAlarmMillis = triggerMillis
+                AlarmScheduler.scheduleFeedAlarm(ctx, triggerMillis, prefsRepository.feedAlarmRingtone)
+                showAlarmToast("Feeding", triggerMillis)
+            }
+            _feedAlarmTime.value = formatTriggerTime(triggerMillis)
+        } else {
+            lastScheduledFeedAlarmMillis = 0
+            _feedAlarmTime.value = null
+            fireAlarmNow(BabyAlarmService.ALARM_TYPE_FEED, prefsRepository.feedAlarmRingtone)
         }
     }
 
     private fun cancelFeedAlarm() {
+        lastScheduledFeedAlarmMillis = 0
+        _feedAlarmTime.value = null
         AlarmScheduler.cancelFeedAlarm(getApplication())
+    }
+
+    private fun fireAlarmNow(alarmType: String, ringtoneUri: String?) {
+        val ctx = getApplication<Application>()
+        val intent = Intent(ctx, BabyAlarmService::class.java).apply {
+            putExtra(BabyAlarmService.EXTRA_ALARM_TYPE, alarmType)
+            ringtoneUri?.let { putExtra(BabyAlarmService.EXTRA_RINGTONE_URI, it) }
+        }
+        ContextCompat.startForegroundService(ctx, intent)
+    }
+
+    private fun formatTriggerTime(triggerMillis: Long): String {
+        return java.time.Instant.ofEpochMilli(triggerMillis)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalTime()
+            .withSecond(0)
+            .format(DateTimeUtil.TIME_FORMAT)
+    }
+
+    private fun showAlarmToast(alarmType: String, triggerMillis: Long) {
+        Toast.makeText(
+            getApplication(),
+            "$alarmType alarm set for ${formatTriggerTime(triggerMillis)}",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     fun getLastNoiseType(): String = prefsRepository.lastNoiseType
