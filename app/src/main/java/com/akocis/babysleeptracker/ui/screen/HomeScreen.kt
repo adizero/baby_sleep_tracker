@@ -126,6 +126,7 @@ fun HomeScreen(
     val telemetryData by viewModel.telemetryData.collectAsStateWithLifecycle()
     val sleepAlarmTime by viewModel.sleepAlarmTime.collectAsStateWithLifecycle()
     val feedAlarmTime by viewModel.feedAlarmTime.collectAsStateWithLifecycle()
+    val breastAlarmTime by viewModel.breastAlarmTime.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -381,7 +382,7 @@ fun HomeScreen(
             )
 
             // Active alarms
-            if (sleepAlarmTime != null || feedAlarmTime != null) {
+            if (sleepAlarmTime != null || feedAlarmTime != null || breastAlarmTime != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -392,6 +393,7 @@ fun HomeScreen(
                     val parts = mutableListOf<String>()
                     sleepAlarmTime?.let { parts.add("\u23F0 Sleep $it") }
                     feedAlarmTime?.let { parts.add("\uD83C\uDF7C Feed $it") }
+                    breastAlarmTime?.let { parts.add("\uD83E\uDD31 Breast $it") }
                     Text(
                         text = parts.joinToString("    "),
                         style = MaterialTheme.typography.bodyMedium,

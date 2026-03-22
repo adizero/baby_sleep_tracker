@@ -127,8 +127,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingHcEntry: HighContrastEntry? = null
     private var lastScheduledSleepAlarmMillis: Long = 0
     private var lastScheduledFeedAlarmMillis: Long = 0
+    private var lastScheduledBreastAlarmMillis: Long = 0
     private var lastComputedSleepTriggerMillis: Long = -1
     private var lastComputedFeedTriggerMillis: Long = -1
+    private var lastComputedBreastTriggerMillis: Long = -1
 
     private val _sleepAlarmTime = MutableStateFlow<String?>(null)
     val sleepAlarmTime: StateFlow<String?> = _sleepAlarmTime
@@ -136,8 +138,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _feedAlarmTime = MutableStateFlow<String?>(null)
     val feedAlarmTime: StateFlow<String?> = _feedAlarmTime
 
+    private val _breastAlarmTime = MutableStateFlow<String?>(null)
+    val breastAlarmTime: StateFlow<String?> = _breastAlarmTime
+
     private var lastToastedSleepAlarmTime: String? = null
     private var lastToastedFeedAlarmTime: String? = null
+    private var lastToastedBreastAlarmTime: String? = null
 
     init {
         _trackingState.value = prefsRepository.loadTrackingState()
@@ -228,9 +234,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             cancelFeedAlarm()
             _feedAlarmTime.value = null
         }
+        if (!prefsRepository.breastAlarmEnabled && lastScheduledBreastAlarmMillis != 0L) {
+            cancelBreastAlarm()
+            _breastAlarmTime.value = null
+        }
         // Force recalculation on next refresh by resetting tracked times
         lastScheduledSleepAlarmMillis = 0
         lastScheduledFeedAlarmMillis = 0
+        lastScheduledBreastAlarmMillis = 0
         // Recalculate stats and alarms (entries or settings may have changed)
         refreshTodayStats()
     }
@@ -867,6 +878,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             lastBottle.date.atTime(lastBottle.time)
         } else null
 
+        // Last breast feed end time for breast-specific alarm
+        val lastBreastFeedEndDateTime = lastBreastFeed?.let {
+            endDateTime(it.date, it.startTime, it.endTime!!)
+        }
+
         // Schedule alarms based on current state
         when (_trackingState.value) {
             is TrackingState.Sleeping -> {
@@ -878,14 +894,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             is TrackingState.Feeding -> {
                 _sleepAlarmTime.value = null
                 _feedAlarmTime.value = null
+                _breastAlarmTime.value = null
             }
         }
-        // Feed alarm applies when idle or sleeping (not while actively feeding)
+        // Feed and breast alarms apply when idle or sleeping (not while actively feeding)
         if (_trackingState.value !is TrackingState.Feeding) {
             if (lastFeedEndDateTime != null) {
                 scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
             } else {
                 _feedAlarmTime.value = null
+            }
+            if (lastBreastFeedEndDateTime != null) {
+                scheduleBreastAlarmFromLastFeed(lastBreastFeedEndDateTime)
+            } else {
+                _breastAlarmTime.value = null
             }
         }
 
@@ -1055,6 +1077,48 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         lastToastedFeedAlarmTime = null
         _feedAlarmTime.value = null
         try { AlarmScheduler.cancelFeedAlarm(getApplication()) } catch (_: Exception) {}
+    }
+
+    private fun scheduleBreastAlarmFromLastFeed(lastBreastFeedDateTime: LocalDateTime) {
+        if (!prefsRepository.breastAlarmEnabled) {
+            _breastAlarmTime.value = null
+            lastToastedBreastAlarmTime = null
+            return
+        }
+        val ctx = getApplication<Application>()
+        val triggerMillis = lastBreastFeedDateTime
+            .plusMinutes(prefsRepository.breastAlarmMinutes.toLong())
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        if (triggerMillis > System.currentTimeMillis()) {
+            if (triggerMillis != lastScheduledBreastAlarmMillis) {
+                lastScheduledBreastAlarmMillis = triggerMillis
+                try {
+                    AlarmScheduler.scheduleBreastAlarm(ctx, triggerMillis, prefsRepository.breastAlarmRingtone)
+                } catch (_: Exception) {}
+            }
+            val timeStr = formatTriggerTime(triggerMillis)
+            if (timeStr != lastToastedBreastAlarmTime) {
+                lastToastedBreastAlarmTime = timeStr
+                showAlarmToast("Breast feed", triggerMillis)
+            }
+            _breastAlarmTime.value = timeStr
+        } else {
+            _breastAlarmTime.value = null
+            lastToastedBreastAlarmTime = null
+            if (lastComputedBreastTriggerMillis >= 0 && triggerMillis != lastComputedBreastTriggerMillis) {
+                fireAlarmNow(BabyAlarmService.ALARM_TYPE_BREAST, prefsRepository.breastAlarmRingtone)
+            }
+            lastScheduledBreastAlarmMillis = 0
+        }
+        lastComputedBreastTriggerMillis = triggerMillis
+    }
+
+    private fun cancelBreastAlarm() {
+        lastScheduledBreastAlarmMillis = 0
+        lastToastedBreastAlarmTime = null
+        _breastAlarmTime.value = null
+        try { AlarmScheduler.cancelBreastAlarm(getApplication()) } catch (_: Exception) {}
     }
 
     private fun fireAlarmNow(alarmType: String, ringtoneUri: String?) {

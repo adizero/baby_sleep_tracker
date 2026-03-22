@@ -12,6 +12,7 @@ object AlarmScheduler {
 
     private const val SLEEP_ALARM_REQUEST_CODE = 1001
     private const val FEED_ALARM_REQUEST_CODE = 1002
+    private const val BREAST_ALARM_REQUEST_CODE = 1003
 
     fun scheduleSleepAlarm(context: Context, triggerAtMillis: Long, ringtoneUri: String?) {
         schedule(context, triggerAtMillis, ringtoneUri, BabyAlarmService.ALARM_TYPE_SLEEP, SLEEP_ALARM_REQUEST_CODE)
@@ -27,6 +28,14 @@ object AlarmScheduler {
 
     fun cancelFeedAlarm(context: Context) {
         cancel(context, BabyAlarmService.ALARM_TYPE_FEED, FEED_ALARM_REQUEST_CODE)
+    }
+
+    fun scheduleBreastAlarm(context: Context, triggerAtMillis: Long, ringtoneUri: String?) {
+        schedule(context, triggerAtMillis, ringtoneUri, BabyAlarmService.ALARM_TYPE_BREAST, BREAST_ALARM_REQUEST_CODE)
+    }
+
+    fun cancelBreastAlarm(context: Context) {
+        cancel(context, BabyAlarmService.ALARM_TYPE_BREAST, BREAST_ALARM_REQUEST_CODE)
     }
 
     fun canScheduleExactAlarms(context: Context): Boolean {

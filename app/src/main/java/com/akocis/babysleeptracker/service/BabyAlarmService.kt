@@ -29,6 +29,7 @@ class BabyAlarmService : Service() {
         const val EXTRA_RINGTONE_URI = "ringtone_uri"
         const val ALARM_TYPE_SLEEP = "sleep"
         const val ALARM_TYPE_FEED = "feed"
+        const val ALARM_TYPE_BREAST = "breast"
 
         private const val CHANNEL_ID = "baby_alarm_channel"
         private const val NOTIFICATION_ID = 99
@@ -54,11 +55,16 @@ class BabyAlarmService : Service() {
         val alarmType = intent?.getStringExtra(EXTRA_ALARM_TYPE) ?: ALARM_TYPE_SLEEP
         val ringtoneUriStr = intent?.getStringExtra(EXTRA_RINGTONE_URI)
 
-        val title = if (alarmType == ALARM_TYPE_SLEEP) "Sleep Alarm" else "Feeding Alarm"
-        val text = if (alarmType == ALARM_TYPE_SLEEP)
-            "Baby has been sleeping for the configured duration"
-        else
-            "Time to feed the baby"
+        val title = when (alarmType) {
+            ALARM_TYPE_SLEEP -> "Sleep Alarm"
+            ALARM_TYPE_BREAST -> "Breast Feed Alarm"
+            else -> "Feeding Alarm"
+        }
+        val text = when (alarmType) {
+            ALARM_TYPE_SLEEP -> "Baby has been sleeping for the configured duration"
+            ALARM_TYPE_BREAST -> "Time to breast feed the baby"
+            else -> "Time to feed the baby"
+        }
 
         // MediaSession required for mediaPlayback foreground service type on Android 14+
         mediaSession = MediaSession(this, "BabyAlarm").apply {

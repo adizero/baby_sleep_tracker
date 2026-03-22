@@ -49,6 +49,9 @@ class PreferencesRepository(context: Context) {
         private const val KEY_FEED_ALARM_ENABLED = "feed_alarm_enabled"
         private const val KEY_FEED_ALARM_MINUTES = "feed_alarm_minutes"
         private const val KEY_FEED_ALARM_RINGTONE = "feed_alarm_ringtone"
+        private const val KEY_BREAST_ALARM_ENABLED = "breast_alarm_enabled"
+        private const val KEY_BREAST_ALARM_MINUTES = "breast_alarm_minutes"
+        private const val KEY_BREAST_ALARM_RINGTONE = "breast_alarm_ringtone"
         private const val KEY_BOTTLE_USE_OZ = "bottle_use_oz"
         private const val KEY_USE_KG = "use_kg"
         private const val KEY_USE_CM = "use_cm"
@@ -257,6 +260,18 @@ class PreferencesRepository(context: Context) {
     var feedAlarmRingtone: String?
         get() = prefs.getString(KEY_FEED_ALARM_RINGTONE, null)
         set(value) = prefs.edit().putString(KEY_FEED_ALARM_RINGTONE, value).apply()
+
+    var breastAlarmEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BREAST_ALARM_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_BREAST_ALARM_ENABLED, value).apply()
+
+    var breastAlarmMinutes: Int
+        get() = prefs.getInt(KEY_BREAST_ALARM_MINUTES, 180)
+        set(value) = prefs.edit().putInt(KEY_BREAST_ALARM_MINUTES, value).apply()
+
+    var breastAlarmRingtone: String?
+        get() = prefs.getString(KEY_BREAST_ALARM_RINGTONE, null)
+        set(value) = prefs.edit().putString(KEY_BREAST_ALARM_RINGTONE, value).apply()
 
     var useKg: Boolean
         get() {

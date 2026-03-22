@@ -127,6 +127,9 @@ fun SettingsScreen(
     var feedAlarmEnabled by remember { mutableStateOf(prefsRepository.feedAlarmEnabled) }
     var feedAlarmMinutes by remember { mutableStateOf(prefsRepository.feedAlarmMinutes) }
     var feedAlarmRingtoneUri by remember { mutableStateOf(prefsRepository.feedAlarmRingtone) }
+    var breastAlarmEnabled by remember { mutableStateOf(prefsRepository.breastAlarmEnabled) }
+    var breastAlarmMinutes by remember { mutableStateOf(prefsRepository.breastAlarmMinutes) }
+    var breastAlarmRingtoneUri by remember { mutableStateOf(prefsRepository.breastAlarmRingtone) }
 
     val openFileLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -185,6 +188,16 @@ fun SettingsScreen(
             val uri = getRingtoneUri(result.data)
             feedAlarmRingtoneUri = uri?.toString()
             prefsRepository.feedAlarmRingtone = uri?.toString()
+        }
+    }
+
+    val breastRingtoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = getRingtoneUri(result.data)
+            breastAlarmRingtoneUri = uri?.toString()
+            prefsRepository.breastAlarmRingtone = uri?.toString()
         }
     }
 
@@ -889,6 +902,60 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Sound: ${getRingtoneTitle(feedAlarmRingtoneUri)}")
+                        }
+                    }
+
+                    // Breast feed alarm
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text("Breast feed alarm")
+                        Switch(
+                            checked = breastAlarmEnabled,
+                            onCheckedChange = {
+                                if (it && !AlarmScheduler.canScheduleExactAlarms(context)) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Grant \"Alarms & reminders\" permission to enable alarms")
+                                    }
+                                    context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                                    return@Switch
+                                }
+                                breastAlarmEnabled = it
+                                prefsRepository.breastAlarmEnabled = it
+                            }
+                        )
+                    }
+                    if (breastAlarmEnabled) {
+                        Text(
+                            text = "Alert when baby hasn't been breast fed for ${formatAlarmDuration(breastAlarmMinutes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Slider(
+                            value = breastAlarmMinutes.toFloat(),
+                            onValueChange = {
+                                breastAlarmMinutes = (Math.round(it / 15f) * 15).coerceIn(15, 480)
+                            },
+                            onValueChangeFinished = {
+                                prefsRepository.breastAlarmMinutes = breastAlarmMinutes
+                            },
+                            valueRange = 15f..480f,
+                            steps = (480 - 15) / 15 - 1,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                breastRingtoneLauncher.launch(
+                                    ringtonePickerIntent(breastAlarmRingtoneUri, "Breast Feed Alarm Sound")
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Sound: ${getRingtoneTitle(breastAlarmRingtoneUri)}")
                         }
                     }
                 }
