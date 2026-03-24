@@ -20,6 +20,8 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.akocis.babysleeptracker.MainActivity
 import com.akocis.babysleeptracker.R
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class BabyAlarmService : Service() {
 
@@ -33,6 +35,9 @@ class BabyAlarmService : Service() {
 
         private const val CHANNEL_ID = "baby_alarm_channel"
         private const val NOTIFICATION_ID = 99
+
+        private val _ringingAlarmType = MutableStateFlow<String?>(null)
+        val ringingAlarmType: StateFlow<String?> = _ringingAlarmType
     }
 
     private var mediaPlayer: MediaPlayer? = null
@@ -77,6 +82,7 @@ class BabyAlarmService : Service() {
         }
 
         startForeground(NOTIFICATION_ID, buildNotification(title, text))
+        _ringingAlarmType.value = alarmType
         playAlarm(ringtoneUriStr)
         startVibration()
 
@@ -139,6 +145,7 @@ class BabyAlarmService : Service() {
     }
 
     private fun stopAlarm() {
+        _ringingAlarmType.value = null
         mediaPlayer?.apply {
             if (isPlaying) stop()
             release()
@@ -154,6 +161,7 @@ class BabyAlarmService : Service() {
     }
 
     override fun onDestroy() {
+        _ringingAlarmType.value = null
         mediaPlayer?.apply {
             if (isPlaying) stop()
             release()

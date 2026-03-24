@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,9 +51,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.os.Build
@@ -61,6 +65,7 @@ import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.TrackingState
+import com.akocis.babysleeptracker.service.BabyAlarmService
 import com.akocis.babysleeptracker.service.NoiseServiceState
 import com.akocis.babysleeptracker.ui.component.BigActionButton
 import com.akocis.babysleeptracker.ui.component.BottleAmountPickerDialog
@@ -127,6 +132,7 @@ fun HomeScreen(
     val sleepAlarmTime by viewModel.sleepAlarmTime.collectAsStateWithLifecycle()
     val feedAlarmTime by viewModel.feedAlarmTime.collectAsStateWithLifecycle()
     val breastAlarmTime by viewModel.breastAlarmTime.collectAsStateWithLifecycle()
+    val ringingAlarmType by BabyAlarmService.ringingAlarmType.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -279,6 +285,7 @@ fun HomeScreen(
         )
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1133,6 +1140,50 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
         }
+    }
+
+    // Alarm dismiss overlay
+    if (ringingAlarmType != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f))
+                .clickable {
+                    val intent = Intent(context, BabyAlarmService::class.java).apply {
+                        action = BabyAlarmService.ACTION_DISMISS
+                    }
+                    context.startService(intent)
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = when (ringingAlarmType) {
+                        BabyAlarmService.ALARM_TYPE_SLEEP -> "\u23F0"
+                        BabyAlarmService.ALARM_TYPE_BREAST -> "\uD83E\uDD31"
+                        else -> "\uD83C\uDF7C"
+                    },
+                    fontSize = 80.sp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = when (ringingAlarmType) {
+                        BabyAlarmService.ALARM_TYPE_SLEEP -> "Sleep Alarm"
+                        BabyAlarmService.ALARM_TYPE_BREAST -> "Breast Feed"
+                        else -> "Feeding Alarm"
+                    },
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(48.dp))
+                Text(
+                    text = "Tap anywhere to dismiss",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
     }
 }
 
