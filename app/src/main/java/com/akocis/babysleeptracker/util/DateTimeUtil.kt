@@ -42,9 +42,9 @@ object DateTimeUtil {
     }
 
     fun formatElapsed(startDate: LocalDate, startTime: LocalTime): String {
-        val startSeconds = startDate.atTime(startTime).toEpochSecond(java.time.ZoneOffset.UTC)
-        val nowSeconds = LocalDate.now().atTime(LocalTime.now()).toEpochSecond(java.time.ZoneOffset.UTC)
-        val elapsed = Duration.ofSeconds(nowSeconds - startSeconds)
-        return formatDuration(elapsed)
+        val start = startDate.atTime(startTime)
+        val now = LocalDateTime.now()
+        val elapsed = Duration.between(start, now)
+        return formatDuration(if (elapsed.isNegative) elapsed.plusDays(1) else elapsed)
     }
 }
