@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE, NOISE, MEASURE }
@@ -255,6 +256,29 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
         if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE)) {
             if (_endTime.value <= _startTime.value) {
                 _errorMessage.value = "End time must be after start time"
+                return
+            }
+        }
+
+        // Validate timestamps are not in the future and not before birth (skip for NOTE)
+        val isNote = _entryKind.value == EntryKind.ACTIVITY && _activityType.value == ActivityType.NOTE
+        if (!isNote) {
+            val now = LocalDateTime.now()
+            val startDateTime = _date.value.atTime(_startTime.value)
+            if (startDateTime.isAfter(now)) {
+                _errorMessage.value = "Start time cannot be in the future"
+                return
+            }
+            if (_hasEndTime.value) {
+                val endDateTime = _date.value.atTime(_endTime.value)
+                if (endDateTime.isAfter(now)) {
+                    _errorMessage.value = "End time cannot be in the future"
+                    return
+                }
+            }
+            val birthDate = prefsRepository.babyBirthDate
+            if (birthDate != null && _date.value.isBefore(birthDate)) {
+                _errorMessage.value = "Date cannot be before baby's birth date ($birthDate)"
                 return
             }
         }
