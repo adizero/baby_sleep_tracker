@@ -242,8 +242,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         lastScheduledSleepAlarmMillis = 0
         lastScheduledFeedAlarmMillis = 0
         lastScheduledBreastAlarmMillis = 0
+        lastComputedSleepTriggerMillis = -1
+        lastComputedFeedTriggerMillis = -1
+        lastComputedBreastTriggerMillis = -1
+        lastToastedSleepAlarmTime = null
+        lastToastedFeedAlarmTime = null
+        lastToastedBreastAlarmTime = null
         // Recalculate stats and alarms (entries or settings may have changed)
-        refreshTodayStats()
+        syncAndRefresh(showIndicator = false)
     }
 
     fun refreshTelemetryState() {
