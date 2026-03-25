@@ -225,18 +225,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshTelemetryState()
         // Refresh baby info
         loadBabyInfo()
-        // Cancel alarms if toggled off in settings; force recalculation if config changed
-        if (!prefsRepository.sleepAlarmEnabled && lastScheduledSleepAlarmMillis != 0L) {
+        // Cancel alarms if toggled off in settings (always cancel OS alarm to handle stale alarms)
+        if (!prefsRepository.sleepAlarmEnabled) {
             cancelSleepAlarm()
-            _sleepAlarmTime.value = null
         }
-        if (!prefsRepository.feedAlarmEnabled && lastScheduledFeedAlarmMillis != 0L) {
+        if (!prefsRepository.feedAlarmEnabled) {
             cancelFeedAlarm()
-            _feedAlarmTime.value = null
         }
-        if (!prefsRepository.breastAlarmEnabled && lastScheduledBreastAlarmMillis != 0L) {
+        if (!prefsRepository.breastAlarmEnabled) {
             cancelBreastAlarm()
-            _breastAlarmTime.value = null
         }
         // Force recalculation on next refresh by resetting tracked times
         lastScheduledSleepAlarmMillis = 0
@@ -248,8 +245,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         lastToastedSleepAlarmTime = null
         lastToastedFeedAlarmTime = null
         lastToastedBreastAlarmTime = null
-        // Recalculate stats and alarms (entries or settings may have changed)
-        syncAndRefresh(showIndicator = false)
+        // Recalculate stats and alarms immediately (no network sync delay)
+        refreshTodayStats()
     }
 
     fun refreshTelemetryState() {
@@ -895,12 +892,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 scheduleSleepAlarmIfEnabled()
             }
             is TrackingState.Idle -> {
-                _sleepAlarmTime.value = null
+                cancelSleepAlarm()
             }
             is TrackingState.Feeding -> {
-                _sleepAlarmTime.value = null
-                _feedAlarmTime.value = null
-                _breastAlarmTime.value = null
+                cancelSleepAlarm()
+                cancelFeedAlarm()
+                cancelBreastAlarm()
             }
         }
         // Feed and breast alarms apply when idle or sleeping (not while actively feeding)
@@ -908,12 +905,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             if (lastFeedEndDateTime != null) {
                 scheduleFeedAlarmFromLastFeed(lastFeedEndDateTime)
             } else {
-                _feedAlarmTime.value = null
+                cancelFeedAlarm()
             }
             if (lastBreastFeedEndDateTime != null) {
                 scheduleBreastAlarmFromLastFeed(lastBreastFeedEndDateTime)
             } else {
-                _breastAlarmTime.value = null
+                cancelBreastAlarm()
             }
         }
 
