@@ -242,9 +242,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         lastComputedSleepTriggerMillis = -1
         lastComputedFeedTriggerMillis = -1
         lastComputedBreastTriggerMillis = -1
-        lastToastedSleepAlarmTime = null
-        lastToastedFeedAlarmTime = null
-        lastToastedBreastAlarmTime = null
         // Recalculate stats and alarms immediately (no network sync delay)
         refreshTodayStats()
     }
