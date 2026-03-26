@@ -259,33 +259,35 @@ fun ManualEntryScreen(
                     // Duration display with +/- adjustment buttons
                     val duration = java.time.Duration.between(startTime, endTime)
                     val durationText = if (!duration.isNegative) DateTimeUtil.formatDuration(duration) else "—"
+                    val smallStep = if (entryKind == EntryKind.FEED) 1 else 5
+                    val largeStep = if (entryKind == EntryKind.FEED) 3 else 15
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(onClick = { viewModel.adjustDuration(-15) }) {
-                            Text("-15m", fontSize = 12.sp)
+                        OutlinedButton(onClick = { viewModel.adjustDuration(-largeStep) }) {
+                            Text("-${largeStep}m", fontSize = 12.sp)
                         }
                         OutlinedButton(
-                            onClick = { viewModel.adjustDuration(-5) },
+                            onClick = { viewModel.adjustDuration(-smallStep) },
                             modifier = Modifier.padding(start = 4.dp)
                         ) {
-                            Text("-5m", fontSize = 12.sp)
+                            Text("-${smallStep}m", fontSize = 12.sp)
                         }
                         Text(
                             text = durationText,
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
-                        OutlinedButton(onClick = { viewModel.adjustDuration(5) }) {
-                            Text("+5m", fontSize = 12.sp)
+                        OutlinedButton(onClick = { viewModel.adjustDuration(smallStep) }) {
+                            Text("+${smallStep}m", fontSize = 12.sp)
                         }
                         OutlinedButton(
-                            onClick = { viewModel.adjustDuration(15) },
+                            onClick = { viewModel.adjustDuration(largeStep) },
                             modifier = Modifier.padding(start = 4.dp)
                         ) {
-                            Text("+15m", fontSize = 12.sp)
+                            Text("+${largeStep}m", fontSize = 12.sp)
                         }
                     }
                 }
