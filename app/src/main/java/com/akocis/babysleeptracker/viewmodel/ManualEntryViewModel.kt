@@ -298,7 +298,8 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 _errorMessage.value = "Start time cannot be in the future"
                 return
             }
-            if (_hasEndTime.value) {
+            val usesEndTime = _entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE
+            if (usesEndTime && _hasEndTime.value) {
                 val endDateTime = _date.value.atTime(_endTime.value)
                 if (endDateTime.isAfter(now)) {
                     _errorMessage.value = "End time cannot be in the future"
