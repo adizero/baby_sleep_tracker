@@ -256,6 +256,38 @@ fun ManualEntryScreen(
                     ) {
                         Text("End: ${endTime.format(DateTimeUtil.TIME_FORMAT)}")
                     }
+                    // Duration display with +/- adjustment buttons
+                    val duration = java.time.Duration.between(startTime, endTime)
+                    val durationText = if (!duration.isNegative) DateTimeUtil.formatDuration(duration) else "—"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(onClick = { viewModel.adjustDuration(-15) }) {
+                            Text("-15m", fontSize = 12.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.adjustDuration(-5) },
+                            modifier = Modifier.padding(start = 4.dp)
+                        ) {
+                            Text("-5m", fontSize = 12.sp)
+                        }
+                        Text(
+                            text = durationText,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        OutlinedButton(onClick = { viewModel.adjustDuration(5) }) {
+                            Text("+5m", fontSize = 12.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.adjustDuration(15) },
+                            modifier = Modifier.padding(start = 4.dp)
+                        ) {
+                            Text("+15m", fontSize = 12.sp)
+                        }
+                    }
                 }
             }
 

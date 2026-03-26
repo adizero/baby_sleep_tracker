@@ -102,9 +102,31 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     val isEditMode: Boolean get() = editMode
 
     fun setDate(date: LocalDate) { _date.value = date }
-    fun setStartTime(time: LocalTime) { _startTime.value = time }
+    fun setStartTime(time: LocalTime) {
+        val hadEnd = _hasEndTime.value
+        val oldStart = _startTime.value
+        _startTime.value = time
+        // Keep duration stable when adjusting start time with end time set
+        if (hadEnd) {
+            val duration = java.time.Duration.between(oldStart, _endTime.value)
+            if (!duration.isNegative && !duration.isZero) {
+                _endTime.value = time.plus(duration)
+            }
+        }
+    }
     fun setEndTime(time: LocalTime) { _endTime.value = time }
-    fun setHasEndTime(has: Boolean) { _hasEndTime.value = has }
+    fun setHasEndTime(has: Boolean) {
+        _hasEndTime.value = has
+        if (has) {
+            val defaultMinutes = when (_entryKind.value) {
+                EntryKind.SLEEP -> 60L
+                EntryKind.FEED -> 15L
+                EntryKind.NOISE -> 30L
+                else -> 30L
+            }
+            _endTime.value = _startTime.value.plusMinutes(defaultMinutes)
+        }
+    }
     fun setEntryKind(kind: EntryKind) { _entryKind.value = kind }
     fun setDiaperType(type: DiaperType) { _diaperType.value = type }
     fun setActivityType(type: ActivityType) { _activityType.value = type }
@@ -114,6 +136,13 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
     fun setBottleAmountMl(ml: Int) { _bottleAmountMl.value = ml }
     fun setBottleUseOz(useOz: Boolean) {
         _bottleUseOz.value = useOz
+    }
+    fun adjustDuration(deltaMinutes: Int) {
+        val newEnd = _endTime.value.plusMinutes(deltaMinutes.toLong())
+        // Only allow if result is after start time
+        if (newEnd.isAfter(_startTime.value)) {
+            _endTime.value = newEnd
+        }
     }
     fun setNoiseType(type: NoiseType) { _noiseType.value = type }
     fun setMeasureWeightText(text: String) { _measureWeightText.value = text }
