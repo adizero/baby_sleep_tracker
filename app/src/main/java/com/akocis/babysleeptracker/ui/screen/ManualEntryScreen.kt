@@ -170,6 +170,38 @@ fun ManualEntryScreen(
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                 )
             }
+            // Start time +/- buttons (not for growth, HC, noise)
+            if (entryKind != EntryKind.MEASURE && entryKind != EntryKind.NOISE) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(onClick = { viewModel.setStartTime(startTime.minusMinutes(10)) }) {
+                        Text("-10m", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.setStartTime(startTime.minusMinutes(1)) },
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Text("-1m", fontSize = 12.sp)
+                    }
+                    Text(
+                        text = startTime.format(DateTimeUtil.TIME_FORMAT),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    OutlinedButton(onClick = { viewModel.setStartTime(startTime.plusMinutes(1)) }) {
+                        Text("+1m", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.setStartTime(startTime.plusMinutes(10)) },
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Text("+10m", fontSize = 12.sp)
+                    }
+                }
+            }
 
             // Bottle type and amount (only for bottle entries)
             if (entryKind == EntryKind.BOTTLE) {
@@ -259,8 +291,8 @@ fun ManualEntryScreen(
                     // Duration display with +/- adjustment buttons
                     val duration = java.time.Duration.between(startTime, endTime)
                     val durationText = if (!duration.isNegative) DateTimeUtil.formatDuration(duration) else "—"
-                    val smallStep = if (entryKind == EntryKind.FEED) 1 else 5
-                    val largeStep = if (entryKind == EntryKind.FEED) 3 else 15
+                    val smallStep = if (entryKind == EntryKind.NOISE) 5 else 1
+                    val largeStep = if (entryKind == EntryKind.NOISE) 15 else 10
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
