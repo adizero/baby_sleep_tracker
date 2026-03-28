@@ -82,6 +82,7 @@ fun ManualEntryScreen(
     val bottleAmountMl by viewModel.bottleAmountMl.collectAsStateWithLifecycle()
     val bottleUseOz by viewModel.bottleUseOz.collectAsStateWithLifecycle()
     val noiseType by viewModel.noiseType.collectAsStateWithLifecycle()
+    val hcColors by viewModel.hcColors.collectAsStateWithLifecycle()
     val measureWeightText by viewModel.measureWeightText.collectAsStateWithLifecycle()
     val measureHeightText by viewModel.measureHeightText.collectAsStateWithLifecycle()
     val measureHeadText by viewModel.measureHeadText.collectAsStateWithLifecycle()
@@ -140,7 +141,7 @@ fun ManualEntryScreen(
         ) {
             // Entry type toggle (4-way)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise", EntryKind.MEASURE to "Growth")
+                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise", EntryKind.HC to "HC", EntryKind.MEASURE to "Growth")
                 kinds.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
@@ -166,40 +167,38 @@ fun ManualEntryScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
+                    if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE || entryKind == EntryKind.HC) "Start: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                     else "Time: ${startTime.format(DateTimeUtil.TIME_FORMAT)}"
                 )
             }
-            // Start time +/- buttons (not for growth, HC, noise)
-            if (entryKind != EntryKind.MEASURE && entryKind != EntryKind.NOISE) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+            // Start time +/- buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(onClick = { viewModel.setStartTime(startTime.minusMinutes(10)) }) {
+                    Text("-10m", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = { viewModel.setStartTime(startTime.minusMinutes(1)) },
+                    modifier = Modifier.padding(start = 4.dp)
                 ) {
-                    OutlinedButton(onClick = { viewModel.setStartTime(startTime.minusMinutes(10)) }) {
-                        Text("-10m", fontSize = 12.sp)
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.setStartTime(startTime.minusMinutes(1)) },
-                        modifier = Modifier.padding(start = 4.dp)
-                    ) {
-                        Text("-1m", fontSize = 12.sp)
-                    }
-                    Text(
-                        text = startTime.format(DateTimeUtil.TIME_FORMAT),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                    OutlinedButton(onClick = { viewModel.setStartTime(startTime.plusMinutes(1)) }) {
-                        Text("+1m", fontSize = 12.sp)
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.setStartTime(startTime.plusMinutes(10)) },
-                        modifier = Modifier.padding(start = 4.dp)
-                    ) {
-                        Text("+10m", fontSize = 12.sp)
-                    }
+                    Text("-1m", fontSize = 12.sp)
+                }
+                Text(
+                    text = startTime.format(DateTimeUtil.TIME_FORMAT),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                OutlinedButton(onClick = { viewModel.setStartTime(startTime.plusMinutes(1)) }) {
+                    Text("+1m", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = { viewModel.setStartTime(startTime.plusMinutes(10)) },
+                    modifier = Modifier.padding(start = 4.dp)
+                ) {
+                    Text("+10m", fontSize = 12.sp)
                 }
             }
 
@@ -270,8 +269,19 @@ fun ManualEntryScreen(
                 }
             }
 
-            // End time (for sleep, feed, and noise entries)
-            if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) {
+            // HC colors (for HC entries)
+            if (entryKind == EntryKind.HC) {
+                OutlinedTextField(
+                    value = hcColors,
+                    onValueChange = { viewModel.setHcColors(it) },
+                    label = { Text("Colors (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+
+            // End time (for sleep, feed, noise, and HC entries)
+            if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE || entryKind == EntryKind.HC) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -291,8 +301,8 @@ fun ManualEntryScreen(
                     // Duration display with +/- adjustment buttons
                     val duration = java.time.Duration.between(startTime, endTime)
                     val durationText = if (!duration.isNegative) DateTimeUtil.formatDuration(duration) else "—"
-                    val smallStep = if (entryKind == EntryKind.NOISE) 5 else 1
-                    val largeStep = if (entryKind == EntryKind.NOISE) 15 else 10
+                    val smallStep = 1
+                    val largeStep = 10
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
@@ -489,7 +499,7 @@ fun ManualEntryScreen(
         // Time picker dialogs
         if (showStartTimePicker) {
             TimePickerDialog(
-                title = if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE) "Start Time" else "Time",
+                title = if (entryKind == EntryKind.SLEEP || entryKind == EntryKind.FEED || entryKind == EntryKind.NOISE || entryKind == EntryKind.HC) "Start Time" else "Time",
                 initialTime = startTime,
                 onConfirm = {
                     viewModel.setStartTime(it)

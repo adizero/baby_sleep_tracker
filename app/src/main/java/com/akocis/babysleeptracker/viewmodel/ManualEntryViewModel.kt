@@ -11,6 +11,7 @@ import com.akocis.babysleeptracker.model.DiaperEntry
 import com.akocis.babysleeptracker.model.DiaperType
 import com.akocis.babysleeptracker.model.FeedEntry
 import com.akocis.babysleeptracker.model.FeedSide
+import com.akocis.babysleeptracker.model.HighContrastEntry
 import com.akocis.babysleeptracker.model.MeasurementEntry
 import com.akocis.babysleeptracker.model.NoiseType
 import com.akocis.babysleeptracker.model.SleepEntry
@@ -26,7 +27,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE, NOISE, MEASURE }
+enum class EntryKind { SLEEP, DIAPER, ACTIVITY, FEED, BOTTLE, NOISE, HC, MEASURE }
 
 class ManualEntryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -65,6 +66,9 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _noiseType = MutableStateFlow(NoiseType.WHITE)
     val noiseType: StateFlow<NoiseType> = _noiseType
+
+    private val _hcColors = MutableStateFlow("")
+    val hcColors: StateFlow<String> = _hcColors
 
     private val _bottleAmountMl = MutableStateFlow(
         prefsRepository.bottlePresetMl.let { if (it > 0) it else 42 }
@@ -122,6 +126,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 EntryKind.SLEEP -> 60L
                 EntryKind.FEED -> 15L
                 EntryKind.NOISE -> 30L
+                EntryKind.HC -> 10L
                 else -> 30L
             }
             _endTime.value = _startTime.value.plusMinutes(defaultMinutes)
@@ -144,6 +149,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
             _endTime.value = newEnd
         }
     }
+    fun setHcColors(colors: String) { _hcColors.value = colors }
     fun setNoiseType(type: NoiseType) { _noiseType.value = type }
     fun setMeasureWeightText(text: String) { _measureWeightText.value = text }
     fun setMeasureHeightText(text: String) { _measureHeightText.value = text }
@@ -240,6 +246,16 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                     _endTime.value = entry.endTime
                 }
             }
+            is HighContrastEntry -> {
+                _entryKind.value = EntryKind.HC
+                _date.value = entry.date
+                _startTime.value = entry.startTime
+                _hcColors.value = entry.colors
+                _hasEndTime.value = entry.endTime != null
+                if (entry.endTime != null) {
+                    _endTime.value = entry.endTime
+                }
+            }
             is MeasurementEntry -> {
                 _entryKind.value = EntryKind.MEASURE
                 _date.value = entry.date
@@ -282,7 +298,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         // Validate end time > start time when end time is set
-        if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE)) {
+        if (_hasEndTime.value && (_entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE || _entryKind.value == EntryKind.HC)) {
             if (_endTime.value <= _startTime.value) {
                 _errorMessage.value = "End time must be after start time"
                 return
@@ -298,7 +314,7 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                 _errorMessage.value = "Start time cannot be in the future"
                 return
             }
-            val usesEndTime = _entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE
+            val usesEndTime = _entryKind.value == EntryKind.SLEEP || _entryKind.value == EntryKind.FEED || _entryKind.value == EntryKind.NOISE || _entryKind.value == EntryKind.HC
             if (usesEndTime && _hasEndTime.value) {
                 val endDateTime = _date.value.atTime(_endTime.value)
                 if (endDateTime.isAfter(now)) {
@@ -348,6 +364,12 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                         val end = if (_hasEndTime.value) _endTime.value else null
                         EntryParser.formatWhiteNoiseEntry(
                             WhiteNoiseEntry(_noiseType.value, _date.value, _startTime.value, end)
+                        )
+                    }
+                    EntryKind.HC -> {
+                        val end = if (_hasEndTime.value) _endTime.value else null
+                        EntryParser.formatHighContrastEntry(
+                            HighContrastEntry(_date.value, _startTime.value, end, _hcColors.value)
                         )
                     }
                     EntryKind.MEASURE -> {
@@ -409,6 +431,13 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
                             fileRepository.appendWhiteNoiseEntry(
                                 uri,
                                 WhiteNoiseEntry(_noiseType.value, _date.value, _startTime.value, end)
+                            )
+                        }
+                        EntryKind.HC -> {
+                            val end = if (_hasEndTime.value) _endTime.value else null
+                            fileRepository.appendHighContrastEntry(
+                                uri,
+                                HighContrastEntry(_date.value, _startTime.value, end, _hcColors.value)
                             )
                         }
                         EntryKind.MEASURE -> {
