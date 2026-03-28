@@ -199,63 +199,70 @@ class DropboxSyncManager {
         val babyLine = allLines.firstOrNull { BABY_REGEX.matches(it) }
         allLines.removeAll { BABY_REGEX.matches(it) }
 
-        // Resolve ongoing vs completed sleep: if both exist, keep completed
+        // Resolve ongoing vs completed: if both exist with DIFFERENT IDs, keep completed.
+        // If they share the same ID, skip — the ID-based dedup (mod epoch) handles it.
+        fun extractId(line: String): String? = ID_PREFIX_REGEX.find(line)?.groupValues?.get(1)
+
         val ongoingSleeps = allLines.filter { ONGOING_SLEEP_REGEX.matches(it) }
         for (ongoing in ongoingSleeps) {
             val match = ONGOING_SLEEP_REGEX.matchEntire(ongoing) ?: continue
             val date = match.groupValues[1]
             val startTime = match.groupValues[2]
-            // Check if a completed version exists
+            val ongoingId = extractId(ongoing)
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_SLEEP_REGEX.matchEntire(line) ?: return@any false
-                cm.groupValues[1] == date && cm.groupValues[2] == startTime
+                cm.groupValues[1] == date && cm.groupValues[2] == startTime &&
+                    (ongoingId == null || extractId(line) != ongoingId)
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)
             }
         }
 
-        // Resolve ongoing vs completed feed: if both exist, keep completed
         val ongoingFeeds = allLines.filter { ONGOING_FEED_REGEX.matches(it) }
         for (ongoing in ongoingFeeds) {
             val match = ONGOING_FEED_REGEX.matchEntire(ongoing) ?: continue
             val tag = match.groupValues[1]
             val date = match.groupValues[2]
             val startTime = match.groupValues[3]
+            val ongoingId = extractId(ongoing)
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_FEED_REGEX.matchEntire(line) ?: return@any false
-                cm.groupValues[1] == tag && cm.groupValues[2] == date && cm.groupValues[3] == startTime
+                cm.groupValues[1] == tag && cm.groupValues[2] == date && cm.groupValues[3] == startTime &&
+                    (ongoingId == null || extractId(line) != ongoingId)
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)
             }
         }
 
-        // Resolve ongoing vs completed noise: if both exist, keep completed
         val ongoingNoises = allLines.filter { ONGOING_NOISE_REGEX.matches(it) }
         for (ongoing in ongoingNoises) {
             val match = ONGOING_NOISE_REGEX.matchEntire(ongoing) ?: continue
             val date = match.groupValues[1]
             val startTime = match.groupValues[2]
             val noiseType = match.groupValues[3]
+            val ongoingId = extractId(ongoing)
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_NOISE_REGEX.matchEntire(line) ?: return@any false
-                cm.groupValues[1] == date && cm.groupValues[2] == startTime && cm.groupValues[4] == noiseType
+                cm.groupValues[1] == date && cm.groupValues[2] == startTime && cm.groupValues[4] == noiseType &&
+                    (ongoingId == null || extractId(line) != ongoingId)
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)
             }
         }
 
-        // Resolve ongoing vs completed HC: if both exist, keep completed
         val ongoingHc = allLines.filter { ONGOING_HC_REGEX.matches(it) }
         for (ongoing in ongoingHc) {
             val match = ONGOING_HC_REGEX.matchEntire(ongoing) ?: continue
             val date = match.groupValues[1]
             val startTime = match.groupValues[2]
+            val ongoingId = extractId(ongoing)
             val hasCompleted = allLines.any { line ->
                 val cm = COMPLETED_HC_REGEX.matchEntire(line) ?: return@any false
-                cm.groupValues[1] == date && cm.groupValues[2] == startTime
+                cm.groupValues[1] == date && cm.groupValues[2] == startTime &&
+                    (ongoingId == null || extractId(line) != ongoingId)
             }
             if (hasCompleted) {
                 allLines.remove(ongoing)
