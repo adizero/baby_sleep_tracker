@@ -8,12 +8,12 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Breastfeeding tracking** — left/right side timers with auto-switch, mutual exclusion with sleep
 - **Diaper logging** — Pee, Poo, or Both buttons
 - **Activity logging** — Stroll, Bath, and free-text Note events
-- **Manual entry** — add or edit past events with date/time pickers and validation, prefilled with current time
+- **Manual entry** — add or edit past events with date/time pickers, duration adjustment buttons, and validation (future/pre-birth date guards); supports all entry types including HC
 - **Bottle feeding** — Donor, Pumped, and Formula tracking with configurable preset volumes; ml/oz support
 - **White noise** — built-in sound generator (white, pink, brown, gray, blue, violet, rain, storm) with volume, duration, and fade controls; tracked in history
 - **High contrast viewer** — built-in high contrast images for newborn visual stimulation with multiple patterns, color schemes (including three-color), and auto-advancement; viewing sessions tracked in history
 - **Growth tracking** — weight, height, and head circumference charts with WHO percentile curves, zoom/pan (pinch or double-tap-and-drag one-handed zoom), and percentile display; latest measurements shown on home screen; individual unit toggles (kg/lbs, cm/in) with auto-conversion
-- **Sleep & feeding alarms** — configurable alerts when baby sleeps too long or hasn't been fed, with custom ringtone selection
+- **Sleep & feeding alarms** — configurable alerts when baby sleeps too long or hasn't been fed (general feed and breast-specific), with custom ringtone selection, full-screen tap-to-dismiss overlay, and 15-minute interval scheduling
 - **Development milestones** — age-appropriate milestones for motor, vision, sleep, feeding, teeth, social, language, and cognitive development with fun facts; auto-scrolls to current age
 - **Weather** — location-based weather on calendar and home screen; current conditions, min/max temperature, hourly forecast for today and tomorrow; historical weather cached per-month; expandable weather card on home screen; powered by Open-Meteo API (no API key required)
 - **Telemetry** — optional live sensor card on home screen showing ambient noise level (dB), temperature, humidity, and barometric pressure from phone sensors; unavailable sensors shown grayed out; disabled by default to save battery
@@ -23,9 +23,10 @@ Android app for tracking baby sleep times and diaper events. Designed with big, 
 - **Configurable units** — individual toggles for weight (kg/lbs), length (cm/in), volume (ml/oz), temperature (°C/°F), and pressure (hPa/inHg); unit choices in entry forms are local and don't affect global settings
 - **Configurable day/night hours** — adjustable boundaries for day/night stats and auto theme switching
 - **History** — scrollable list of all entries with date jump, entry type filter, editable and deletable with undo
-- **Dropbox sync** — automatic cloud backup and merge across devices with immediate sync on changes
+- **Dropbox sync** — automatic cloud backup and merge across devices with immediate sync on changes; ID-based conflict resolution with modification epochs
 - **Import/Export** — plain text file format, easy to read and share
 - **Theme** — light, dark, or auto (switches based on configurable day/night hours)
+- **Home screen widget** — shows current status (Awake/Sleeping/Feeding) with elapsed time and color-coded background; optionally displays baby name and age on wider widgets (3+ cells); configurable layout (baby info left, right, or hidden); tapping opens the app
 - **Survives app kill** — active sleep/feed session persists via SharedPreferences
 
 ## Data Format
