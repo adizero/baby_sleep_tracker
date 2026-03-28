@@ -30,8 +30,8 @@ enum class HistoryFilter(val label: String) {
     DIAPER("Diaper"),
     ACTIVITY("Activity"),
     NOISE("Noise"),
-    MEASURE("Growth"),
-    HC("HC")
+    HC("HC"),
+    MEASURE("Growth")
 }
 
 data class HistoryItem(
