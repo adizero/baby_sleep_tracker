@@ -139,16 +139,28 @@ fun ManualEntryScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Entry type toggle (4-way)
+            // Entry type selector (two rows)
+            val kindsRow1 = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper")
+            val kindsRow2 = listOf(EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise", EntryKind.HC to "HC", EntryKind.MEASURE to "Growth")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val kinds = listOf(EntryKind.SLEEP to "Sleep", EntryKind.FEED to "Feed", EntryKind.BOTTLE to "Bottle", EntryKind.DIAPER to "Diaper", EntryKind.ACTIVITY to "Activity", EntryKind.NOISE to "Noise", EntryKind.HC to "HC", EntryKind.MEASURE to "Growth")
-                kinds.forEachIndexed { index, (kind, label) ->
+                kindsRow1.forEachIndexed { index, (kind, label) ->
                     SegmentedButton(
                         selected = entryKind == kind,
                         onClick = { viewModel.setEntryKind(kind) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = kinds.size)
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = kindsRow1.size)
                     ) {
-                        Text(label, maxLines = 1, softWrap = false, fontSize = 12.sp)
+                        Text(label, maxLines = 1, softWrap = false)
+                    }
+                }
+            }
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                kindsRow2.forEachIndexed { index, (kind, label) ->
+                    SegmentedButton(
+                        selected = entryKind == kind,
+                        onClick = { viewModel.setEntryKind(kind) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = kindsRow2.size)
+                    ) {
+                        Text(label, maxLines = 1, softWrap = false)
                     }
                 }
             }

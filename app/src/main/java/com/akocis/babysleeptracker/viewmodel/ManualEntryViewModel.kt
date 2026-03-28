@@ -132,7 +132,20 @@ class ManualEntryViewModel(application: Application) : AndroidViewModel(applicat
             _endTime.value = _startTime.value.plusMinutes(defaultMinutes)
         }
     }
-    fun setEntryKind(kind: EntryKind) { _entryKind.value = kind }
+    fun setEntryKind(kind: EntryKind) {
+        _entryKind.value = kind
+        // Update default end time when switching to a kind with end time
+        if (_hasEndTime.value && (kind == EntryKind.SLEEP || kind == EntryKind.FEED || kind == EntryKind.NOISE || kind == EntryKind.HC)) {
+            val defaultMinutes = when (kind) {
+                EntryKind.SLEEP -> 60L
+                EntryKind.FEED -> 15L
+                EntryKind.NOISE -> 30L
+                EntryKind.HC -> 10L
+                else -> 30L
+            }
+            _endTime.value = _startTime.value.plusMinutes(defaultMinutes)
+        }
+    }
     fun setDiaperType(type: DiaperType) { _diaperType.value = type }
     fun setActivityType(type: ActivityType) { _activityType.value = type }
     fun setNoteText(text: String) { _noteText.value = text }
