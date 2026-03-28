@@ -64,6 +64,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_USE_CELSIUS = "use_celsius"
         private const val KEY_USE_HPA = "use_hpa"
         private const val KEY_WIDGET_LAYOUT = "widget_layout"
+        private const val KEY_LAST_SLEEP_END_EPOCH = "last_sleep_end_epoch"
     }
 
     var fileUri: Uri?
@@ -331,6 +332,10 @@ class PreferencesRepository(context: Context) {
     var widgetLayout: String
         get() = prefs.getString(KEY_WIDGET_LAYOUT, "baby_left") ?: "baby_left"
         set(value) { prefs.edit().putString(KEY_WIDGET_LAYOUT, value).apply() }
+
+    var lastSleepEndEpoch: Long
+        get() = prefs.getLong(KEY_LAST_SLEEP_END_EPOCH, -1L)
+        set(value) = prefs.edit().putLong(KEY_LAST_SLEEP_END_EPOCH, value).apply()
 
     fun clearDropbox() {
         prefs.edit()

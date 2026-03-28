@@ -14,7 +14,9 @@ import com.akocis.babysleeptracker.R
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.PreferencesRepository
 import com.akocis.babysleeptracker.util.DateTimeUtil
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 
 class StatusWidgetProvider : AppWidgetProvider() {
@@ -67,18 +69,23 @@ class StatusWidgetProvider : AppWidgetProvider() {
 
         when (state) {
             is TrackingState.Sleeping -> {
-                statusText = "Sleeping"
+                statusText = "\uD83C\uDF19 Sleeping"
                 elapsedText = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
                 bgRes = R.drawable.widget_bg_sleeping
             }
             is TrackingState.Feeding -> {
-                statusText = "Feeding (${state.side.label[0]})"
+                statusText = "\uD83C\uDF7C Feeding (${state.side.label[0]})"
                 elapsedText = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
                 bgRes = R.drawable.widget_bg_feeding
             }
             is TrackingState.Idle -> {
-                statusText = "Awake"
-                elapsedText = ""
+                statusText = "\u2600\uFE0F Awake"
+                val lastSleepEndEpoch = prefs.lastSleepEndEpoch
+                elapsedText = if (lastSleepEndEpoch > 0) {
+                    val instant = Instant.ofEpochSecond(lastSleepEndEpoch)
+                    val zdt = instant.atZone(java.time.ZoneId.systemDefault())
+                    DateTimeUtil.formatElapsed(zdt.toLocalDate(), LocalTime.of(zdt.hour, zdt.minute))
+                } else ""
                 bgRes = R.drawable.widget_bg_awake
             }
         }
@@ -110,10 +117,12 @@ class StatusWidgetProvider : AppWidgetProvider() {
             val birthDate = prefs.babyBirthDate
             val ageText = if (birthDate != null) formatAge(birthDate) else ""
             views.setViewVisibility(R.id.widget_baby_info, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_divider, View.VISIBLE)
             views.setTextViewText(R.id.widget_baby_name, babyName)
             views.setTextViewText(R.id.widget_baby_age, ageText)
         } else {
             views.setViewVisibility(R.id.widget_baby_info, View.GONE)
+            views.setViewVisibility(R.id.widget_divider, View.GONE)
         }
 
         appWidgetManager.updateAppWidget(widgetId, views)

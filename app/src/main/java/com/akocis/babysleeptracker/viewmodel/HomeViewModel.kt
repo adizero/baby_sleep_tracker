@@ -331,6 +331,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         prefsRepository.saveTrackingState(TrackingState.Idle)
                         lastSleepEndDate = LocalDate.now()
                         lastSleepEndTime = endTime
+                        prefsRepository.lastSleepEndEpoch = LocalDate.now().atTime(endTime)
+                            .atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
                         startAwakeTimer()
                         refreshTodayStats()
                         SyncHelper.notifyDataChanged()
@@ -630,6 +632,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val endDt = endDateTime(lastCompletedSleep.date, lastCompletedSleep.startTime, lastCompletedSleep.endTime)
             lastSleepEndDate = endDt.toLocalDate()
             lastSleepEndTime = endDt.toLocalTime()
+            prefsRepository.lastSleepEndEpoch = endDt
+                .atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
         }
 
         // Compute "time since" for feeds, bottle feeds, bath (across all entries)
