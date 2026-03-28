@@ -7,16 +7,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import com.akocis.babysleeptracker.MainActivity
 import com.akocis.babysleeptracker.R
 import com.akocis.babysleeptracker.model.TrackingState
 import com.akocis.babysleeptracker.repository.PreferencesRepository
-import com.akocis.babysleeptracker.util.DateTimeUtil
-import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
 class StatusWidgetProvider : AppWidgetProvider() {
@@ -64,28 +63,28 @@ class StatusWidgetProvider : AppWidgetProvider() {
         val layoutMode = prefs.widgetLayout
 
         val statusText: String
-        val elapsedText: String
         val bgRes: Int
+        var startEpochMillis: Long = -1L
 
         when (state) {
             is TrackingState.Sleeping -> {
                 statusText = "\uD83C\uDF19 Sleeping"
-                elapsedText = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
+                startEpochMillis = state.startDate.atTime(state.startTime)
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 bgRes = R.drawable.widget_bg_sleeping
             }
             is TrackingState.Feeding -> {
                 statusText = "\uD83C\uDF7C Feeding (${state.side.label[0]})"
-                elapsedText = DateTimeUtil.formatElapsed(state.startDate, state.startTime)
+                startEpochMillis = state.startDate.atTime(state.startTime)
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 bgRes = R.drawable.widget_bg_feeding
             }
             is TrackingState.Idle -> {
                 statusText = "\u2600\uFE0F Awake"
                 val lastSleepEndEpoch = prefs.lastSleepEndEpoch
-                elapsedText = if (lastSleepEndEpoch > 0) {
-                    val instant = Instant.ofEpochSecond(lastSleepEndEpoch)
-                    val zdt = instant.atZone(java.time.ZoneId.systemDefault())
-                    DateTimeUtil.formatElapsed(zdt.toLocalDate(), LocalTime.of(zdt.hour, zdt.minute))
-                } else ""
+                if (lastSleepEndEpoch > 0) {
+                    startEpochMillis = lastSleepEndEpoch * 1000L
+                }
                 bgRes = R.drawable.widget_bg_awake
             }
         }
@@ -105,9 +104,19 @@ class StatusWidgetProvider : AppWidgetProvider() {
 
         val views = RemoteViews(context.packageName, layoutRes)
         views.setTextViewText(R.id.widget_status_text, statusText)
-        views.setTextViewText(R.id.widget_elapsed_text, elapsedText)
         views.setInt(R.id.widget_root, "setBackgroundResource", bgRes)
         views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+
+        // Configure chronometer for elapsed time
+        if (startEpochMillis > 0) {
+            val elapsedSinceStart = System.currentTimeMillis() - startEpochMillis
+            val base = SystemClock.elapsedRealtime() - elapsedSinceStart
+            views.setChronometer(R.id.widget_elapsed, base, null, true)
+            views.setViewVisibility(R.id.widget_elapsed, View.VISIBLE)
+        } else {
+            views.setChronometer(R.id.widget_elapsed, SystemClock.elapsedRealtime(), null, false)
+            views.setViewVisibility(R.id.widget_elapsed, View.GONE)
+        }
 
         // Show baby info when widget is wide enough and not hidden
         val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)

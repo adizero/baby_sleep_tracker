@@ -28,15 +28,15 @@
             android:shadowDy="1"
             android:shadowRadius="3" />
 
-        <TextView
-            android:id="@+id/widget_elapsed_text"
+        <Chronometer
+            android:id="@+id/widget_elapsed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=""
             android:textSize="16sp"
             android:textColor="#CCFFFFFF"
             android:layout_marginTop="2dp"
-            android:fontFamily="sans-serif-medium" />
+            android:fontFamily="sans-serif-medium"
+            android:visibility="gone" />
 
     </LinearLayout>
 
