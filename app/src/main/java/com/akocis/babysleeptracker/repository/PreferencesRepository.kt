@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.akocis.babysleeptracker.model.FeedSide
 import com.akocis.babysleeptracker.model.TrackingState
+import com.akocis.babysleeptracker.widget.StatusWidgetProvider
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -11,6 +12,7 @@ import java.time.ZoneId
 
 class PreferencesRepository(context: Context) {
 
+    private val appContext = context.applicationContext
     private val prefs = context.getSharedPreferences("baby_sleep_prefs", Context.MODE_PRIVATE)
 
     companion object {
@@ -61,6 +63,7 @@ class PreferencesRepository(context: Context) {
         private const val KEY_TELEMETRY_ENABLED = "telemetry_enabled"
         private const val KEY_USE_CELSIUS = "use_celsius"
         private const val KEY_USE_HPA = "use_hpa"
+        private const val KEY_WIDGET_LAYOUT = "widget_layout"
     }
 
     var fileUri: Uri?
@@ -121,6 +124,7 @@ class PreferencesRepository(context: Context) {
                     .apply()
             }
         }
+        StatusWidgetProvider.updateAllWidgets(appContext)
     }
 
     fun loadTrackingState(): TrackingState {
@@ -322,6 +326,11 @@ class PreferencesRepository(context: Context) {
     var useHpa: Boolean
         get() = prefs.getBoolean(KEY_USE_HPA, true)
         set(value) = prefs.edit().putBoolean(KEY_USE_HPA, value).apply()
+
+    // Widget layout: "baby_left" (default), "baby_right", "status_only"
+    var widgetLayout: String
+        get() = prefs.getString(KEY_WIDGET_LAYOUT, "baby_left") ?: "baby_left"
+        set(value) { prefs.edit().putString(KEY_WIDGET_LAYOUT, value).apply() }
 
     fun clearDropbox() {
         prefs.edit()

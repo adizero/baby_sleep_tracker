@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.provider.OpenableColumns
 import android.provider.Settings
 import androidx.compose.foundation.clickable
@@ -778,6 +779,43 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Night starts at ${String.format("%02d:00", dayEndHour)}")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Widget
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Widget",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Layout:", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    var widgetLayout by remember { mutableStateOf(prefsRepository.widgetLayout) }
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val options = listOf("baby_left" to "Name | Status", "baby_right" to "Status | Name", "status_only" to "Status only")
+                        options.forEachIndexed { index, (value, label) ->
+                            SegmentedButton(
+                                selected = widgetLayout == value,
+                                onClick = {
+                                    widgetLayout = value
+                                    prefsRepository.widgetLayout = value
+                                    com.akocis.babysleeptracker.widget.StatusWidgetProvider.updateAllWidgets(context)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
